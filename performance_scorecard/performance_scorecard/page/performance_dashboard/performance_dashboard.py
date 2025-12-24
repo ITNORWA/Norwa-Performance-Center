@@ -6,41 +6,63 @@ def get_dashboard_data():
 	employee = frappe.db.get_value("Employee", {"user_id": user}, "name")
 	
 	data = {
-		"overall_score": 0,
-		"kpa_scores": {}
+		"objectives": [],
+		"key_results": [],
+		"needs_attention": [],
+		"tasks": [],
+		"kpis_needing_update": [],
+		"recent_updates": []
 	}
 
 	if employee:
-		# Get latest scorecard
-		scorecard = frappe.db.get_value("Performance Scorecard", {"employee": employee, "status": "Approved"}, "name", order_by="end_date desc")
-		if scorecard:
-			doc = frappe.get_doc("Performance Scorecard", scorecard)
-			data["overall_score"] = doc.overall_score
-			
-			# Calculate KPA scores for chart
-			# This logic should ideally be stored in the doc or calculated here
-			# For now, let's just aggregate items again or store KPA scores in a child table or separate field
-			# Re-calculating for display
-			kpa_scores = {}
-			kpa_counts = {}
-			
-			for item in doc.items:
-				if item.kpa:
-					kpa_name = frappe.get_value("KPA Master", item.kpa, "kpa_name")
-					if kpa_name not in kpa_scores:
-						kpa_scores[kpa_name] = 0
-						kpa_counts[kpa_name] = 0
-					
-					# Simplified KPA score aggregation for dashboard
-					# Real logic is in calculate_score but we didn't save KPA scores separately
-					# Let's just average item scores for now for visualization
-					kpa_scores[kpa_name] += item.score or 0
-					kpa_counts[kpa_name] += 1
-			
-			for kpa in kpa_scores:
-				if kpa_counts[kpa] > 0:
-					kpa_scores[kpa] = kpa_scores[kpa] / kpa_counts[kpa]
-			
-			data["kpa_scores"] = kpa_scores
+		# 1. My Key Objectives (Goals)
+		data["objectives"] = frappe.db.get_list("Goal", 
+			filters={"employee": employee, "status": "Active"},
+			fields=["name", "goal_name", "status"]
+		)
+
+		# 2. My Key Results (KRAs)
+		# Fetch KRAs linked to employee's goals
+		goals = [g.name for g in data["objectives"]]
+		if goals:
+			data["key_results"] = frappe.db.get_list("KRA",
+				filters={"goal": ["in", goals]},
+				fields=["name", "kra_name", "weightage"]
+			)
+
+		# 3. Needs Attention (Overdue/Underperforming KPIs)
+		# Fetch latest scorecard items where score is low (e.g. < 50%)
+		# For simplicity, let's fetch items from the latest active scorecard
+		latest_scorecard = frappe.db.get_value("Performance Scorecard", 
+			{"employee": employee, "docstatus": 0}, "name", order_by="creation desc")
+		
+		if latest_scorecard:
+			scorecard_doc = frappe.get_doc("Performance Scorecard", latest_scorecard)
+			for item in scorecard_doc.items:
+				if item.score and item.score < 50:
+					data["needs_attention"].append({
+						"kpi": item.kpi,
+						"score": item.score,
+						"target": item.target,
+						"actual": item.actual
+					})
+
+		# 4. My Tasks (Pending Updates)
+		data["tasks"] = frappe.db.get_list("Performance Update",
+			filters={"owner": user, "status": "Draft"},
+			fields=["name", "kpi", "status", "modified"]
+		)
+
+		# 5. KPIs Needing Update
+		# TODO: Logic to check which KPIs haven't been updated in the current period
+		# For now, return empty or mock
+		
+		# 6. Recent KPI Updates
+		data["recent_updates"] = frappe.db.get_list("Performance Update",
+			filters={"owner": user},
+			fields=["kpi", "actual_value", "modified"],
+			order_by="modified desc",
+			limit=5
+		)
 
 	return data

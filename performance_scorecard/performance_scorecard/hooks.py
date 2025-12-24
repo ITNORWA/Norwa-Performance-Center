@@ -9,7 +9,7 @@ app_license = "MIT"
 # ------------------
 
 # include js, css files in header of desk.html
-# app_include_css = "/assets/performance_scorecard/css/performance_scorecard.css"
+app_include_css = "/assets/performance_scorecard/css/performance_dashboard.css"
 # app_include_js = "/assets/performance_scorecard/js/performance_scorecard.js"
 
 # DocTypes
