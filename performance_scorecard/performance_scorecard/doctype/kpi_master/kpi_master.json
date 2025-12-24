@@ -12,7 +12,12 @@
         "column_break_1",
         "default_threshold_green",
         "default_threshold_yellow",
-        "description"
+        "description",
+        "section_break_1",
+        "baseline_value",
+        "formula",
+        "data_source",
+        "frequency"
     ],
     "fields": [
         {
@@ -54,6 +59,32 @@
             "fieldname": "description",
             "fieldtype": "Small Text",
             "label": "Description"
+        },
+        {
+            "fieldname": "section_break_1",
+            "fieldtype": "Section Break"
+        },
+        {
+            "fieldname": "baseline_value",
+            "fieldtype": "Float",
+            "label": "Baseline Value"
+        },
+        {
+            "fieldname": "formula",
+            "fieldtype": "Small Text",
+            "label": "Calculation Formula"
+        },
+        {
+            "fieldname": "data_source",
+            "fieldtype": "Select",
+            "label": "Data Source",
+            "options": "Manual\nAuto"
+        },
+        {
+            "fieldname": "frequency",
+            "fieldtype": "Select",
+            "label": "Measurement Frequency",
+            "options": "Daily\nWeekly\nMonthly\nQuarterly"
         }
     ],
     "index_web_pages_for_search": 1,

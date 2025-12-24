@@ -9,7 +9,9 @@
         "kra_name",
         "goal",
         "weightage",
-        "priority"
+        "priority",
+        "description",
+        "comments"
     ],
     "fields": [
         {
@@ -23,7 +25,7 @@
         {
             "fieldname": "goal",
             "fieldtype": "Link",
-            "label": "Goal",
+            "label": "Parent Goal",
             "options": "Goal",
             "reqd": 1
         },
@@ -38,6 +40,16 @@
             "label": "Priority",
             "options": "Low\nMedium\nHigh",
             "default": "Medium"
+        },
+        {
+            "fieldname": "description",
+            "fieldtype": "Small Text",
+            "label": "Description"
+        },
+        {
+            "fieldname": "comments",
+            "fieldtype": "Text Editor",
+            "label": "Comments"
         }
     ],
     "index_web_pages_for_search": 1,

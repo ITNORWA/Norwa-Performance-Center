@@ -7,6 +7,7 @@
     "engine": "InnoDB",
     "field_order": [
         "goal_name",
+        "parent_kpa",
         "parent_goal",
         "weightage",
         "column_break_1",
@@ -17,7 +18,8 @@
         "start_date",
         "end_date",
         "column_break_2",
-        "status"
+        "status",
+        "success_criteria"
     ],
     "fields": [
         {
@@ -27,6 +29,12 @@
             "label": "Goal Name",
             "reqd": 1,
             "unique": 1
+        },
+        {
+            "fieldname": "parent_kpa",
+            "fieldtype": "Link",
+            "label": "Parent KPA",
+            "options": "KPA Master"
         },
         {
             "fieldname": "parent_goal",
@@ -89,6 +97,11 @@
             "label": "Status",
             "options": "Draft\nActive\nCompleted\nArchived",
             "default": "Draft"
+        },
+        {
+            "fieldname": "success_criteria",
+            "fieldtype": "Small Text",
+            "label": "Success Criteria"
         }
     ],
     "index_web_pages_for_search": 1,
