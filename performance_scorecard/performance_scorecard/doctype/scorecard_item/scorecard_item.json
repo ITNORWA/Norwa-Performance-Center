@@ -1,0 +1,88 @@
+{
+    "actions": [],
+    "creation": "2024-05-22 10:00:00.000000",
+    "doctype": "DocType",
+    "editable_grid": 1,
+    "engine": "InnoDB",
+    "field_order": [
+        "kpa",
+        "goal",
+        "kra",
+        "kpi",
+        "weightage",
+        "target",
+        "actual",
+        "score"
+    ],
+    "fields": [
+        {
+            "fieldname": "kpa",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "label": "KPA",
+            "options": "KPA Master",
+            "reqd": 1
+        },
+        {
+            "fieldname": "goal",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "label": "Goal",
+            "options": "Goal",
+            "reqd": 1
+        },
+        {
+            "fieldname": "kra",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "label": "KRA",
+            "options": "KRA",
+            "reqd": 1
+        },
+        {
+            "fieldname": "kpi",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "label": "KPI",
+            "options": "KPI Master",
+            "reqd": 1
+        },
+        {
+            "fieldname": "weightage",
+            "fieldtype": "Percent",
+            "in_list_view": 1,
+            "label": "Weightage"
+        },
+        {
+            "fieldname": "target",
+            "fieldtype": "Float",
+            "in_list_view": 1,
+            "label": "Target"
+        },
+        {
+            "fieldname": "actual",
+            "fieldtype": "Float",
+            "in_list_view": 1,
+            "label": "Actual"
+        },
+        {
+            "fieldname": "score",
+            "fieldtype": "Float",
+            "in_list_view": 1,
+            "label": "Score",
+            "read_only": 1
+        }
+    ],
+    "index_web_pages_for_search": 1,
+    "istable": 1,
+    "links": [],
+    "modified": "2024-05-22 10:00:00.000000",
+    "modified_by": "Administrator",
+    "module": "Performance Scorecard",
+    "name": "Scorecard Item",
+    "owner": "Administrator",
+    "permissions": [],
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "states": []
+}
