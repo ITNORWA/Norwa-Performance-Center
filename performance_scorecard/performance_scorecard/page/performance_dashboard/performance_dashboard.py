@@ -6,6 +6,9 @@ def get_dashboard_data():
 	employee = frappe.db.get_value("Employee", {"user_id": user}, "name")
 	
 	data = {
+		"company": frappe.defaults.get_user_default("Company") or frappe.db.get_single_value("Global Defaults", "default_company"),
+		"fullname": frappe.utils.get_fullname(user),
+		"designation": frappe.db.get_value("Employee", {"user_id": user}, "designation") or "User",
 		"objectives": [],
 		"key_results": [],
 		"needs_attention": [],

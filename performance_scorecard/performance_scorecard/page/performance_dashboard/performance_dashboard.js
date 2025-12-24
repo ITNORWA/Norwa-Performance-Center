@@ -1,40 +1,40 @@
 frappe.pages['performance-dashboard'].on_page_load = function (wrapper) {
-    var page = frappe.ui.make_app_page({
-        parent: wrapper,
-        title: 'Performance Dashboard',
-        single_column: true
-    });
+	var page = frappe.ui.make_app_page({
+		parent: wrapper,
+		title: 'Performance Dashboard',
+		single_column: true
+	});
 
-    page.set_primary_action('Refresh', function () {
-        load_dashboard(page);
-    });
+	page.set_primary_action('Refresh', function () {
+		load_dashboard(page);
+	});
 
-    load_dashboard(page);
+	load_dashboard(page);
 }
 
 function load_dashboard(page) {
-    $(page.body).empty();
-    $(page.body).append('<div class="dashboard-content">Loading...</div>');
+	$(page.body).empty();
+	$(page.body).append('<div class="dashboard-content">Loading...</div>');
 
-    frappe.call({
-        method: "performance_scorecard.performance_scorecard.page.performance_dashboard.performance_dashboard.get_dashboard_data",
-        callback: function (r) {
-            if (r.message) {
-                render_dashboard(page, r.message);
-            }
-        }
-    });
+	frappe.call({
+		method: "performance_scorecard.performance_scorecard.page.performance_dashboard.performance_dashboard.get_dashboard_data",
+		callback: function (r) {
+			if (r.message) {
+				render_dashboard(page, r.message);
+			}
+		}
+	});
 }
 
 function render_dashboard(page, data) {
-    $(page.body).empty();
+	$(page.body).empty();
 
-    let html = `
+	let html = `
 	<div class="dashboard-container">
 		<!-- Sidebar -->
 		<div class="dashboard-sidebar">
 			<div class="sidebar-header">
-				<h3 style="color:white; margin:0;">Pula Power</h3>
+				<h3 style="color:white; margin:0;">${data.company}</h3>
 			</div>
 			<ul class="sidebar-menu">
 				<li class="active"><i class="fa fa-home"></i> Home</li>
@@ -48,8 +48,8 @@ function render_dashboard(page, data) {
 			<div class="user-profile">
 				<div class="user-avatar"></div>
 				<div>
-					<div style="font-weight:bold; font-size:12px;">Pula Power Admin</div>
-					<div style="font-size:10px; color:#a0aec0;">Administrator</div>
+					<div style="font-weight:bold; font-size:12px;">${data.fullname}</div>
+					<div style="font-size:10px; color:#a0aec0;">${data.designation}</div>
 				</div>
 			</div>
 		</div>
@@ -57,7 +57,7 @@ function render_dashboard(page, data) {
 		<!-- Main Content -->
 		<div class="dashboard-main">
 			<div class="dashboard-header">
-				<div class="page-title">Pula Power</div>
+				<div class="page-title">${data.company}</div>
 				<div>
 					<i class="fa fa-bell" style="font-size:18px; color:#718096; margin-right:15px;"></i>
 					<i class="fa fa-user-circle" style="font-size:24px; color:#e53e3e;"></i>
@@ -70,8 +70,8 @@ function render_dashboard(page, data) {
 					<div class="card-header blue">MY KEY OBJECTIVES</div>
 					<div class="card-content">
 						${data.objectives.length ?
-            data.objectives.map(o => `<div class="list-item">${o.goal_name} <span class="badge badge-green">${o.status}</span></div>`).join('') :
-            '<div class="empty-state">No key objectives assigned.</div>'}
+			data.objectives.map(o => `<div class="list-item">${o.goal_name} <span class="badge badge-green">${o.status}</span></div>`).join('') :
+			'<div class="empty-state">No key objectives assigned.</div>'}
 					</div>
 				</div>
 
@@ -80,8 +80,8 @@ function render_dashboard(page, data) {
 					<div class="card-header light-blue">MY KEY RESULTS</div>
 					<div class="card-content">
 						${data.key_results.length ?
-            data.key_results.map(k => `<div class="list-item">${k.kra_name}</div>`).join('') :
-            '<div class="empty-state">No key results tracked.</div>'}
+			data.key_results.map(k => `<div class="list-item">${k.kra_name}</div>`).join('') :
+			'<div class="empty-state">No key results tracked.</div>'}
 					</div>
 				</div>
 
@@ -90,8 +90,8 @@ function render_dashboard(page, data) {
 					<div class="card-header red">NEEDS ATTENTION (OVERDUE)</div>
 					<div class="card-content">
 						${data.needs_attention.length ?
-            data.needs_attention.map(i => `<div class="list-item">${i.kpi}: ${i.actual}/${i.target}</div>`).join('') :
-            '<div class="empty-state">Nothing seems overdue right now.</div>'}
+			data.needs_attention.map(i => `<div class="list-item">${i.kpi}: ${i.actual}/${i.target}</div>`).join('') :
+			'<div class="empty-state">Nothing seems overdue right now.</div>'}
 					</div>
 				</div>
 
@@ -100,8 +100,8 @@ function render_dashboard(page, data) {
 					<div class="card-header cyan">MY TASKS</div>
 					<div class="card-content">
 						${data.tasks.length ?
-            data.tasks.map(t => `<div class="list-item">Update ${t.kpi} <span class="badge badge-yellow">${t.status}</span></div>`).join('') :
-            '<div class="empty-state">No open tasks assigned.</div>'}
+			data.tasks.map(t => `<div class="list-item">Update ${t.kpi} <span class="badge badge-yellow">${t.status}</span></div>`).join('') :
+			'<div class="empty-state">No open tasks assigned.</div>'}
 					</div>
 				</div>
 
@@ -110,8 +110,8 @@ function render_dashboard(page, data) {
 					<div class="card-header yellow">KPIS NEEDING UPDATE</div>
 					<div class="card-content">
 						${data.kpis_needing_update.length ?
-            data.kpis_needing_update.map(k => `<div>${k.name}</div>`).join('') :
-            '<div class="empty-state">All your KPIs are up-to-date.</div>'}
+			data.kpis_needing_update.map(k => `<div>${k.name}</div>`).join('') :
+			'<div class="empty-state">All your KPIs are up-to-date.</div>'}
 					</div>
 				</div>
 
@@ -120,8 +120,8 @@ function render_dashboard(page, data) {
 					<div class="card-header blue">RECENT KPI UPDATES</div>
 					<div class="card-content">
 						${data.recent_updates.length ?
-            data.recent_updates.map(u => `<div class="list-item">${u.kpi}: ${u.actual_value}</div>`).join('') :
-            '<div class="empty-state">No recent updates found for your KPIs.</div>'}
+			data.recent_updates.map(u => `<div class="list-item">${u.kpi}: ${u.actual_value}</div>`).join('') :
+			'<div class="empty-state">No recent updates found for your KPIs.</div>'}
 					</div>
 				</div>
 			</div>
@@ -129,5 +129,5 @@ function render_dashboard(page, data) {
 	</div>
 	`;
 
-    $(page.body).append(html);
+	$(page.body).append(html);
 }
