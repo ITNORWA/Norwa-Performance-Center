@@ -57,71 +57,77 @@ function render_dashboard(page, data) {
 		<!-- Main Content -->
 		<div class="dashboard-main">
 			<div class="dashboard-header">
-				<div class="page-title">${data.company}</div>
+				<div class="page-title">Performance Overview</div>
 				<div>
 					<i class="fa fa-bell" style="font-size:18px; color:#718096; margin-right:15px;"></i>
 					<i class="fa fa-user-circle" style="font-size:24px; color:#e53e3e;"></i>
 				</div>
 			</div>
 
-			<div class="grid-container">
-				<!-- Card 1: My Key Objectives -->
-				<div class="dashboard-card">
-					<div class="card-header blue">MY KEY OBJECTIVES</div>
-					<div class="card-content">
-						${data.objectives.length ?
-			data.objectives.map(o => `<div class="list-item">${o.goal_name} <span class="badge badge-green">${o.status}</span></div>`).join('') :
-			'<div class="empty-state">No key objectives assigned.</div>'}
+			<!-- Top Section: 3 Pie Charts -->
+			<div class="row" style="margin-bottom: 30px;">
+				<div class="col-md-4">
+					<div class="dashboard-card">
+						<div class="card-header blue">Company Performance</div>
+						<div id="chart-company" style="height: 200px;"></div>
 					</div>
 				</div>
-
-				<!-- Card 2: My Key Results -->
-				<div class="dashboard-card">
-					<div class="card-header light-blue">MY KEY RESULTS</div>
-					<div class="card-content">
-						${data.key_results.length ?
-			data.key_results.map(k => `<div class="list-item">${k.kra_name}</div>`).join('') :
-			'<div class="empty-state">No key results tracked.</div>'}
+				<div class="col-md-4">
+					<div class="dashboard-card">
+						<div class="card-header light-blue">Department Performance</div>
+						<div id="chart-department" style="height: 200px;"></div>
 					</div>
 				</div>
-
-				<!-- Card 3: Needs Attention -->
-				<div class="dashboard-card">
-					<div class="card-header red">NEEDS ATTENTION (OVERDUE)</div>
-					<div class="card-content">
-						${data.needs_attention.length ?
-			data.needs_attention.map(i => `<div class="list-item">${i.kpi}: ${i.actual}/${i.target}</div>`).join('') :
-			'<div class="empty-state">Nothing seems overdue right now.</div>'}
+				<div class="col-md-4">
+					<div class="dashboard-card">
+						<div class="card-header cyan">Individual Performance</div>
+						<div id="chart-individual" style="height: 200px;"></div>
 					</div>
 				</div>
+			</div>
 
-				<!-- Card 4: My Tasks -->
-				<div class="dashboard-card">
-					<div class="card-header cyan">MY TASKS</div>
-					<div class="card-content">
-						${data.tasks.length ?
-			data.tasks.map(t => `<div class="list-item">Update ${t.kpi} <span class="badge badge-yellow">${t.status}</span></div>`).join('') :
-			'<div class="empty-state">No open tasks assigned.</div>'}
+			<!-- Middle Section: Attention Required -->
+			<div class="row" style="margin-bottom: 30px;">
+				<div class="col-md-6">
+					<div class="dashboard-card">
+						<div class="card-header red">Department KRAs Needing Attention</div>
+						<div class="card-content">
+							${render_attention_table(data.dept_kras_attention)}
+						</div>
 					</div>
 				</div>
-
-				<!-- Card 5: KPIs Needing Update -->
-				<div class="dashboard-card">
-					<div class="card-header yellow">KPIS NEEDING UPDATE</div>
-					<div class="card-content">
-						${data.kpis_needing_update.length ?
-			data.kpis_needing_update.map(k => `<div>${k.name}</div>`).join('') :
-			'<div class="empty-state">All your KPIs are up-to-date.</div>'}
+				<div class="col-md-6">
+					<div class="dashboard-card">
+						<div class="card-header red">My KRAs Needing Attention</div>
+						<div class="card-content">
+							${render_attention_table(data.my_kras_attention)}
+						</div>
 					</div>
 				</div>
+			</div>
 
-				<!-- Card 6: Recent KPI Updates -->
-				<div class="dashboard-card">
-					<div class="card-header blue">RECENT KPI UPDATES</div>
-					<div class="card-content">
-						${data.recent_updates.length ?
-			data.recent_updates.map(u => `<div class="list-item">${u.kpi}: ${u.actual_value}</div>`).join('') :
-			'<div class="empty-state">No recent updates found for your KPIs.</div>'}
+			<!-- Bottom Section: Goals & Achievements -->
+			<div class="row">
+				<div class="col-md-6">
+					<div class="dashboard-card">
+						<div class="card-header blue">This Week's Departmental Goals</div>
+						<div class="card-content">
+							${render_goals_table(data.weekly_goals)}
+						</div>
+					</div>
+				</div>
+				<div class="col-md-6">
+					<div class="dashboard-card" style="margin-bottom: 20px;">
+						<div class="card-header green">This Week's Achievements</div>
+						<div class="card-content">
+							${render_achievements_table(data.weekly_achievements)}
+						</div>
+					</div>
+					<div class="dashboard-card">
+						<div class="card-header green">Quarterly Achievements</div>
+						<div class="card-content">
+							${render_achievements_table(data.quarterly_achievements)}
+						</div>
 					</div>
 				</div>
 			</div>
@@ -130,4 +136,86 @@ function render_dashboard(page, data) {
 	`;
 
 	$(page.body).append(html);
+
+	// Render Charts
+	setTimeout(() => {
+		render_pie_chart("#chart-company", data.company_performance);
+		render_pie_chart("#chart-department", data.department_performance);
+		render_pie_chart("#chart-individual", data.individual_performance);
+	}, 500);
+}
+
+function render_pie_chart(selector, data) {
+	if (!data || data.length === 0) {
+		$(selector).html('<div class="empty-state">No data available</div>');
+		return;
+	}
+
+	new frappe.Chart(selector, {
+		data: {
+			labels: data.map(d => d.label),
+			datasets: [{ values: data.map(d => d.value) }]
+		},
+		type: 'donut',
+		height: 200,
+		colors: data.map(d => d.color)
+	});
+}
+
+function render_attention_table(items) {
+	if (!items || items.length === 0) return '<div class="empty-state">No items needing attention.</div>';
+
+	let rows = items.map(item => `
+		<tr>
+			<td>${item.name}</td>
+			<td><span class="badge badge-${item.status === 'Critical' ? 'red' : 'yellow'}">${item.status}</span></td>
+			<td>${item.progress}%</td>
+			<td>${item.owner}</td>
+		</tr>
+	`).join('');
+
+	return `
+		<table class="table table-sm">
+			<thead><tr><th>KRA</th><th>Status</th><th>%</th><th>Owner</th></tr></thead>
+			<tbody>${rows}</tbody>
+		</table>
+	`;
+}
+
+function render_goals_table(items) {
+	if (!items || items.length === 0) return '<div class="empty-state">No goals for this week.</div>';
+
+	let rows = items.map(item => `
+		<tr>
+			<td>${item.name}</td>
+			<td>${item.assigned_to}</td>
+			<td><span class="badge badge-yellow">${item.status}</span></td>
+		</tr>
+	`).join('');
+
+	return `
+		<table class="table table-sm">
+			<thead><tr><th>Goal</th><th>Assigned To</th><th>Status</th></tr></thead>
+			<tbody>${rows}</tbody>
+		</table>
+	`;
+}
+
+function render_achievements_table(items) {
+	if (!items || items.length === 0) return '<div class="empty-state">No achievements yet.</div>';
+
+	let rows = items.map(item => `
+		<tr>
+			<td>${item.name}</td>
+			<td>${item.achieved_by}</td>
+			<td>${item.score}</td>
+		</tr>
+	`).join('');
+
+	return `
+		<table class="table table-sm">
+			<thead><tr><th>Goal</th><th>By</th><th>Score</th></tr></thead>
+			<tbody>${rows}</tbody>
+		</table>
+	`;
 }

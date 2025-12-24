@@ -1,0 +1,196 @@
+.strategy-map-container {
+    padding: 20px;
+    overflow-x: auto;
+    text-align: center;
+}
+
+.org-chart {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 40px;
+}
+
+.node-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    margin: 0 10px;
+}
+
+.node {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 15px;
+    width: 200px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    z-index: 2;
+    position: relative;
+    transition: transform 0.2s;
+}
+
+.node:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.node.company {
+    border-top: 4px solid #4299e1;
+}
+
+.node.department {
+    border-top: 4px solid #ed8936;
+}
+
+.node.individual {
+    border-top: 4px solid #48bb78;
+}
+
+.node-title {
+    font-weight: 600;
+    font-size: 14px;
+    color: #2d3748;
+    margin-bottom: 5px;
+}
+
+.strategy-map-container {
+    padding: 20px;
+    overflow-x: auto;
+    text-align: center;
+}
+
+.org-chart {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 40px;
+}
+
+.node-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    margin: 0 10px;
+}
+
+.node {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 15px;
+    width: 200px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    z-index: 2;
+    position: relative;
+    transition: transform 0.2s;
+}
+
+.node:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.node.company {
+    border-top: 4px solid #4299e1;
+}
+
+.node.department {
+    border-top: 4px solid #ed8936;
+}
+
+.node.individual {
+    border-top: 4px solid #48bb78;
+}
+
+.node-title {
+    font-weight: 600;
+    font-size: 14px;
+    color: #2d3748;
+    margin-bottom: 5px;
+}
+
+.node-meta {
+    font-size: 11px;
+    color: #a0aec0;
+    text-transform: uppercase;
+}
+
+.children {
+    display: flex;
+    padding-top: 20px;
+    position: relative;
+    justify-content: center;
+}
+
+/* Vertical line from parent down to children */
+.children::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    border-left: 2px solid #cbd5e0;
+    width: 0;
+    height: 20px;
+}
+
+.node-wrapper {
+    position: relative;
+    padding: 20px 10px 0 10px;
+    text-align: center;
+}
+
+/* Vertical line up from child */
+.node-wrapper::before,
+.node-wrapper::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 50%;
+    border-top: 2px solid #cbd5e0;
+    width: 50%;
+    height: 20px;
+}
+
+.node-wrapper::after {
+    right: auto;
+    left: 50%;
+    border-left: 2px solid #cbd5e0;
+}
+
+/* Remove left connector from first child */
+.node-wrapper:first-child::before {
+    border: 0;
+    border-radius: 0;
+}
+
+/* Remove right connector from last child */
+.node-wrapper:last-child::after {
+    border: 0;
+    border-radius: 0;
+    border-left: 2px solid #cbd5e0;
+    /* Keep the vertical line */
+}
+
+/* Fix for single child */
+.node-wrapper:only-child::after,
+.node-wrapper:only-child::before {
+    display: none;
+}
+
+.node-wrapper:only-child {
+    padding-top: 0;
+}
+
+/* Vertical line for single child */
+.node-wrapper:only-child>.node::before {
+    content: '';
+    position: absolute;
+    top: -20px;
+    left: 50%;
+    border-left: 2px solid #cbd5e0;
+    width: 0;
+    height: 20px;
+}

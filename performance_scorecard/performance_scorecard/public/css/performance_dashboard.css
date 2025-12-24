@@ -8,7 +8,8 @@
 /* Sidebar */
 .dashboard-sidebar {
     width: 250px;
-    background-color: #1a233a; /* Dark blue from image */
+    background-color: #1a233a;
+    /* Dark blue from image */
     color: #fff;
     display: flex;
     flex-direction: column;
@@ -17,7 +18,7 @@
 
 .sidebar-header {
     padding: 0 20px 20px;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .sidebar-menu {
@@ -36,10 +37,12 @@
     color: #a0aec0;
 }
 
-.sidebar-menu li:hover, .sidebar-menu li.active {
-    background-color: rgba(255,255,255,0.1);
+.sidebar-menu li:hover,
+.sidebar-menu li.active {
+    background-color: rgba(255, 255, 255, 0.1);
     color: #fff;
-    border-left: 3px solid #e53e3e; /* Red accent */
+    border-left: 3px solid #e53e3e;
+    /* Red accent */
 }
 
 .user-profile {
@@ -48,7 +51,7 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    border-top: 1px solid rgba(255,255,255,0.1);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .user-avatar {
@@ -88,7 +91,7 @@
     background: #fff;
     border-radius: 8px;
     padding: 20px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
     min-height: 200px;
     display: flex;
     flex-direction: column;
@@ -102,11 +105,25 @@
     margin-bottom: 15px;
 }
 
-.card-header.blue { color: #4299e1; }
-.card-header.light-blue { color: #63b3ed; }
-.card-header.red { color: #f56565; }
-.card-header.cyan { color: #38b2ac; }
-.card-header.yellow { color: #ecc94b; }
+.card-header.blue {
+    color: #4299e1;
+}
+
+.card-header.light-blue {
+    color: #63b3ed;
+}
+
+.card-header.red {
+    color: #f56565;
+}
+
+.card-header.cyan {
+    color: #38b2ac;
+}
+
+.card-header.yellow {
+    color: #ecc94b;
+}
 
 .card-content {
     flex: 1;
@@ -138,6 +155,42 @@
     font-weight: bold;
 }
 
-.badge-green { background: #c6f6d5; color: #22543d; }
-.badge-red { background: #fed7d7; color: #822727; }
-.badge-yellow { background: #fefcbf; color: #744210; }
+.card-header.green {
+    color: #48bb78;
+}
+
+.table {
+    width: 100%;
+    margin-bottom: 1rem;
+    color: #4a5568;
+}
+
+.table th,
+.table td {
+    padding: 0.75rem;
+    vertical-align: top;
+    border-top: 1px solid #edf2f7;
+}
+
+.table thead th {
+    vertical-align: bottom;
+    border-bottom: 2px solid #edf2f7;
+    font-size: 12px;
+    text-transform: uppercase;
+    color: #a0aec0;
+}
+
+.badge-green {
+    background: #c6f6d5;
+    color: #22543d;
+}
+
+.badge-red {
+    background: #fed7d7;
+    color: #822727;
+}
+
+.badge-yellow {
+    background: #fefcbf;
+    color: #744210;
+}
