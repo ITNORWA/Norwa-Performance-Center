@@ -1,0 +1,39 @@
+{
+ "cards": [
+  {
+   "card": "Total Scorecards"
+  },
+  {
+   "card": "Approved Scorecards"
+  },
+  {
+   "card": "Pending Review Scorecards"
+  }
+ ],
+ "charts": [
+  {
+   "chart": "Scorecards by Status",
+   "width": "Half"
+  },
+  {
+   "chart": "Scorecards by Department",
+   "width": "Half"
+  },
+  {
+   "chart": "Total Score by Department",
+   "width": "Full"
+  }
+ ],
+ "creation": "2024-01-01 10:00:00.000000",
+ "dashboard_name": "Performance",
+ "docstatus": 0,
+ "doctype": "Dashboard",
+ "idx": 0,
+ "is_default": 0,
+ "is_standard": 1,
+ "modified": "2024-01-01 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Performance Scorecard",
+ "name": "Performance",
+ "owner": "Administrator"
+}

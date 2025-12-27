@@ -1,0 +1,90 @@
+{
+ "charts": [],
+ "content": "[{\"id\":\"ps-shortcut\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Visit Performance Center\",\"col\":4}},{\"id\":\"ps-strategy-plans\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Strategy Plans\",\"col\":4}},{\"id\":\"ps-strategy-maps\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Strategy Maps\",\"col\":4}}]",
+ "creation": "2024-01-01 10:00:00",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "chart",
+ "idx": 0,
+ "is_hidden": 0,
+ "label": "Performance Center",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Dashboard",
+   "link_count": 0,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Visit Performance Center",
+   "link_count": 0,
+   "link_to": "performance-dashboard",
+   "link_type": "Page",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Strategy Plans",
+   "link_count": 0,
+   "link_to": "strategy-plans",
+   "link_type": "Page",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "dependencies": "",
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Strategy Maps",
+   "link_count": 0,
+   "link_to": "strategy-maps",
+   "link_type": "Page",
+   "onboard": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2025-12-27 10:10:37.860330",
+ "modified_by": "Administrator",
+ "module": "Performance Scorecard",
+ "name": "Performance Center",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "roles": [],
+ "sequence_id": 1.0,
+ "shortcuts": [
+  {
+   "doc_view": "",
+   "label": "Visit Performance Center",
+   "link_to": "performance-dashboard",
+   "type": "Page"
+  },
+  {
+   "doc_view": "",
+   "label": "Strategy Plans",
+   "link_to": "strategy-plans",
+   "type": "Page"
+  },
+  {
+   "doc_view": "",
+   "label": "Strategy Maps",
+   "link_to": "strategy-maps",
+   "type": "Page"
+  }
+ ],
+ "title": "Performance Center"
+}
