@@ -8,6 +8,7 @@
     "field_order": [
         "goal_name",
         "parent_goal",
+        "parent_kra",
         "weightage",
         "column_break_1",
         "owner_type",
@@ -33,6 +34,12 @@
             "fieldtype": "Link",
             "label": "Parent Goal",
             "options": "Goal"
+        },
+        {
+            "fieldname": "parent_kra",
+            "fieldtype": "Link",
+            "label": "Parent KRA",
+            "options": "KRA"
         },
         {
             "fieldname": "weightage",
@@ -110,6 +117,25 @@
             "role": "System Manager",
             "share": 1,
             "write": 1
+        },
+        {
+            "create": 1,
+            "read": 1,
+            "write": 1,
+            "role": "Employee",
+            "if_owner": 1
+        },
+        {
+            "create": 1,
+            "read": 1,
+            "write": 1,
+            "role": "HR Manager"
+        },
+        {
+            "create": 1,
+            "read": 1,
+            "write": 1,
+            "role": "Department Manager"
         }
     ],
     "sort_field": "modified",

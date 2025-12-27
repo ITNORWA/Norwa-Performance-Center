@@ -75,6 +75,24 @@
             "role": "System Manager",
             "share": 1,
             "write": 1
+        },
+        {
+            "create": 1,
+            "read": 1,
+            "write": 1,
+            "role": "Employee"
+        },
+        {
+            "create": 1,
+            "read": 1,
+            "write": 1,
+            "role": "HR Manager"
+        },
+        {
+            "create": 1,
+            "read": 1,
+            "write": 1,
+            "role": "Department Manager"
         }
     ],
     "sort_field": "modified",
