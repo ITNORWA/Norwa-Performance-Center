@@ -18,6 +18,7 @@
         "start_date",
         "end_date",
         "column_break_2",
+        "progress",
         "status"
     ],
     "fields": [
@@ -89,6 +90,12 @@
         {
             "fieldname": "column_break_2",
             "fieldtype": "Column Break"
+        },
+        {
+            "fieldname": "progress",
+            "fieldtype": "Percent",
+            "label": "Progress",
+            "read_only": 1
         },
         {
             "fieldname": "status",
