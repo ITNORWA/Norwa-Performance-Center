@@ -1,16 +1,27 @@
 app_name = "performance_scorecard"
-app_title = "Performance Scorecard"
+app_title = "Performance Center"
 app_publisher = "Antigravity"
 app_description = "Performance Management App for ERPNext"
 app_email = "bot@example.com"
 app_license = "MIT"
 
+add_to_apps_screen = [
+	{
+		"name": "performance_scorecard",
+		"logo": "/assets/performance_scorecard/images/performance_scorecard_logo.jpg",
+		"title": "Performance Center",
+		"route": "/app/performance-dashboard",
+	}
+]
+
 # Includes in <head>
 # ------------------
 
 # include js, css files in header of desk.html
-app_include_css = "/assets/performance_scorecard/css/performance_dashboard.css"
-# app_include_js = "/assets/performance_scorecard/js/performance_scorecard.js"
+# app_include_css = "/assets/performance_scorecard/css/performance_scorecard.css"
+app_include_js = "/assets/performance_scorecard/js/desk_redirect.js"
+
+after_migrate = "performance_scorecard.cleanup.ensure_workspace_routes"
 
 # DocTypes
 # ------------------

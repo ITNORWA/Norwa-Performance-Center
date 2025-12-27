@@ -1,0 +1,81 @@
+{
+    "actions": [],
+    "autoname": "format:TGT-{kpi}-{period_start}",
+    "creation": "2024-05-22 10:00:00.000000",
+    "doctype": "DocType",
+    "editable_grid": 1,
+    "engine": "InnoDB",
+    "field_order": [
+        "kpi",
+        "period_start",
+        "period_end",
+        "target_value",
+        "threshold_green",
+        "threshold_yellow"
+    ],
+    "fields": [
+        {
+            "fieldname": "kpi",
+            "fieldtype": "Link",
+            "in_list_view": 1,
+            "label": "KPI",
+            "options": "KPI Master",
+            "reqd": 1
+        },
+        {
+            "fieldname": "period_start",
+            "fieldtype": "Date",
+            "in_list_view": 1,
+            "label": "Period Start",
+            "reqd": 1
+        },
+        {
+            "fieldname": "period_end",
+            "fieldtype": "Date",
+            "in_list_view": 1,
+            "label": "Period End",
+            "reqd": 1
+        },
+        {
+            "fieldname": "target_value",
+            "fieldtype": "Float",
+            "in_list_view": 1,
+            "label": "Target Value",
+            "reqd": 1
+        },
+        {
+            "fieldname": "threshold_green",
+            "fieldtype": "Float",
+            "label": "Green Threshold (>=)"
+        },
+        {
+            "fieldname": "threshold_yellow",
+            "fieldtype": "Float",
+            "label": "Yellow Threshold (>=)"
+        }
+    ],
+    "index_web_pages_for_search": 1,
+    "links": [],
+    "modified": "2024-05-22 10:00:00.000000",
+    "modified_by": "Administrator",
+    "module": "Performance Scorecard",
+    "name": "Target",
+    "owner": "Administrator",
+    "permissions": [
+        {
+            "create": 1,
+            "delete": 1,
+            "email": 1,
+            "export": 1,
+            "print": 1,
+            "read": 1,
+            "report": 1,
+            "role": "System Manager",
+            "share": 1,
+            "write": 1
+        }
+    ],
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "states": []
+}
