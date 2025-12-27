@@ -18,7 +18,10 @@ add_to_apps_screen = [
 # ------------------
 
 # include js, css files in header of desk.html
-# app_include_css = "/assets/performance_scorecard/css/performance_scorecard.css"
+app_include_css = [
+    "/assets/performance_scorecard/css/performance_dashboard.css",
+    "/assets/performance_scorecard/css/strategy_maps.css"
+]
 app_include_js = "/assets/performance_scorecard/js/desk_redirect.js"
 
 after_migrate = "performance_scorecard.cleanup.ensure_workspace_routes"

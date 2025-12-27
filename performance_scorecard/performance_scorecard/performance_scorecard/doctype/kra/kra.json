@@ -8,6 +8,7 @@
     "field_order": [
         "kra_name",
         "goal",
+        "parent_kra",
         "weightage",
         "priority",
         "progress"
@@ -27,6 +28,13 @@
             "label": "Goal",
             "options": "Goal",
             "reqd": 1
+        },
+        {
+            "fieldname": "parent_kra",
+            "fieldtype": "Link",
+            "label": "Parent KRA",
+            "options": "KRA",
+            "description": "Link to a Department KRA (if this is an Individual KRA)"
         },
         {
             "fieldname": "weightage",
