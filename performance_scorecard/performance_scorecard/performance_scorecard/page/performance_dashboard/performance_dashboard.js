@@ -185,32 +185,64 @@ function render_strategy_plans($container) {
 				</li>
 			</ul>
 		</div>
+		<div class="strategy-actions" style="margin-bottom: 15px; display: none;">
+			<button class="btn btn-primary btn-sm" data-action="add-goal">Add Goal</button>
+			<button class="btn btn-default btn-sm" data-action="add-kra">Add KRA</button>
+			<span class="dept-filter"></span>
+		</div>
 		<div class="strategy-content"></div>
 	`);
+
+	const $actions = $container.find(".strategy-actions");
+	const $deptFilter = $actions.find(".dept-filter");
+	const deptControl = frappe.ui.form.make_control({
+		df: { fieldname: "department", fieldtype: "Link", options: "Department", label: "Department" },
+		parent: $deptFilter,
+		render_input: true
+	});
+	deptControl.refresh();
 
 	$container.find(".nav-link").on("click", function (e) {
 		e.preventDefault();
 		$container.find(".nav-link").removeClass("active");
 		$(this).addClass("active");
-		load_strategy_data($container, $(this).data("level"));
+		const level = $(this).data("level");
+		update_strategy_actions($actions, level);
+		load_strategy_data($container, level, deptControl.get_value());
 	});
 
-	load_strategy_data($container, "Company");
+	update_strategy_actions($actions, "Company");
+	load_strategy_data($container, "Company", null);
+
+	$actions.find("[data-action='add-goal']").on("click", function () {
+		open_doctype_modal("Goal");
+	});
+	$actions.find("[data-action='add-kra']").on("click", function () {
+		open_doctype_modal("KRA");
+	});
+	deptControl.$input.on("change", function () {
+		const level = $container.find(".nav-link.active").data("level");
+		if (level === "Department") {
+			load_strategy_data($container, "Department", deptControl.get_value());
+		}
+	});
 }
 
-function load_strategy_data($container, level) {
+function load_strategy_data($container, level, department) {
 	const $content = $container.find(".strategy-content");
 	$content.html('<div class="text-center text-muted">Loading...</div>');
 
 	frappe.call({
 		method: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.get_strategy_data",
-		args: { level: level },
+		args: { level: level, department: department },
 		callback: function (r) {
 			if (r.message) {
 				const payload = r.message;
 				if (payload.meta && payload.meta.level === "Individual") {
-					render_personal_panel($container, payload.personal || { scorecards: [], updates: [] });
-					render_personal_table($content, payload.rows || []);
+					render_personal_panel($container, payload.personal || { scorecards: [], updates: [] }, payload.rollups || {});
+					render_personal_table($content, payload.rows || [], $container);
+				} else if (payload.meta && payload.meta.level === "Company" && payload.company) {
+					render_company_strategy($content, payload.company);
 				} else {
 					render_strategy_table($content, payload.goals || payload);
 				}
@@ -219,6 +251,218 @@ function load_strategy_data($container, level) {
 			}
 		}
 	});
+}
+
+function update_strategy_actions($actions, level) {
+	if (level === "Company" || level === "Department") {
+		$actions.show();
+		$actions.find("[data-action='add-goal']").text(level === "Company" ? "Add Company Goal" : "Add Department Goal");
+		$actions.find("[data-action='add-kra']").toggle(level === "Department");
+		$actions.find(".dept-filter").toggle(level === "Department");
+	} else {
+		$actions.hide();
+	}
+}
+
+function render_company_strategy($container, company) {
+	const kpas = company.kpas || [];
+	if (!kpas.length) {
+		$container.html('<div class="text-center text-muted">No company KPAs or goals found.</div>');
+		return;
+	}
+
+	const edit_icon = frappe.utils.icon("edit", "sm");
+	let html = `
+		<div class="personal-actions">
+			<button class="btn btn-primary btn-sm" data-action="new-company-kpa">Add KPA</button>
+			<button class="btn btn-primary btn-sm" data-action="new-company-goal">Add Goal</button>
+		</div>
+		<div class="table-responsive">
+			<table class="table table-bordered table-hover">
+				<thead class="thead-light">
+					<tr>
+						<th style="width: 16%">KPA</th>
+						<th style="width: 22%">Goal</th>
+						<th style="width: 10%">Goal Weight</th>
+						<th style="width: 12%">Avg Dept Weight</th>
+						<th style="width: 20%">Top Dept</th>
+						<th style="width: 20%">Bottom Dept</th>
+					</tr>
+				</thead>
+				<tbody>
+	`;
+
+	kpas.forEach(kpa => {
+		(kpa.goals || []).forEach(goal => {
+			const best = (goal.department_contributions || [])[0];
+			const worst = goal.worst_department;
+			html += `
+				<tr>
+					<td class="editable-cell" data-goal-id="${goal.goal_id}" data-field="kpa" data-value="${kpa.kpa || ''}">
+						<span class="cell-value">${kpa.kpa}</span>
+						<span class="edit-icon">${edit_icon}</span>
+					</td>
+					<td class="editable-cell" data-goal-id="${goal.goal_id}" data-field="goal_name" data-value="${goal.goal || ''}">
+						<span class="cell-value">${goal.goal}</span>
+						<span class="edit-icon">${edit_icon}</span>
+					</td>
+					<td>${goal.weightage || 0}%</td>
+					<td>${(goal.avg_dept_weightage || 0).toFixed(1)}%</td>
+					<td>
+						${best ? `<span class="dept-link" data-dept="${best.department}">${best.department}</span>
+						<span class="badge badge-green">${(best.average_score || 0).toFixed(1)}%</span>` : "-"}
+					</td>
+					<td>
+						${worst ? `<span class="dept-link" data-dept="${worst.department}">${worst.department}</span>
+						<span class="badge badge-red">${(worst.average_score || 0).toFixed(1)}%</span>` : "-"}
+					</td>
+				</tr>
+			`;
+		});
+	});
+
+	html += `</tbody></table></div>`;
+
+	html += `<div class="dashboard-card">
+		<div class="card-header blue">KPA & GOALS</div>
+		<div class="card-content">
+			<div class="table-responsive">
+				<table class="table table-sm kpa-goals-table">
+					<thead>
+						<tr>
+							<th style="width: 30%">KPA</th>
+							<th>Goal</th>
+							<th style="width: 16%">Contribution</th>
+							<th style="width: 16%">KPA Progress</th>
+						</tr>
+					</thead>
+					<tbody>
+						${kpas.map(kpa => `
+							${(kpa.goals || []).length ? kpa.goals.map(g => `
+								<tr>
+									<td><strong>${kpa.kpa}</strong></td>
+									<td>${g.goal}</td>
+									<td>${(g.weightage || 0).toFixed(1)}%</td>
+									<td><span class="badge badge-green">${(kpa.average_score || 0).toFixed(1)}%</span></td>
+								</tr>
+							`).join("") : `
+								<tr>
+									<td><strong>${kpa.kpa}</strong></td>
+									<td class="text-muted">No goals</td>
+									<td>0%</td>
+									<td><span class="badge badge-green">${(kpa.average_score || 0).toFixed(1)}%</span></td>
+								</tr>
+							`}
+						`).join("")}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>`;
+
+	$container.html(html);
+
+	$container.find("[data-action='new-company-kpa']").on("click", function () {
+		open_doctype_modal("KPA Master");
+	});
+	$container.find("[data-action='new-company-goal']").on("click", function () {
+		open_doctype_modal("Goal");
+	});
+
+	$container.find(".editable-cell").on("click", function () {
+		const $cell = $(this);
+		if ($cell.hasClass("editing")) {
+			return;
+		}
+		const goal_id = $cell.data("goal-id");
+		const field = $cell.data("field");
+		const current = $cell.data("value") || "";
+		if (!goal_id || !field) {
+			return;
+		}
+
+		$cell.addClass("editing");
+		const $wrapper = $("<div class='inline-editor'></div>");
+		$cell.find(".cell-value").hide();
+		$cell.append($wrapper);
+
+		const control = frappe.ui.form.make_control({
+			df: {
+				fieldtype: field === "kpa" ? "Link" : "Data",
+				fieldname: field,
+				options: field === "kpa" ? "KPA Master" : undefined
+			},
+			parent: $wrapper,
+			render_input: true
+		});
+		control.set_value(current);
+		control.refresh();
+		control.$input.focus();
+
+		const save_value = () => {
+			const value = control.get_value();
+			frappe.call({
+				method: "frappe.client.set_value",
+				args: {
+					doctype: "Goal",
+					name: goal_id,
+					fieldname: field,
+					value: value
+				},
+				callback: () => {
+					$cell.removeClass("editing");
+					$wrapper.remove();
+					$cell.find(".cell-value").text(value || "-").show();
+					$cell.data("value", value);
+					const $page = $container.closest(".dashboard-content-area");
+					load_strategy_data($page, "Company");
+				}
+			});
+		};
+
+		control.$input.on("blur", save_value);
+		control.$input.on("keydown", function (e) {
+			if (e.key === "Enter") {
+				e.preventDefault();
+				save_value();
+			}
+		});
+	});
+
+	$container.find(".dept-link").on("click", function () {
+		const dept = $(this).data("dept");
+		if (!dept) {
+			return;
+		}
+		const route = `/app/performance-scorecard?department=${encodeURIComponent(dept)}`;
+		open_route_modal("Department Scorecards", route);
+	});
+}
+
+function open_route_modal(title, url) {
+	const dialog = new frappe.ui.Dialog({
+		title: title,
+		size: "extra-large",
+		fields: [{ fieldname: "frame", fieldtype: "HTML" }]
+	});
+	dialog.get_field("frame").$wrapper.html(
+		`<iframe src="${url}" style="width: 100%; height: 70vh; border: 0;"></iframe>`
+	);
+	dialog.show();
+}
+
+function open_doctype_modal(doctype, name) {
+	const slug = frappe.router.slug(doctype);
+	const url = name ? `/app/${slug}/${encodeURIComponent(name)}` : `/app/${slug}/new-${slug}`;
+	const dialog = new frappe.ui.Dialog({
+		title: doctype,
+		size: "extra-large",
+		fields: [{ fieldname: "frame", fieldtype: "HTML" }]
+	});
+	dialog.get_field("frame").$wrapper.html(
+		`<iframe src="${url}" style="width: 100%; height: 70vh; border: 0;"></iframe>`
+	);
+	dialog.show();
 }
 
 function render_strategy_table($container, data) {
@@ -275,16 +519,21 @@ function render_strategy_table($container, data) {
 	});
 }
 
-function render_personal_panel($container, personal) {
+function render_personal_panel($container, personal, rollups) {
 	$container.find(".personal-actions").remove();
 	$container.find(".personal-summaries").remove();
+
+	const kpa_rows = (rollups.kpas || []).map(k => {
+		const avg = (k.average_score || 0).toFixed(1);
+		const badge = avg >= 80 ? "badge-green" : (avg >= 60 ? "badge-yellow" : "badge-red");
+		return `<div class="list-item"><span>${k.kpa}</span><span class="badge ${badge}">${avg}%</span></div>`;
+	}).join("");
 
 	let html = `
 		<div class="personal-actions">
 			<button class="btn btn-primary btn-sm" data-action="new-scorecard">Add Scorecard</button>
 			<button class="btn btn-primary btn-sm" data-action="new-goal">Add Goal</button>
 			<button class="btn btn-default btn-sm" data-action="new-kra">Add KRA</button>
-			<button class="btn btn-default btn-sm" data-action="new-kpa">Add KPA</button>
 			<button class="btn btn-default btn-sm" data-action="new-kpi">Add KPI</button>
 			<button class="btn btn-default btn-sm" data-action="new-target">Set Target</button>
 			<button class="btn btn-default btn-sm" data-action="new-update">Add Achievement</button>
@@ -307,8 +556,27 @@ function render_personal_panel($container, personal) {
 				<div class="card-header cyan">MY ACHIEVEMENTS</div>
 				<div class="card-content">
 					${personal.updates.length ?
-				personal.updates.map(u => `<div class="list-item">${u.kpi}: ${u.actual_value}</div>`).join('') :
+				personal.updates.map(u => {
+					const badge = u.status_color === "green" ? "badge-green" : (u.status_color === "yellow" ? "badge-yellow" : "badge-red");
+					return `
+						<div class="list-item">
+							<div class="achievement-title">${u.kpi_name || u.kpi}</div>
+							<div class="achievement-meta">
+								<span>Actual: ${u.actual_value}</span>
+								<span>Target ≥ ${u.threshold_green}</span>
+								<span>Warning ≥ ${u.threshold_yellow}</span>
+								<span class="badge ${badge}">${u.status_label || u.status}</span>
+							</div>
+						</div>
+					`;
+				}).join('') :
 				'<div class="empty-state">No achievements yet.</div>'}
+				</div>
+			</div>
+			<div class="dashboard-card">
+				<div class="card-header yellow">KPA AVERAGES</div>
+				<div class="card-content">
+					${kpa_rows || '<div class="empty-state">No KPA scores yet.</div>'}
 				</div>
 			</div>
 		</div>
@@ -319,19 +587,17 @@ function render_personal_panel($container, personal) {
 	$container.find(".personal-actions .btn").on("click", function () {
 		const action = $(this).data("action");
 		if (action === "new-scorecard") {
-			frappe.new_doc("Performance Scorecard");
+			open_doctype_modal("Performance Scorecard");
 		} else if (action === "new-goal") {
-			frappe.new_doc("Goal");
+			open_doctype_modal("Goal");
 		} else if (action === "new-kra") {
-			frappe.new_doc("KRA");
-		} else if (action === "new-kpa") {
-			frappe.new_doc("KPA Master");
+			open_doctype_modal("KRA");
 		} else if (action === "new-kpi") {
-			frappe.new_doc("KPI Master");
+			open_doctype_modal("KPI Master");
 		} else if (action === "new-target") {
-			frappe.new_doc("Target");
+			open_doctype_modal("Target");
 		} else if (action === "new-update") {
-			frappe.new_doc("Performance Update");
+			open_doctype_modal("Performance Update");
 		}
 	});
 
@@ -343,7 +609,7 @@ function render_personal_panel($container, personal) {
 	});
 }
 
-function render_personal_table($container, rows) {
+function render_personal_table($container, rows, $page_container) {
 	if (!rows.length) {
 		$container.html('<div class="text-center text-muted">No items yet. Create a scorecard to populate this table.</div>');
 		return;
@@ -362,12 +628,13 @@ function render_personal_table($container, rows) {
 						<th style="width: 8%">Actual</th>
 						<th style="width: 8%">Score</th>
 						<th style="width: 8%">Rating</th>
+						<th style="width: 6%">Actions</th>
 					</tr>
 				</thead>
 				<tbody>
 	`;
 
-	rows.forEach(row => {
+	rows.forEach((row, index) => {
 		html += `
 			<tr>
 				<td>${row.kpa || "-"}</td>
@@ -378,60 +645,73 @@ function render_personal_table($container, rows) {
 				<td>${row.actual ?? "-"}</td>
 				<td>${row.score ?? "-"}</td>
 				<td>${row.rating || "-"}</td>
+				<td><button class="btn btn-xs btn-default btn-edit-row" data-index="${index}">Edit</button></td>
 			</tr>
 		`;
 	});
 
 	html += `</tbody></table></div>`;
 	$container.html(html);
+
+	$container.find(".btn-edit-row").on("click", function () {
+		const row = rows[$(this).data("index")];
+		if (!row || !row.item_name) {
+			frappe.msgprint("Unable to edit this row. Please refresh and try again.");
+			return;
+		}
+
+		const dialog = new frappe.ui.Dialog({
+			title: "Edit Scorecard Item",
+			fields: [
+				{ fieldname: "kpa", fieldtype: "Link", options: "KPA Master", label: "KPA", reqd: 1, default: row.kpa },
+				{ fieldname: "goal", fieldtype: "Link", options: "Goal", label: "Goal", reqd: 1, default: row.goal },
+				{ fieldname: "kra", fieldtype: "Link", options: "KRA", label: "KRA", reqd: 1, default: row.kra },
+				{ fieldname: "kpi", fieldtype: "Link", options: "KPI Master", label: "KPI", reqd: 1, default: row.kpi },
+				{ fieldname: "weightage", fieldtype: "Percent", label: "Weightage", default: row.weightage },
+				{ fieldname: "target", fieldtype: "Float", label: "Target", default: row.target },
+				{ fieldname: "actual", fieldtype: "Float", label: "Actual", default: row.actual }
+			],
+			primary_action_label: "Save",
+			primary_action: (values) => {
+				frappe.call({
+					method: "frappe.client.set_value",
+					args: {
+						doctype: "Scorecard Item",
+						name: row.item_name,
+						fieldname: values
+					},
+					callback: () => {
+						dialog.hide();
+						if ($page_container && $page_container.length) {
+							load_strategy_data($page_container, "Individual");
+						}
+					}
+				});
+			}
+		});
+		dialog.show();
+	});
+}
+
+function open_doctype_modal(doctype) {
+	const slug = frappe.router.slug(doctype);
+	const url = `/app/${slug}/new-${slug}`;
+	const dialog = new frappe.ui.Dialog({
+		title: doctype,
+		size: "extra-large",
+		fields: [{ fieldname: "frame", fieldtype: "HTML" }]
+	});
+	dialog.get_field("frame").$wrapper.html(
+		`<iframe src="${url}" style="width: 100%; height: 70vh; border: 0;"></iframe>`
+	);
+	dialog.show();
 }
 
 function render_strategy_maps($container) {
-	$container.html('<div class="strategy-map-container">Loading...</div>');
-
-	frappe.call({
-		method: "performance_scorecard.performance_scorecard.page.strategy_maps.strategy_maps.get_strategy_map_data",
-		callback: function (r) {
-			if (r.message) {
-				render_strategy_map($container, r.message);
-			} else {
-				$container.html('<div class="text-center text-muted">No strategy map data available.</div>');
-			}
-		}
-	});
-}
-
-function render_strategy_map($container, data) {
-	if (!data.length) {
-		$container.html('<div class="text-center text-muted">No active company goals found.</div>');
-		return;
-	}
-
-	let html = `<div class="org-chart">`;
-	data.forEach(node => {
-		html += render_node(node);
-	});
-	html += `</div>`;
-	$container.html(html);
-}
-
-function render_node(node) {
-	let childrenHtml = "";
-	if (node.children && node.children.length > 0) {
-		childrenHtml = `<div class="children">`;
-		node.children.forEach(child => {
-			childrenHtml += render_node(child);
-		});
-		childrenHtml += `</div>`;
-	}
-
-	return `
-		<div class="node-wrapper">
-			<div class="node ${node.type.toLowerCase()}">
-				<div class="node-title">${node.label}</div>
-				<div class="node-meta">${node.type}</div>
-			</div>
-			${childrenHtml}
+	const url = "/app/strategy-maps";
+	$container.html(`
+		<div style="height: 80vh; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+			<iframe src="${url}" style="width: 100%; height: 100%; border: 0;"></iframe>
 		</div>
-	`;
+	`);
 }

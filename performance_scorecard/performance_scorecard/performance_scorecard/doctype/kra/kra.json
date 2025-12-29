@@ -8,8 +8,10 @@
     "field_order": [
         "kra_name",
         "goal",
+        "parent_kra",
         "weightage",
-        "priority"
+        "priority",
+        "progress"
     ],
     "fields": [
         {
@@ -28,6 +30,13 @@
             "reqd": 1
         },
         {
+            "fieldname": "parent_kra",
+            "fieldtype": "Link",
+            "label": "Parent KRA",
+            "options": "KRA",
+            "description": "Link to a Department KRA (if this is an Individual KRA)"
+        },
+        {
             "fieldname": "weightage",
             "fieldtype": "Percent",
             "label": "Weightage"
@@ -38,6 +47,12 @@
             "label": "Priority",
             "options": "Low\nMedium\nHigh",
             "default": "Medium"
+        },
+        {
+            "fieldname": "progress",
+            "fieldtype": "Percent",
+            "label": "Progress",
+            "read_only": 1
         }
     ],
     "index_web_pages_for_search": 1,
