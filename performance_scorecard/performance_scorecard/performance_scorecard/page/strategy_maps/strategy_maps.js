@@ -23,7 +23,11 @@ frappe.pages['strategy-maps'].on_page_load = function (wrapper) {
         </div>
     `);
 
-    load_root_nodes(page);
+    // Fetch settings first
+    frappe.db.get_single('Performance Settings').then(settings => {
+        page.performance_settings = settings;
+        load_root_nodes(page);
+    });
 }
 
 function load_root_nodes(page) {
@@ -33,13 +37,13 @@ function load_root_nodes(page) {
         method: "performance_scorecard.performance_scorecard.page.strategy_maps.strategy_maps.get_root_nodes",
         callback: function (r) {
             if (r.message) {
-                add_column(r.message, "Company", {});
+                add_column(page, r.message, "Company", {});
             }
         }
     });
 }
 
-function add_column(nodes, type, context) {
+function add_column(page, nodes, type, context) {
     let $columns = $('#strategy-columns');
     let colId = 'col-' + ($columns.children().length + 1);
 
@@ -55,7 +59,7 @@ function add_column(nodes, type, context) {
     let $body = $col.find('.column-body');
 
     nodes.forEach(node => {
-        let colorClass = get_color_class(node.progress, node.end_date);
+        let colorClass = get_color_class(page, node.progress, node.end_date);
         let $node = $(`
             <div class="strategy-node ${colorClass}" data-id="${node.id}" data-type="${node.type}" data-expandable="${node.expandable}">
                 <div class="node-label">${node.label}</div>
@@ -83,7 +87,7 @@ function add_column(nodes, type, context) {
             $col.nextAll().remove();
 
             if ($this.data('expandable')) {
-                load_children($this.data('type'), $this.data('id'), $this.data('context'));
+                load_children(page, $this.data('type'), $this.data('id'), $this.data('context'));
             }
         });
 
@@ -94,7 +98,7 @@ function add_column(nodes, type, context) {
     $('.strategy-map-scroll').animate({ scrollLeft: 10000 }, 500);
 }
 
-function load_children(nodeType, nodeId, parentContext) {
+function load_children(page, nodeType, nodeId, parentContext) {
     // Update context based on node type
     let context = { ...parentContext };
     if (nodeType === 'Department') {
@@ -114,7 +118,7 @@ function load_children(nodeType, nodeId, parentContext) {
             if (r.message && r.message.length > 0) {
                 // Determine next column type for header
                 let nextType = r.message[0].type;
-                add_column(r.message, nextType, context);
+                add_column(page, r.message, nextType, context);
             } else {
                 frappe.show_alert('No further items found.');
             }
@@ -122,8 +126,13 @@ function load_children(nodeType, nodeId, parentContext) {
     });
 }
 
-function get_color_class(progress, end_date) {
+function get_color_class(page, progress, end_date) {
     progress = progress || 0;
+    let settings = page.performance_settings || {};
+
+    let critical = settings.critical_threshold || 50;
+    let warning = settings.warning_threshold || 75;
+    let success = settings.success_threshold || 76;
 
     // Check timeline
     if (end_date) {
@@ -133,8 +142,8 @@ function get_color_class(progress, end_date) {
         }
     }
 
-    if (progress >= 100) return 'node-green';
-    if (progress >= 76) return 'node-blue';
-    if (progress >= 51) return 'node-yellow';
+    if (progress >= success) return 'node-green';
+    if (progress >= warning) return 'node-blue'; // Blue is used for "On Track" in this UI
+    if (progress >= critical) return 'node-yellow';
     return 'node-red';
 }

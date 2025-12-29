@@ -1,0 +1,272 @@
+{
+    "actions": [],
+    "allow_rename": 1,
+    "autoname": "format:RISK-{YYYY}-{MM}-{####}",
+    "creation": "2024-05-22 10:00:00.000000",
+    "default_view": "List",
+    "doctype": "DocType",
+    "editable_grid": 1,
+    "engine": "InnoDB",
+    "field_order": [
+        "section_break_1",
+        "risk_title",
+        "risk_context",
+        "risk_category",
+        "source_of_risk",
+        "column_break_1",
+        "status",
+        "owner_role",
+        "identified_date",
+        "review_date",
+        "section_break_2",
+        "risk_statement",
+        "affected_objective",
+        "stakeholders",
+        "section_break_3",
+        "likelihood",
+        "impact",
+        "risk_score",
+        "risk_level",
+        "column_break_2",
+        "velocity",
+        "detectability",
+        "risk_appetite_breach",
+        "treatment_required",
+        "acceptance_justification",
+        "section_break_residual",
+        "residual_risk_score",
+        "residual_risk_level",
+        "section_break_4",
+        "risk_treatments",
+        "section_break_5",
+        "risk_decisions"
+    ],
+    "fields": [
+        {
+            "fieldname": "section_break_1",
+            "fieldtype": "Section Break",
+            "label": "Risk Identification"
+        },
+        {
+            "fieldname": "risk_title",
+            "fieldtype": "Data",
+            "label": "Risk Title",
+            "reqd": 1
+        },
+        {
+            "fieldname": "risk_context",
+            "fieldtype": "Link",
+            "label": "Risk Context",
+            "options": "Risk Context",
+            "reqd": 1
+        },
+        {
+            "fieldname": "risk_category",
+            "fieldtype": "Select",
+            "label": "Risk Category",
+            "options": "Strategic\nOperational\nFinancial\nIT & Cyber\nCompliance\nHSE\nReputational",
+            "reqd": 1
+        },
+        {
+            "fieldname": "source_of_risk",
+            "fieldtype": "Select",
+            "label": "Source of Risk",
+            "options": "Internal\nExternal"
+        },
+        {
+            "fieldname": "column_break_1",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fieldname": "status",
+            "fieldtype": "Select",
+            "label": "Status",
+            "options": "Open\nMitigating\nAccepted\nClosed",
+            "default": "Open",
+            "reqd": 1
+        },
+        {
+            "fieldname": "owner_role",
+            "fieldtype": "Link",
+            "label": "Risk Owner",
+            "options": "User"
+        },
+        {
+            "fieldname": "identified_date",
+            "fieldtype": "Date",
+            "label": "Identified Date",
+            "default": "Today"
+        },
+        {
+            "fieldname": "review_date",
+            "fieldtype": "Date",
+            "label": "Next Review Date"
+        },
+        {
+            "fieldname": "section_break_2",
+            "fieldtype": "Section Break",
+            "label": "Risk Details"
+        },
+        {
+            "fieldname": "risk_statement",
+            "fieldtype": "Small Text",
+            "label": "Risk Statement (Cause -> Event -> Impact)"
+        },
+        {
+            "fieldname": "affected_objective",
+            "fieldtype": "Data",
+            "label": "Affected Objective"
+        },
+        {
+            "fieldname": "stakeholders",
+            "fieldtype": "Data",
+            "label": "Stakeholders Affected"
+        },
+        {
+            "fieldname": "section_break_3",
+            "fieldtype": "Section Break",
+            "label": "Risk Analysis (Inherent)"
+        },
+        {
+            "fieldname": "likelihood",
+            "fieldtype": "Select",
+            "label": "Likelihood",
+            "options": "1 - Rare\n2 - Unlikely\n3 - Possible\n4 - Likely\n5 - Almost Certain",
+            "reqd": 1
+        },
+        {
+            "fieldname": "impact",
+            "fieldtype": "Select",
+            "label": "Impact",
+            "options": "1 - Insignificant\n2 - Minor\n3 - Moderate\n4 - Major\n5 - Severe",
+            "reqd": 1
+        },
+        {
+            "fieldname": "risk_score",
+            "fieldtype": "Int",
+            "label": "Risk Score",
+            "read_only": 1
+        },
+        {
+            "fieldname": "risk_level",
+            "fieldtype": "Data",
+            "label": "Risk Level",
+            "read_only": 1
+        },
+        {
+            "fieldname": "column_break_2",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fieldname": "velocity",
+            "fieldtype": "Select",
+            "label": "Velocity",
+            "options": "Slow\nMedium\nFast"
+        },
+        {
+            "fieldname": "detectability",
+            "fieldtype": "Select",
+            "label": "Detectability",
+            "options": "High\nMedium\nLow"
+        },
+        {
+            "fieldname": "risk_appetite_breach",
+            "fieldtype": "Check",
+            "label": "Risk Appetite Breach",
+            "read_only": 1
+        },
+        {
+            "fieldname": "treatment_required",
+            "fieldtype": "Check",
+            "label": "Treatment Required",
+            "read_only": 1
+        },
+        {
+            "fieldname": "acceptance_justification",
+            "fieldtype": "Small Text",
+            "label": "Acceptance Justification",
+            "depends_on": "eval:doc.status=='Accepted'"
+        },
+        {
+            "fieldname": "section_break_residual",
+            "fieldtype": "Section Break",
+            "label": "Residual Risk Analysis"
+        },
+        {
+            "fieldname": "residual_risk_score",
+            "fieldtype": "Int",
+            "label": "Residual Risk Score",
+            "read_only": 1
+        },
+        {
+            "fieldname": "residual_risk_level",
+            "fieldtype": "Data",
+            "label": "Residual Risk Level",
+            "read_only": 1
+        },
+        {
+            "fieldname": "section_break_4",
+            "fieldtype": "Section Break",
+            "label": "Risk Treatment Plan"
+        },
+        {
+            "fieldname": "risk_treatments",
+            "fieldtype": "Table",
+            "label": "Treatment Actions",
+            "options": "Risk Treatment"
+        },
+        {
+            "fieldname": "section_break_5",
+            "fieldtype": "Section Break",
+            "label": "Decisions & Assumptions Log"
+        },
+        {
+            "fieldname": "risk_decisions",
+            "fieldtype": "Table",
+            "label": "Decisions Log",
+            "options": "Risk Decision"
+        }
+    ],
+    "index_web_pages_for_search": 1,
+    "links": [],
+    "modified": "2024-05-22 10:00:00.000000",
+    "modified_by": "Administrator",
+    "module": "Performance Scorecard",
+    "name": "Risk Register",
+    "naming_rule": "Expression",
+    "owner": "Administrator",
+    "permissions": [
+        {
+            "create": 1,
+            "delete": 1,
+            "email": 1,
+            "export": 1,
+            "print": 1,
+            "read": 1,
+            "report": 1,
+            "role": "System Manager",
+            "share": 1,
+            "write": 1
+        },
+        {
+            "create": 1,
+            "delete": 1,
+            "email": 1,
+            "export": 1,
+            "print": 1,
+            "read": 1,
+            "report": 1,
+            "role": "Risk Manager",
+            "share": 1,
+            "write": 1
+        },
+        {
+            "read": 1,
+            "role": "Employee"
+        }
+    ],
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "states": [],
+    "track_changes": 1
+}

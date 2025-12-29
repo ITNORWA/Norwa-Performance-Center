@@ -79,14 +79,15 @@ function render_dashboard(page, data) {
 }
 
 function build_home_html(data) {
+	let critical = data.settings.critical_threshold;
 	return `
 		<div class="grid-container">
 			<div class="dashboard-card">
 				<div class="card-header blue">MY KEY OBJECTIVES</div>
 				<div class="card-content">
 					${data.objectives.length ?
-				data.objectives.map(o => `<div class="list-item">${o.goal_name} <span class="badge badge-green">${o.status}</span></div>`).join('') :
-				'<div class="empty-state">No key objectives assigned.</div>'}
+			data.objectives.map(o => `<div class="list-item">${o.goal_name} <span class="badge badge-green">${o.status}</span></div>`).join('') :
+			'<div class="empty-state">No key objectives assigned.</div>'}
 				</div>
 			</div>
 
@@ -94,17 +95,17 @@ function build_home_html(data) {
 				<div class="card-header light-blue">MY KEY RESULTS</div>
 				<div class="card-content">
 					${data.key_results.length ?
-				data.key_results.map(k => `<div class="list-item">${k.kra_name}</div>`).join('') :
-				'<div class="empty-state">No key results tracked.</div>'}
+			data.key_results.map(k => `<div class="list-item">${k.kra_name}</div>`).join('') :
+			'<div class="empty-state">No key results tracked.</div>'}
 				</div>
 			</div>
 
 			<div class="dashboard-card">
-				<div class="card-header red">NEEDS ATTENTION (OVERDUE)</div>
+				<div class="card-header red">NEEDS ATTENTION (SCORE < ${critical}%)</div>
 				<div class="card-content">
 					${data.needs_attention.length ?
-				data.needs_attention.map(i => `<div class="list-item">${i.kpi}: ${i.actual}/${i.target}</div>`).join('') :
-				'<div class="empty-state">Nothing seems overdue right now.</div>'}
+			data.needs_attention.map(i => `<div class="list-item">${i.kpi}: ${i.actual}/${i.target} (${i.score}%)</div>`).join('') :
+			'<div class="empty-state">Nothing seems overdue right now.</div>'}
 				</div>
 			</div>
 
@@ -112,8 +113,8 @@ function build_home_html(data) {
 				<div class="card-header cyan">MY TASKS</div>
 				<div class="card-content">
 					${data.tasks.length ?
-				data.tasks.map(t => `<div class="list-item">Update ${t.kpi} <span class="badge badge-yellow">${t.status}</span></div>`).join('') :
-				'<div class="empty-state">No open tasks assigned.</div>'}
+			data.tasks.map(t => `<div class="list-item">Update ${t.kpi} <span class="badge badge-yellow">${t.status}</span></div>`).join('') :
+			'<div class="empty-state">No open tasks assigned.</div>'}
 				</div>
 			</div>
 
@@ -121,8 +122,8 @@ function build_home_html(data) {
 				<div class="card-header yellow">KPIS NEEDING UPDATE</div>
 				<div class="card-content">
 					${data.kpis_needing_update.length ?
-				data.kpis_needing_update.map(k => `<div>${k.name}</div>`).join('') :
-				'<div class="empty-state">All your KPIs are up-to-date.</div>'}
+			data.kpis_needing_update.map(k => `<div>${k.name}</div>`).join('') :
+			'<div class="empty-state">All your KPIs are up-to-date.</div>'}
 				</div>
 			</div>
 
@@ -130,8 +131,8 @@ function build_home_html(data) {
 				<div class="card-header blue">RECENT KPI UPDATES</div>
 				<div class="card-content">
 					${data.recent_updates.length ?
-				data.recent_updates.map(u => `<div class="list-item">${u.kpi}: ${u.actual_value}</div>`).join('') :
-				'<div class="empty-state">No recent updates found for your KPIs.</div>'}
+			data.recent_updates.map(u => `<div class="list-item">${u.kpi}: ${u.actual_value}</div>`).join('') :
+			'<div class="empty-state">No recent updates found for your KPIs.</div>'}
 				</div>
 			</div>
 		</div>
@@ -159,6 +160,16 @@ function bind_sidebar(page, data, home_html) {
 
 		if (section === "strategy-maps") {
 			render_strategy_maps($content);
+			return;
+		}
+
+		if (section === "risk-management") {
+			frappe.set_route("risk-dashboard");
+			return;
+		}
+
+		if (section === "administration") {
+			frappe.set_route("Form", "Performance Settings");
 			return;
 		}
 
@@ -294,21 +305,21 @@ function render_personal_panel($container, personal) {
 				<div class="card-header blue">MY SCORECARDS</div>
 				<div class="card-content">
 					${personal.scorecards.length ?
-				personal.scorecards.map(s => `
+			personal.scorecards.map(s => `
 						<div class="list-item scorecard-item" data-name="${s.name}">
 							<span class="scorecard-link">${s.name}</span>
 							<span class="badge badge-green">${s.status}</span>
 						</div>
 					`).join('') :
-				'<div class="empty-state">No scorecards yet.</div>'}
+			'<div class="empty-state">No scorecards yet.</div>'}
 				</div>
 			</div>
 			<div class="dashboard-card">
 				<div class="card-header cyan">MY ACHIEVEMENTS</div>
 				<div class="card-content">
 					${personal.updates.length ?
-				personal.updates.map(u => `<div class="list-item">${u.kpi}: ${u.actual_value}</div>`).join('') :
-				'<div class="empty-state">No achievements yet.</div>'}
+			personal.updates.map(u => `<div class="list-item">${u.kpi}: ${u.actual_value}</div>`).join('') :
+			'<div class="empty-state">No achievements yet.</div>'}
 				</div>
 			</div>
 		</div>
@@ -387,51 +398,5 @@ function render_personal_table($container, rows) {
 }
 
 function render_strategy_maps($container) {
-	$container.html('<div class="strategy-map-container">Loading...</div>');
-
-	frappe.call({
-		method: "performance_scorecard.performance_scorecard.page.strategy_maps.strategy_maps.get_strategy_map_data",
-		callback: function (r) {
-			if (r.message) {
-				render_strategy_map($container, r.message);
-			} else {
-				$container.html('<div class="text-center text-muted">No strategy map data available.</div>');
-			}
-		}
-	});
-}
-
-function render_strategy_map($container, data) {
-	if (!data.length) {
-		$container.html('<div class="text-center text-muted">No active company goals found.</div>');
-		return;
-	}
-
-	let html = `<div class="org-chart">`;
-	data.forEach(node => {
-		html += render_node(node);
-	});
-	html += `</div>`;
-	$container.html(html);
-}
-
-function render_node(node) {
-	let childrenHtml = "";
-	if (node.children && node.children.length > 0) {
-		childrenHtml = `<div class="children">`;
-		node.children.forEach(child => {
-			childrenHtml += render_node(child);
-		});
-		childrenHtml += `</div>`;
-	}
-
-	return `
-		<div class="node-wrapper">
-			<div class="node ${node.type.toLowerCase()}">
-				<div class="node-title">${node.label}</div>
-				<div class="node-meta">${node.type}</div>
-			</div>
-			${childrenHtml}
-		</div>
-	`;
+	frappe.set_route("strategy-maps");
 }

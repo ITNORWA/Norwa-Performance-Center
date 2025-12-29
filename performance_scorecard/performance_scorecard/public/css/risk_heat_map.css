@@ -1,0 +1,104 @@
+.risk-matrix-container {
+    display: flex;
+    gap: 20px;
+    padding: 20px;
+    height: calc(100vh - 150px);
+}
+
+.matrix-wrapper {
+    flex: 0 0 600px;
+    display: grid;
+    grid-template-columns: 30px 1fr;
+    grid-template-rows: 1fr 30px;
+    gap: 10px;
+}
+
+.y-axis-label {
+    grid-column: 1;
+    grid-row: 1;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    text-align: center;
+    font-weight: bold;
+    text-transform: uppercase;
+    color: #718096;
+}
+
+.x-axis-label {
+    grid-column: 2;
+    grid-row: 2;
+    text-align: center;
+    font-weight: bold;
+    text-transform: uppercase;
+    color: #718096;
+    padding-top: 10px;
+}
+
+.matrix-grid {
+    grid-column: 2;
+    grid-row: 1;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    grid-template-rows: repeat(5, 1fr);
+    gap: 4px;
+    background: #e2e8f0;
+    border: 1px solid #cbd5e0;
+}
+
+.matrix-cell {
+    background: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.matrix-cell:hover {
+    transform: scale(1.05);
+    z-index: 10;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.matrix-cell.active {
+    border: 3px solid #3182ce;
+    z-index: 10;
+}
+
+.cell-score {
+    font-size: 10px;
+    color: #a0aec0;
+    position: absolute;
+    top: 2px;
+    right: 4px;
+}
+
+.risk-count {
+    font-size: 24px;
+    font-weight: bold;
+    color: #2d3748;
+}
+
+/* Colors */
+.cell-green {
+    background-color: #c6f6d5;
+}
+
+.cell-yellow {
+    background-color: #fefcbf;
+}
+
+.cell-red {
+    background-color: #fed7d7;
+}
+
+.risk-details-panel {
+    flex: 1;
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 20px;
+    overflow-y: auto;
+}

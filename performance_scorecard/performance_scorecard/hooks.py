@@ -6,12 +6,17 @@ app_email = "bot@example.com"
 app_license = "MIT"
 
 add_to_apps_screen = [
-	{
-		"name": "performance_scorecard",
-		"logo": "/assets/performance_scorecard/images/performance_scorecard_logo.jpg",
-		"title": "Performance Center",
-		"route": "/app/performance-dashboard",
-	}
+    {
+        "name": "performance_scorecard",
+        "logo": "/assets/performance_scorecard/images/performance_scorecard_logo.jpg",
+        "title": "Performance Center",
+        "route": "/app/performance-dashboard",
+    },
+    {
+        "name": "risk_management",
+        "title": "Risk Management",
+        "route": "/app/risk-dashboard",
+    }
 ]
 
 # Includes in <head>
@@ -20,7 +25,8 @@ add_to_apps_screen = [
 # include js, css files in header of desk.html
 app_include_css = [
     "/assets/performance_scorecard/css/performance_dashboard.css",
-    "/assets/performance_scorecard/css/strategy_maps.css"
+    "/assets/performance_scorecard/css/strategy_maps.css",
+    "/assets/performance_scorecard/css/risk_heat_map.css"
 ]
 app_include_js = "/assets/performance_scorecard/js/desk_redirect.js"
 
