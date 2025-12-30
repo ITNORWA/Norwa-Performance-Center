@@ -76,62 +76,56 @@ function render_dashboard(page, data) {
 	$(page.body).append(html);
 
 	bind_sidebar(page, data, home_html);
+	render_home_charts($(page.body), data);
 }
 
 function build_home_html(data) {
 	return `
-		<div class="grid-container">
+		<div class="home-charts-grid">
 			<div class="dashboard-card">
-				<div class="card-header blue">MY KEY OBJECTIVES</div>
+				<div class="card-header blue">Company KPA Progress</div>
+				<div class="chart-shell" id="home-kpa-company"></div>
+			</div>
+			<div class="dashboard-card">
+				<div class="card-header light-blue">Department KPA Progress</div>
+				<div class="chart-shell" id="home-kpa-department"></div>
+			</div>
+			<div class="dashboard-card">
+				<div class="card-header yellow">Individual KPA Progress</div>
+				<div class="chart-shell" id="home-kpa-individual"></div>
+			</div>
+		</div>
+		<div class="home-attention-grid">
+			<div class="dashboard-card">
+				<div class="card-header red">Needs Attention - Company</div>
 				<div class="card-content">
-					${data.objectives.length ?
-				data.objectives.map(o => `<div class="list-item">${o.goal_name} <span class="badge badge-green">${o.status}</span></div>`).join('') :
-				'<div class="empty-state">No key objectives assigned.</div>'}
+					${render_home_list(data.attention_company, "No company KRAs flagged.")}
 				</div>
 			</div>
-
 			<div class="dashboard-card">
-				<div class="card-header light-blue">MY KEY RESULTS</div>
+				<div class="card-header red">Needs Attention - Department</div>
 				<div class="card-content">
-					${data.key_results.length ?
-				data.key_results.map(k => `<div class="list-item">${k.kra_name}</div>`).join('') :
-				'<div class="empty-state">No key results tracked.</div>'}
+					${render_home_list(data.attention_department, "No department KRAs flagged.")}
 				</div>
 			</div>
-
 			<div class="dashboard-card">
-				<div class="card-header red">NEEDS ATTENTION (OVERDUE)</div>
+				<div class="card-header red">Needs Attention - Individual</div>
 				<div class="card-content">
-					${data.needs_attention.length ?
-				data.needs_attention.map(i => `<div class="list-item">${i.kpi}: ${i.actual}/${i.target}</div>`).join('') :
-				'<div class="empty-state">Nothing seems overdue right now.</div>'}
+					${render_home_list(data.attention_individual, "No individual KRAs flagged.")}
 				</div>
 			</div>
-
+		</div>
+		<div class="home-achievements-grid">
 			<div class="dashboard-card">
-				<div class="card-header cyan">MY TASKS</div>
+				<div class="card-header blue">Top 5 Weekly Achievements</div>
 				<div class="card-content">
-					${data.tasks.length ?
-				data.tasks.map(t => `<div class="list-item">Update ${t.kpi} <span class="badge badge-yellow">${t.status}</span></div>`).join('') :
-				'<div class="empty-state">No open tasks assigned.</div>'}
+					${render_home_list(data.weekly_top_kras, "No weekly achievements yet.")}
 				</div>
 			</div>
-
 			<div class="dashboard-card">
-				<div class="card-header yellow">KPIS NEEDING UPDATE</div>
+				<div class="card-header light-blue">Top 5 Quarterly Achievements</div>
 				<div class="card-content">
-					${data.kpis_needing_update.length ?
-				data.kpis_needing_update.map(k => `<div>${k.name}</div>`).join('') :
-				'<div class="empty-state">All your KPIs are up-to-date.</div>'}
-				</div>
-			</div>
-
-			<div class="dashboard-card">
-				<div class="card-header blue">RECENT KPI UPDATES</div>
-				<div class="card-content">
-					${data.recent_updates.length ?
-				data.recent_updates.map(u => `<div class="list-item">${u.kpi}: ${u.actual_value}</div>`).join('') :
-				'<div class="empty-state">No recent updates found for your KPIs.</div>'}
+					${render_home_list(data.quarterly_top_kras, "No quarterly achievements yet.")}
 				</div>
 			</div>
 		</div>
@@ -149,6 +143,7 @@ function bind_sidebar(page, data, home_html) {
 		const section = $(this).data("section");
 		if (section === "home") {
 			$content.html(home_html);
+			render_home_charts($body, data);
 			return;
 		}
 
@@ -174,6 +169,26 @@ function bind_sidebar(page, data, home_html) {
 
 		render_placeholder($content, "This section is coming soon.");
 	});
+}
+
+function render_home_charts($body, data) {
+	const progress = data.kra_progress || {};
+	render_chart("#home-kpa-company", progress.company, "pie");
+	render_chart("#home-kpa-department", progress.department, "pie");
+	render_chart("#home-kpa-individual", progress.individual, "pie");
+}
+
+function render_home_list(items, empty_text) {
+	if (!items || !items.length) {
+		return `<div class="empty-state">${empty_text}</div>`;
+	}
+
+	return items.map(item => `
+		<div class="list-item">
+			<span>${item.label}</span>
+			<span class="badge badge-green">${format_score(item.value)}%</span>
+		</div>
+	`).join("");
 }
 
 function render_placeholder($container, message) {

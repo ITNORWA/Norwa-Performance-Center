@@ -1,10 +1,11 @@
 import frappe
-from frappe.utils import add_months, nowdate
+from frappe.utils import add_days, add_months, nowdate
 
 @frappe.whitelist()
 def get_dashboard_data():
 	user = frappe.session.user
 	employee = frappe.db.get_value("Employee", {"user_id": user}, "name")
+	department = frappe.db.get_value("Employee", employee, "department") if employee else None
 	
 	data = {
 		"company": frappe.defaults.get_user_default("Company") or frappe.db.get_single_value("Global Defaults", "default_company"),
@@ -15,7 +16,17 @@ def get_dashboard_data():
 		"needs_attention": [],
 		"tasks": [],
 		"kpis_needing_update": [],
-		"recent_updates": []
+		"recent_updates": [],
+		"kra_progress": {
+			"company": [],
+			"department": [],
+			"individual": []
+		},
+		"attention_company": [],
+		"attention_department": [],
+		"attention_individual": [],
+		"weekly_top_kras": [],
+		"quarterly_top_kras": []
 	}
 
 	if employee:
@@ -68,6 +79,22 @@ def get_dashboard_data():
 			order_by="modified desc",
 			limit=5
 		)
+
+	data["kra_progress"]["company"] = _get_kra_progress_by_kpa(owner_type="Company")
+	if department:
+		data["kra_progress"]["department"] = _get_kra_progress_by_kpa(owner_type="Department", department=department)
+	if employee:
+		data["kra_progress"]["individual"] = _get_kra_progress_by_kpa(owner_type="Employee", employee=employee)
+
+	data["attention_company"] = _get_kra_attention(owner_type="Company")
+	if department:
+		data["attention_department"] = _get_kra_attention(owner_type="Department", department=department)
+	if employee:
+		data["attention_individual"] = _get_kra_attention(owner_type="Employee", employee=employee)
+
+	if department:
+		data["weekly_top_kras"] = _get_top_kras_by_period(department, days=7, limit=5)
+		data["quarterly_top_kras"] = _get_top_kras_by_period(department, months=3, limit=5)
 
 	return data
 
@@ -359,3 +386,79 @@ def _get_goal_kpa_field():
 	if frappe.db.has_column("Goal", "kpa"):
 		return "kpa"
 	return None
+
+
+def _get_kra_progress_by_kpa(owner_type, department=None, employee=None):
+	kpa_field = _get_goal_kpa_field()
+	if not kpa_field:
+		return []
+
+	conditions = ["g.owner_type = %s"]
+	values = [owner_type]
+	if department:
+		conditions.append("g.department = %s")
+		values.append(department)
+	if employee:
+		conditions.append("g.employee = %s")
+		values.append(employee)
+
+	query = f"""
+		SELECT g.{kpa_field} as label,
+			AVG(IFNULL(k.progress, 0)) as value
+		FROM `tabKRA` k
+		INNER JOIN `tabGoal` g ON g.name = k.goal
+		WHERE {' AND '.join(conditions)}
+		GROUP BY g.{kpa_field}
+		ORDER BY g.{kpa_field} ASC
+	"""
+	rows = frappe.db.sql(query, values, as_dict=True)
+	return [row for row in rows if row.get("label")]
+
+
+def _get_kra_attention(owner_type, department=None, employee=None, limit=5):
+	conditions = ["g.owner_type = %s"]
+	values = [owner_type]
+	if department:
+		conditions.append("g.department = %s")
+		values.append(department)
+	if employee:
+		conditions.append("g.employee = %s")
+		values.append(employee)
+
+	query = f"""
+		SELECT k.kra_name as label,
+			IFNULL(k.progress, 0) as value
+		FROM `tabKRA` k
+		INNER JOIN `tabGoal` g ON g.name = k.goal
+		WHERE {' AND '.join(conditions)}
+			AND IFNULL(k.progress, 0) < 60
+		ORDER BY k.progress ASC
+		LIMIT %s
+	"""
+	values.append(limit)
+	return frappe.db.sql(query, values, as_dict=True)
+
+
+def _get_top_kras_by_period(department, days=None, months=None, limit=5):
+	if not department:
+		return []
+
+	if days:
+		start = add_days(nowdate(), -days)
+	elif months:
+		start = add_months(nowdate(), -months)
+	else:
+		start = add_months(nowdate(), -3)
+
+	query = """
+		SELECT k.kra_name as label,
+			IFNULL(k.progress, 0) as value
+		FROM `tabKRA` k
+		INNER JOIN `tabGoal` g ON g.name = k.goal
+		WHERE g.owner_type = 'Department'
+			AND g.department = %s
+			AND k.modified >= %s
+		ORDER BY k.progress DESC
+		LIMIT %s
+	"""
+	return frappe.db.sql(query, (department, start, limit), as_dict=True)
