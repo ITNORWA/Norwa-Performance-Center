@@ -1,0 +1,116 @@
+{
+    "actions": [],
+    "allow_rename": 1,
+    "autoname": "format:RC-{YYYY}-{MM}-{####}",
+    "creation": "2024-05-22 10:00:00.000000",
+    "default_view": "List",
+    "doctype": "DocType",
+    "editable_grid": 1,
+    "engine": "InnoDB",
+    "field_order": [
+        "section_break_1",
+        "organization_objective",
+        "strategic_pillar",
+        "column_break_1",
+        "risk_appetite",
+        "review_period",
+        "section_break_2",
+        "internal_context",
+        "external_context"
+    ],
+    "fields": [
+        {
+            "fieldname": "section_break_1",
+            "fieldtype": "Section Break",
+            "label": "Context Details"
+        },
+        {
+            "fieldname": "organization_objective",
+            "fieldtype": "Small Text",
+            "label": "Organizational Objective",
+            "reqd": 1
+        },
+        {
+            "fieldname": "strategic_pillar",
+            "fieldtype": "Select",
+            "label": "Strategic Pillar",
+            "options": "Growth\nSustainability\nIT & Innovation\nCompliance\nOperational Excellence\nFinancial Stability",
+            "reqd": 1
+        },
+        {
+            "fieldname": "column_break_1",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fieldname": "risk_appetite",
+            "fieldtype": "Select",
+            "label": "Risk Appetite",
+            "options": "Low\nMedium\nHigh",
+            "reqd": 1
+        },
+        {
+            "fieldname": "review_period",
+            "fieldtype": "Select",
+            "label": "Review Period",
+            "options": "Monthly\nQuarterly\nBi-Annual\nAnnual",
+            "default": "Quarterly"
+        },
+        {
+            "fieldname": "section_break_2",
+            "fieldtype": "Section Break",
+            "label": "Context Analysis"
+        },
+        {
+            "fieldname": "internal_context",
+            "fieldtype": "Text Editor",
+            "label": "Internal Context (Strengths/Weaknesses)"
+        },
+        {
+            "fieldname": "external_context",
+            "fieldtype": "Text Editor",
+            "label": "External Context (Opportunities/Threats)"
+        }
+    ],
+    "index_web_pages_for_search": 1,
+    "links": [],
+    "modified": "2024-05-22 10:00:00.000000",
+    "modified_by": "Administrator",
+    "module": "Performance Scorecard",
+    "name": "Risk Context",
+    "naming_rule": "Expression",
+    "owner": "Administrator",
+    "permissions": [
+        {
+            "create": 1,
+            "delete": 1,
+            "email": 1,
+            "export": 1,
+            "print": 1,
+            "read": 1,
+            "report": 1,
+            "role": "System Manager",
+            "share": 1,
+            "write": 1
+        },
+        {
+            "create": 1,
+            "delete": 1,
+            "email": 1,
+            "export": 1,
+            "print": 1,
+            "read": 1,
+            "report": 1,
+            "role": "Risk Manager",
+            "share": 1,
+            "write": 1
+        },
+        {
+            "read": 1,
+            "role": "Employee"
+        }
+    ],
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "states": [],
+    "track_changes": 1
+}

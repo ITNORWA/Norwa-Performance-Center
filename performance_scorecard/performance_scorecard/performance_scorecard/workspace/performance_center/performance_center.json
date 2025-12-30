@@ -31,31 +31,9 @@
    "link_type": "Page",
    "onboard": 0,
    "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Strategy Plans",
-   "link_count": 0,
-   "link_to": "strategy-plans",
-   "link_type": "Page",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "dependencies": "",
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Strategy Maps",
-   "link_count": 0,
-   "link_to": "strategy-maps",
-   "link_type": "Page",
-   "onboard": 0,
-   "type": "Link"
   }
  ],
- "modified": "2025-12-27 10:10:37.860330",
+ "modified": "2025-12-30 10:40:25.025211",
  "modified_by": "Administrator",
  "module": "Performance Scorecard",
  "name": "Performance Center",
@@ -76,14 +54,14 @@
   {
    "doc_view": "",
    "label": "Strategy Plans",
-   "link_to": "strategy-plans",
-   "type": "Page"
+   "type": "URL",
+   "url": "/app/performance-dashboard?section=strategy-plans"
   },
   {
    "doc_view": "",
    "label": "Strategy Maps",
-   "link_to": "strategy-maps",
-   "type": "Page"
+   "type": "URL",
+   "url": "/app/performance-dashboard?section=strategy-maps"
   }
  ],
  "title": "Performance Center"

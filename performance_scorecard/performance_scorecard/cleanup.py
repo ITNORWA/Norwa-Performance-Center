@@ -64,8 +64,8 @@ def ensure_workspace_routes():
 
     desired_shortcuts = [
         {"label": "Visit Performance Center", "link_to": "performance-dashboard", "type": "Page"},
-        {"label": "Strategy Plans", "link_to": "strategy-plans", "type": "Page"},
-        {"label": "Strategy Maps", "link_to": "strategy-maps", "type": "Page"},
+        {"label": "Strategy Plans", "type": "URL", "url": "/app/performance-dashboard?section=strategy-plans"},
+        {"label": "Strategy Maps", "type": "URL", "url": "/app/performance-dashboard?section=strategy-maps"},
     ]
     desired_links = [
         {"type": "Card Break", "label": "Dashboard", "hidden": 0, "is_query_report": 0, "link_count": 0, "onboard": 0},
@@ -74,28 +74,6 @@ def ensure_workspace_routes():
             "label": "Visit Performance Center",
             "link_type": "Page",
             "link_to": "performance-dashboard",
-            "hidden": 0,
-            "is_query_report": 0,
-            "link_count": 0,
-            "dependencies": "",
-            "onboard": 0,
-        },
-        {
-            "type": "Link",
-            "label": "Strategy Plans",
-            "link_type": "Page",
-            "link_to": "strategy-plans",
-            "hidden": 0,
-            "is_query_report": 0,
-            "link_count": 0,
-            "dependencies": "",
-            "onboard": 0,
-        },
-        {
-            "type": "Link",
-            "label": "Strategy Maps",
-            "link_type": "Page",
-            "link_to": "strategy-maps",
             "hidden": 0,
             "is_query_report": 0,
             "link_count": 0,

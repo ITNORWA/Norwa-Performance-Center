@@ -75,7 +75,12 @@ function render_dashboard(page, data) {
 
 	$(page.body).append(html);
 
-	bind_sidebar(page, data, home_html);
+	const url_params = new URLSearchParams(window.location.search || "");
+	const route_opts = frappe.route_options || {};
+	const initial_section = route_opts.section || url_params.get("section") || "home";
+	frappe.route_options = null;
+
+	bind_sidebar(page, data, home_html, initial_section);
 }
 
 function build_home_html(data) {
@@ -138,15 +143,14 @@ function build_home_html(data) {
 	`;
 }
 
-function bind_sidebar(page, data, home_html) {
+function bind_sidebar(page, data, home_html, initial_section) {
 	const $body = $(page.body);
 	const $content = $body.find(".dashboard-content-area");
 
-	$body.find(".sidebar-menu li").on("click", function () {
+	function render_section(section) {
 		$body.find(".sidebar-menu li").removeClass("active");
-		$(this).addClass("active");
+		$body.find(`.sidebar-menu li[data-section="${section}"]`).addClass("active");
 
-		const section = $(this).data("section");
 		if (section === "home") {
 			$content.html(home_html);
 			return;
@@ -162,8 +166,19 @@ function bind_sidebar(page, data, home_html) {
 			return;
 		}
 
+		if (section === "risk-management") {
+			render_risk_management($content);
+			return;
+		}
+
 		render_placeholder($content, "This section is coming soon.");
+	}
+
+	$body.find(".sidebar-menu li").on("click", function () {
+		render_section($(this).data("section"));
 	});
+
+	render_section(initial_section || "home");
 }
 
 function render_placeholder($container, message) {
@@ -224,6 +239,69 @@ function render_strategy_plans($container) {
 		const level = $container.find(".nav-link.active").data("level");
 		if (level === "Department") {
 			load_strategy_data($container, "Department", deptControl.get_value());
+		}
+	});
+}
+
+function render_risk_management($container) {
+	$container.html(`
+		<div class="grid-container">
+			<div class="dashboard-card">
+				<div class="card-header red">RISK OVERVIEW</div>
+				<div class="card-content">Loading risk data...</div>
+			</div>
+			<div class="dashboard-card">
+				<div class="card-header blue">QUICK LINKS</div>
+				<div class="card-content">
+					<div class="list-item"><a href="/app/risk-dashboard">Risk Dashboard</a></div>
+					<div class="list-item"><a href="/app/risk-register">Risk Register</a></div>
+					<div class="list-item"><a href="/app/risk-heat-map">Risk Heat Map</a></div>
+					<div class="list-item"><a href="/app/risk-context">Risk Contexts</a></div>
+					<div class="list-item"><a href="/app/risk-treatment">Risk Treatments</a></div>
+					<div class="list-item"><a href="/app/risk-decision">Risk Decisions</a></div>
+				</div>
+			</div>
+			<div class="dashboard-card">
+				<div class="card-header yellow">TOP RISK CATEGORIES</div>
+				<div class="card-content">Loading...</div>
+			</div>
+			<div class="dashboard-card">
+				<div class="card-header cyan">RISKS BY DEPARTMENT</div>
+				<div class="card-content">Loading...</div>
+			</div>
+		</div>
+	`);
+
+	frappe.call({
+		method: "performance_scorecard.performance_scorecard.page.risk_dashboard.risk_dashboard.get_dashboard_data",
+		callback: function (r) {
+			if (!r.message) {
+				$container.find(".card-content").html("No risk data found.");
+				return;
+			}
+
+			const data = r.message;
+			const overview = `
+				<div class="list-item">Total Open Risks <span class="badge badge-red">${data.total_open || 0}</span></div>
+				<div class="list-item">High Risks <span class="badge badge-red">${data.high_risks || 0}</span></div>
+				<div class="list-item">Appetite Breaches <span class="badge badge-yellow">${data.appetite_breaches || 0}</span></div>
+				<div class="list-item">Overdue Reviews <span class="badge badge-yellow">${data.overdue_reviews || 0}</span></div>
+			`;
+
+			const categories = (data.categories || []).slice(0, 6);
+			const categoryRows = categories.length
+				? categories.map(c => `<div class="list-item">${c.risk_category || "Uncategorized"} <span class="badge badge-green">${c.count || 0}</span></div>`).join("")
+				: '<div class="empty-state">No open risks found.</div>';
+
+			const departments = (data.departments || []).slice(0, 6);
+			const deptRows = departments.length
+				? departments.map(d => `<div class="list-item">${d.department || "Unassigned"} <span class="badge badge-green">${d.count || 0}</span></div>`).join("")
+				: '<div class="empty-state">No department data yet.</div>';
+
+			const $cards = $container.find(".dashboard-card");
+			$cards.eq(0).find(".card-content").html(overview);
+			$cards.eq(2).find(".card-content").html(categoryRows);
+			$cards.eq(3).find(".card-content").html(deptRows);
 		}
 	});
 }
