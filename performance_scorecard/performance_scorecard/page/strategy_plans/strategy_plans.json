@@ -1,0 +1,23 @@
+{
+    "content": "Strategy Plans",
+    "creation": "2024-05-22 10:00:00.000000",
+    "docstatus": 0,
+    "doctype": "Page",
+    "idx": 0,
+    "modified": "2024-05-22 10:00:00.000000",
+    "modified_by": "Administrator",
+    "module": "Performance Scorecard",
+    "name": "strategy-plans",
+    "owner": "Administrator",
+    "page_name": "strategy-plans",
+    "roles": [
+        {
+            "role": "System Manager"
+        },
+        {
+            "role": "Employee"
+        }
+    ],
+    "standard": "Yes",
+    "title": "Strategy Plans"
+}
