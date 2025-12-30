@@ -12,53 +12,104 @@ frappe.pages['risk-dashboard'].on_page_load = function (wrapper) {
     // Add CSS
     frappe.require('/assets/performance_scorecard/css/performance_dashboard.css');
 
-    $(page.body).append(`
-        <div class="dashboard-container">
-            <div class="dashboard-kpis" id="risk-kpis">
-                <!-- KPIs will be added here -->
-            </div>
-            
-            <div class="dashboard-charts">
-                <div class="chart-container">
-                    <div class="chart-header">Risk Categories</div>
-                    <div id="risk-categories-chart"></div>
-                </div>
-                <div class="chart-container">
-                    <div class="chart-header">Risk Trend (New Risks)</div>
-                    <div id="risk-trend-chart"></div>
-                </div>
-            </div>
-            
-            <div class="dashboard-charts">
-                <div class="chart-container">
-                    <div class="chart-header">Risks by Department</div>
-                    <div id="risk-dept-chart"></div>
-                </div>
-                <div class="chart-container">
-                    <div class="chart-header">Quick Links</div>
-                    <div class="list-group list-group-flush">
-                        <a href="/app/risk-register" class="list-group-item list-group-item-action">Risk Register</a>
-                        <a href="/app/risk-heat-map" class="list-group-item list-group-item-action">Risk Heat Map</a>
-                        <a href="/app/risk-context" class="list-group-item list-group-item-action">Risk Contexts</a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `);
-
     load_dashboard(page);
 }
 
 function load_dashboard(page) {
+    $(page.body).empty();
+    $(page.body).append('<div class="dashboard-content">Loading...</div>');
+
     frappe.call({
         method: "performance_scorecard.performance_scorecard.page.risk_dashboard.risk_dashboard.get_dashboard_data",
         callback: function (r) {
             if (r.message) {
-                render_kpis(r.message);
-                render_charts(r.message);
+                render_dashboard(page, r.message);
             }
         }
     });
+}
+
+function render_dashboard(page, data) {
+    $(page.body).empty();
+
+    // Fetch user info for sidebar
+    const user = frappe.session.user;
+    const fullname = frappe.session.user_fullname;
+    const company = data.company || "Norwa Performance Center";
+
+    let html = `
+        <div class="dashboard-container">
+            <!-- Sidebar -->
+            <div class="dashboard-sidebar">
+                <div class="sidebar-header">
+                    <h3 style="color:white; margin:0;">${company}</h3>
+                </div>
+                <ul class="sidebar-menu">
+                    <li data-section="home"><i class="fa fa-home"></i> Home</li>
+                    <li data-section="strategy-plans"><i class="fa fa-list"></i> Strategy Plans</li>
+                    <li data-section="strategy-maps"><i class="fa fa-sitemap"></i> Strategy Maps</li>
+                    <li class="active" data-section="risk-management"><i class="fa fa-exclamation-triangle"></i> Risk Management</li>
+                    <li data-section="dashboards"><i class="fa fa-tachometer"></i> Dashboards</li>
+                    <li data-section="reports"><i class="fa fa-file-text"></i> Reports</li>
+                    <li data-section="administration"><i class="fa fa-cog"></i> Administration</li>
+                </ul>
+                <div class="user-profile">
+                    <div class="user-avatar"></div>
+                    <div>
+                        <div style="font-weight:bold; font-size:12px;">${fullname}</div>
+                        <div style="font-size:10px; color:#a0aec0;">User</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div class="dashboard-main">
+                <div class="dashboard-header">
+                    <div class="page-title">Risk Strategy Dashboard</div>
+                    <div>
+                        <i class="fa fa-bell" style="font-size:18px; color:#718096; margin-right:15px;"></i>
+                        <i class="fa fa-user-circle" style="font-size:24px; color:#e53e3e;"></i>
+                    </div>
+                </div>
+
+                <div class="dashboard-content-area">
+                    <div class="dashboard-kpis" id="risk-kpis"></div>
+                    
+                    <div class="dashboard-charts">
+                        <div class="chart-container">
+                            <div class="chart-header">Risk Categories</div>
+                            <div id="risk-categories-chart"></div>
+                        </div>
+                        <div class="chart-container">
+                            <div class="chart-header">Risk Trend (New Risks)</div>
+                            <div id="risk-trend-chart"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="dashboard-charts">
+                        <div class="chart-container">
+                            <div class="chart-header">Risks by Department</div>
+                            <div id="risk-dept-chart"></div>
+                        </div>
+                        <div class="chart-container">
+                            <div class="chart-header">Quick Links</div>
+                            <div class="list-group list-group-flush" style="gap: 10px;">
+                                <a href="/app/risk-register" class="list-group-item list-group-item-action" style="border-radius: 8px; border: 1px solid #edf2f7;">Risk Register</a>
+                                <a href="/app/risk-heat-map" class="list-group-item list-group-item-action" style="border-radius: 8px; border: 1px solid #edf2f7;">Risk Heat Map</a>
+                                <a href="/app/risk-context" class="list-group-item list-group-item-action" style="border-radius: 8px; border: 1px solid #edf2f7;">Risk Contexts</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+
+    $(page.body).append(html);
+
+    render_kpis(data);
+    render_charts(data);
+    bind_sidebar(page);
 }
 
 function render_kpis(data) {
@@ -66,10 +117,10 @@ function render_kpis(data) {
     $kpis.empty();
 
     const kpi_list = [
-        { label: 'Total Open Risks', value: data.total_open, color: 'blue' },
-        { label: 'High Risks', value: data.high_risks, color: 'red' },
-        { label: 'Appetite Breaches', value: data.appetite_breaches, color: 'orange' },
-        { label: 'Overdue Reviews', value: data.overdue_reviews, color: 'yellow' }
+        { label: 'Total Open Risks', value: data.total_open || 0, color: 'blue' },
+        { label: 'High Risks', value: data.high_risks || 0, color: 'red' },
+        { label: 'Appetite Breaches', value: data.appetite_breaches || 0, color: 'orange' },
+        { label: 'Overdue Reviews', value: data.overdue_reviews || 0, color: 'yellow' }
     ];
 
     kpi_list.forEach(kpi => {
@@ -114,5 +165,21 @@ function render_charts(data) {
         type: 'bar',
         height: 250,
         colors: ['#38a169']
+    });
+}
+
+function bind_sidebar(page) {
+    const $body = $(page.body);
+    $body.find(".sidebar-menu li").on("click", function () {
+        const section = $(this).data("section");
+        if (section === "home") {
+            frappe.set_route("performance-dashboard");
+        } else if (section === "risk-management") {
+            load_dashboard(page);
+        } else if (section === "administration") {
+            frappe.set_route("Form", "Performance Settings");
+        } else {
+            frappe.set_route("performance-dashboard"); // Default for now
+        }
     });
 }
