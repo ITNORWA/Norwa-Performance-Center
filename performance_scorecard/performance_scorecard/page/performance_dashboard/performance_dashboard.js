@@ -460,39 +460,23 @@ function render_company_strategy($container, company) {
 			return;
 		}
 		const route = `/app/performance-scorecard?department=${encodeURIComponent(dept)}`;
-		open_route_modal("Department Scorecards", route);
+		open_route_modal("Department Scorecards", route, [
+			["List", "Performance Scorecard"],
+			["Form", "Performance Scorecard"]
+		]);
 	});
 }
 
-function open_route_modal(title, url) {
-	const dialog = new frappe.ui.Dialog({
-		title: title,
-		size: "extra-large",
-		fields: [{ fieldname: "frame", fieldtype: "HTML" }]
-	});
-	dialog.get_field("frame").$wrapper.html(
-		`<iframe src="${url}" style="width: 100%; height: 70vh; border: 0;"></iframe>`
-	);
-	dialog.show();
+function open_route_modal(title, url, allowed_prefixes) {
+	open_locked_modal(title, url, allowed_prefixes || []);
 }
 
 function open_report_modal(report_name, options) {
-	const dialog = new frappe.ui.Dialog({
-		title: report_name,
-		size: "extra-large",
-		fields: [{ fieldname: "frame", fieldtype: "HTML" }]
-	});
-
-	dialog.show();
-
-	const $wrapper = dialog.get_field("frame").$wrapper;
-	$wrapper.empty();
-
-	const $frame = $('<iframe style="width: 100%; height: 70vh; border: 0;"></iframe>');
-	$wrapper.append($frame);
-
 	const url = `/app/query-report/${encodeURIComponent(report_name)}`;
 	let options_applied = false;
+
+	const modal = open_locked_modal(report_name, url, [["query-report", report_name]]);
+	const $frame = modal.frame;
 
 	$frame.on("load", function () {
 		if (!options || !Object.keys(options).length || options_applied) {
@@ -510,22 +494,133 @@ function open_report_modal(report_name, options) {
 			// Ignore iframe access errors.
 		}
 	});
-
-	$frame.attr("src", url);
 }
 
 function open_doctype_modal(doctype, name) {
 	const slug = frappe.router.slug(doctype);
 	const url = name ? `/app/${slug}/${encodeURIComponent(name)}` : `/app/${slug}/new-${slug}`;
+	open_locked_modal(doctype, url, [["Form", doctype]]);
+}
+
+function open_locked_modal(title, url, allowed_prefixes) {
 	const dialog = new frappe.ui.Dialog({
-		title: doctype,
+		title: title,
 		size: "extra-large",
 		fields: [{ fieldname: "frame", fieldtype: "HTML" }]
 	});
-	dialog.get_field("frame").$wrapper.html(
-		`<iframe src="${url}" style="width: 100%; height: 70vh; border: 0;"></iframe>`
-	);
 	dialog.show();
+
+	const $wrapper = dialog.get_field("frame").$wrapper;
+	$wrapper.empty();
+
+	const $frame = $('<iframe style="width: 100%; height: 70vh; border: 0;"></iframe>');
+	$wrapper.append($frame);
+
+	$frame.on("load", function () {
+		apply_iframe_lock(this, allowed_prefixes);
+	});
+
+	$frame.attr("src", url);
+	return { dialog, frame: $frame };
+}
+
+function apply_iframe_lock(frame, allowed_prefixes) {
+	const prefixes = Array.isArray(allowed_prefixes) ? allowed_prefixes : [];
+	const max_attempts = 20;
+	let attempts = 0;
+
+	const ensure_lock = () => {
+		attempts += 1;
+		const win = frame.contentWindow;
+		if (!win || !win.frappe || !win.frappe.set_route) {
+			return attempts < max_attempts;
+		}
+
+		if (win.__psc_locked) {
+			return false;
+		}
+
+		win.__psc_locked = true;
+		inject_iframe_styles(win);
+
+		const original_set_route = win.frappe.set_route.bind(win.frappe);
+		win.frappe.set_route = function () {
+			const route = normalize_route(arguments);
+			if (!is_route_allowed(route, prefixes)) {
+				return;
+			}
+			return original_set_route.apply(win.frappe, arguments);
+		};
+
+		if (win.frappe.router && win.frappe.router.on) {
+			win.frappe.router.on("change", () => {
+				const route = win.frappe.get_route ? win.frappe.get_route() : [];
+				if (!is_route_allowed(route, prefixes) && prefixes.length) {
+					original_set_route.apply(win.frappe, prefixes[0]);
+				}
+			});
+		}
+
+		return false;
+	};
+
+	const interval = setInterval(() => {
+		if (!ensure_lock()) {
+			clearInterval(interval);
+		}
+	}, 300);
+}
+
+function normalize_route(args) {
+	if (!args || !args.length) {
+		return [];
+	}
+	if (Array.isArray(args[0])) {
+		return args[0];
+	}
+	return Array.from(args);
+}
+
+function is_route_allowed(route, prefixes) {
+	if (!prefixes || !prefixes.length) {
+		return true;
+	}
+	if (!route || !route.length) {
+		return true;
+	}
+	return prefixes.some(prefix => {
+		if (!prefix || !prefix.length) {
+			return false;
+		}
+		for (let i = 0; i < prefix.length; i += 1) {
+			if (route[i] !== prefix[i]) {
+				return false;
+			}
+		}
+		return true;
+	});
+}
+
+function inject_iframe_styles(win) {
+	try {
+		const doc = win.document;
+		if (!doc || doc.getElementById("psc-locked-style")) {
+			return;
+		}
+		const style = doc.createElement("style");
+		style.id = "psc-locked-style";
+		style.textContent = `
+			.navbar, .desk-sidebar, .layout-side-section, .app-sidebar {
+				display: none !important;
+			}
+			.layout-main-section-wrapper {
+				margin-left: 0 !important;
+			}
+		`;
+		doc.head.appendChild(style);
+	} catch (e) {
+		// Ignore cross-origin or DOM errors.
+	}
 }
 
 function render_strategy_table($container, data) {
@@ -578,7 +673,7 @@ function render_strategy_table($container, data) {
 
 	$container.find(".btn-edit").on("click", function () {
 		const goal_name = $(this).data("name");
-		frappe.set_route("Form", "Goal", goal_name);
+		open_doctype_modal("Goal", goal_name);
 	});
 }
 
@@ -666,10 +761,10 @@ function render_personal_panel($container, personal, rollups) {
 
 	$container.find(".scorecard-item").on("click", function () {
 		const name = $(this).data("name");
-		if (name) {
-			frappe.set_route("Form", "Performance Scorecard", name);
-		}
-	});
+			if (name) {
+				open_doctype_modal("Performance Scorecard", name);
+			}
+		});
 }
 
 function render_personal_table($container, rows, $page_container) {
@@ -756,20 +851,6 @@ function render_personal_table($container, rows, $page_container) {
 	});
 }
 
-function open_doctype_modal(doctype) {
-	const slug = frappe.router.slug(doctype);
-	const url = `/app/${slug}/new-${slug}`;
-	const dialog = new frappe.ui.Dialog({
-		title: doctype,
-		size: "extra-large",
-		fields: [{ fieldname: "frame", fieldtype: "HTML" }]
-	});
-	dialog.get_field("frame").$wrapper.html(
-		`<iframe src="${url}" style="width: 100%; height: 70vh; border: 0;"></iframe>`
-	);
-	dialog.show();
-}
-
 function render_strategy_maps($container) {
 	const url = "/app/strategy-maps";
 	$container.html(`
@@ -777,6 +858,13 @@ function render_strategy_maps($container) {
 			<iframe src="${url}" style="width: 100%; height: 100%; border: 0;"></iframe>
 		</div>
 	`);
+
+	const frame = $container.find("iframe")[0];
+	if (frame) {
+		$(frame).on("load", function () {
+			apply_iframe_lock(this, [["Page", "strategy-maps"], ["strategy-maps"]]);
+		});
+	}
 }
 
 
