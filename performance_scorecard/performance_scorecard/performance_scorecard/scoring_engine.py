@@ -99,10 +99,18 @@ class ScoringEngine:
         return overall_score
 
     @staticmethod
-    def update_kra_progress(kra_name):
+    def update_kra_progress(kra_name, visited=None):
         """
         Calculates KRA progress based on linked KPIs (Scorecard Items) or Child KRAs.
         """
+        if not kra_name:
+            return
+        if visited is None:
+            visited = set()
+        if kra_name in visited:
+            return
+        visited.add(kra_name)
+
         kra_doc = frappe.get_doc("KRA", kra_name)
         settings = ScoringEngine.get_settings()
         method = settings.calculation_method or "Weighted Average"
@@ -145,13 +153,21 @@ class ScoringEngine:
             
         # Trigger cascading update for Parent KRA (if any)
         if kra_doc.parent_kra:
-            ScoringEngine.update_kra_progress(kra_doc.parent_kra)
+            ScoringEngine.update_kra_progress(kra_doc.parent_kra, visited)
 
     @staticmethod
-    def update_goal_progress(goal_name):
+    def update_goal_progress(goal_name, visited=None):
         """
         Calculates Goal progress based on linked KRAs or Child Goals.
         """
+        if not goal_name:
+            return
+        if visited is None:
+            visited = set()
+        if goal_name in visited:
+            return
+        visited.add(goal_name)
+
         goal_doc = frappe.get_doc("Goal", goal_name)
         settings = ScoringEngine.get_settings()
         method = settings.calculation_method or "Weighted Average"
@@ -186,7 +202,7 @@ class ScoringEngine:
         
         # Trigger cascading update for Parent Goal (if any)
         if goal_doc.parent_goal:
-            ScoringEngine.update_goal_progress(goal_doc.parent_goal)
+            ScoringEngine.update_goal_progress(goal_doc.parent_goal, visited)
             
         # Trigger cascading update for linked KPA
         if goal_doc.kpa:

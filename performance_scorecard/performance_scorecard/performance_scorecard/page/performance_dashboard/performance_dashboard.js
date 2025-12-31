@@ -317,12 +317,12 @@ function load_strategy_data($container, level, department) {
 			if (r.message) {
 				const payload = r.message;
 				if (payload.meta && payload.meta.level === "Individual") {
-					render_personal_panel($container, payload.personal || { scorecards: [], updates: [] }, payload.rollups || {});
-					render_personal_table($content, payload.rows || [], $container);
+					render_personal_panel($container, payload.personal || { scorecards: [], updates: [] }, payload.rollups || {}, payload.goals || []);
+					render_personal_tables($content, payload, $container);
 				} else if (payload.meta && payload.meta.level === "Company" && payload.company) {
 					render_company_strategy($content, payload.company);
 				} else {
-					render_strategy_table($content, payload.goals || payload);
+					render_strategy_table($content, payload.goals || payload, payload.rollups || {}, payload.meta && payload.meta.level);
 				}
 			} else {
 				$content.html('<div class="text-center text-muted">No strategy defined for this level.</div>');
@@ -543,10 +543,31 @@ function open_doctype_modal(doctype, name) {
 	dialog.show();
 }
 
-function render_strategy_table($container, data) {
+function render_strategy_table($container, data, rollups, level) {
 	if (!data.length) {
 		$container.html('<div class="text-center text-muted">No goals found.</div>');
 		return;
+	}
+
+	const is_department = level === "Department" && rollups && (rollups.kpas || []).length;
+	const kpa_progress = new Map();
+	const goal_progress = new Map();
+	const kra_progress = new Map();
+
+	if (is_department) {
+		(rollups.kpas || []).forEach(kpa => {
+			kpa_progress.set(kpa.kpa, flt(kpa.average_score || 0));
+			(kpa.goals || []).forEach(goal => {
+				if (goal.goal) {
+					goal_progress.set(goal.goal, flt(goal.average_score || 0));
+				}
+				(goal.kras || []).forEach(kra => {
+					if (kra.kra) {
+						kra_progress.set(kra.kra, flt(kra.average_score || 0));
+					}
+				});
+			});
+		});
 	}
 
 	let html = `
@@ -558,32 +579,43 @@ function render_strategy_table($container, data) {
 						<th style="width: 30%">Goal</th>
 						<th style="width: 10%">Weight</th>
 						<th style="width: 30%">Key Result Areas (KRAs)</th>
-						<th style="width: 10%">Actions</th>
 					</tr>
 				</thead>
 				<tbody>
 	`;
 
 	data.forEach(goal => {
-		let kras_html = goal.kras.map(k => `
-			<div class="kra-item" style="margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px dashed #eee;">
-				<strong>${k.kra_name}</strong> <span class="badge badge-secondary">${k.weightage}%</span>
-				<div class="text-muted small">${k.description || ''}</div>
-			</div>
-		`).join('');
+		const kpa_key = goal.kpa_key || goal.kpa;
+		const kpa_label = goal.kpa_label || goal.kpa;
+		const kpa_value = is_department ? kpa_progress.get(kpa_key) : null;
+		const goal_value = is_department
+			? (goal_progress.get(goal.name) ?? flt(goal.progress || 0))
+			: null;
+
+		let kras_html = goal.kras.map(k => {
+			const kra_value = is_department ? (kra_progress.get(k.name) ?? flt(k.progress || 0)) : null;
+			return `
+				<div class="kra-item" style="margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px dashed #eee;">
+					<strong>${k.kra_name}</strong> <span class="badge badge-secondary">${k.weightage}%</span>
+					${is_department && Number.isFinite(kra_value) ? `<div class="status-value">${kra_value.toFixed(1)}%</div>${render_status_bar(kra_value)}` : ""}
+					<div class="text-muted small">${k.description || ''}</div>
+				</div>
+			`;
+		}).join('');
 
 		html += `
 			<tr>
-				<td>${goal.kpa || '-'}</td>
+				<td>
+					<div style="font-weight: bold;">${kpa_label || '-'}</div>
+					${is_department && Number.isFinite(kpa_value) ? `<div class="status-value">${kpa_value.toFixed(1)}%</div>${render_status_bar(kpa_value)}` : ""}
+				</td>
 				<td>
 					<div style="font-weight: bold;">${goal.goal_name}</div>
 					<div class="small text-muted">${goal.start_date} - ${goal.end_date}</div>
+					${is_department && Number.isFinite(goal_value) ? `<div class="status-value">${goal_value.toFixed(1)}%</div>${render_status_bar(goal_value)}` : ""}
 				</td>
 				<td>${goal.weightage}%</td>
 				<td>${kras_html || '<span class="text-muted">No KRAs</span>'}</td>
-				<td>
-					<button class="btn btn-xs btn-default btn-edit" data-name="${goal.name}">Edit</button>
-				</td>
 			</tr>
 		`;
 	});
@@ -591,13 +623,9 @@ function render_strategy_table($container, data) {
 	html += `</tbody></table></div>`;
 	$container.html(html);
 
-	$container.find(".btn-edit").on("click", function () {
-		const goal_name = $(this).data("name");
-		frappe.set_route("Form", "Goal", goal_name);
-	});
 }
 
-function render_personal_panel($container, personal, rollups) {
+function render_personal_panel($container, personal, rollups, goals) {
 	$container.find(".personal-actions").remove();
 	$container.find(".personal-summaries").remove();
 
@@ -606,6 +634,8 @@ function render_personal_panel($container, personal, rollups) {
 		const badge = avg >= 80 ? "badge-green" : (avg >= 60 ? "badge-yellow" : "badge-red");
 		return `<div class="list-item"><span>${k.kpa}</span><span class="badge ${badge}">${avg}%</span></div>`;
 	}).join("");
+
+	const kra_rows = build_personal_kra_rows(goals);
 
 	let html = `
 		<div class="personal-actions">
@@ -631,24 +661,9 @@ function render_personal_panel($container, personal, rollups) {
 				</div>
 			</div>
 			<div class="dashboard-card">
-				<div class="card-header cyan">MY ACHIEVEMENTS</div>
+				<div class="card-header cyan">MY KRAS</div>
 				<div class="card-content">
-					${personal.updates.length ?
-				personal.updates.map(u => {
-					const badge = u.status_color === "green" ? "badge-green" : (u.status_color === "yellow" ? "badge-yellow" : "badge-red");
-					return `
-						<div class="list-item">
-							<div class="achievement-title">${u.kpi_name || u.kpi}</div>
-							<div class="achievement-meta">
-								<span>Actual: ${u.actual_value}</span>
-								<span>Target ≥ ${u.threshold_green}</span>
-								<span>Warning ≥ ${u.threshold_yellow}</span>
-								<span class="badge ${badge}">${u.status_label || u.status}</span>
-							</div>
-						</div>
-					`;
-				}).join('') :
-				'<div class="empty-state">No achievements yet.</div>'}
+					${kra_rows}
 				</div>
 			</div>
 			<div class="dashboard-card">
@@ -687,49 +702,62 @@ function render_personal_panel($container, personal, rollups) {
 	});
 }
 
-function render_personal_table($container, rows, $page_container) {
-	if (!rows.length) {
-		$container.html('<div class="text-center text-muted">No items yet. Create a scorecard to populate this table.</div>');
-		return;
-	}
-
-	let html = `
-		<div class="table-responsive">
-			<table class="table table-bordered table-hover">
-				<thead class="thead-light">
-					<tr>
-						<th style="width: 14%">Key Performance Area</th>
-						<th style="width: 18%">Goals</th>
-						<th style="width: 16%">Key Result Areas (KRAs)</th>
-						<th style="width: 18%">Performance Measures (Metrics)</th>
-						<th style="width: 10%">Target</th>
-						<th style="width: 8%">Actual</th>
-						<th style="width: 8%">Score</th>
-						<th style="width: 8%">Rating</th>
-						<th style="width: 6%">Actions</th>
-					</tr>
-				</thead>
-				<tbody>
-	`;
-
-	rows.forEach((row, index) => {
-		html += `
-			<tr>
-				<td>${row.kpa || "-"}</td>
-				<td>${row.goal || "-"}</td>
-				<td>${row.kra || "-"}</td>
-				<td>${row.kpi_name || row.kpi || "-"}</td>
-				<td>${row.target ?? "-"}</td>
-				<td>${row.actual ?? "-"}</td>
-				<td>${row.score ?? "-"}</td>
-				<td>${row.rating || "-"}</td>
-				<td><button class="btn btn-xs btn-default btn-edit-row" data-index="${index}">Edit</button></td>
-			</tr>
-		`;
+function build_personal_kra_rows(goals) {
+	const kra_map = new Map();
+	(goals || []).forEach(goal => {
+		(goal.kras || []).forEach(kra => {
+			if (!kra || !kra.name) {
+				return;
+			}
+			if (!kra_map.has(kra.name)) {
+				kra_map.set(kra.name, {
+					name: kra.name,
+					label: kra.kra_name || kra.name,
+					progress: flt(kra.progress || 0)
+				});
+			}
+		});
 	});
 
-	html += `</tbody></table></div>`;
-	$container.html(html);
+	const kra_rows = Array.from(kra_map.values());
+	if (!kra_rows.length) {
+		return '<div class="empty-state">No KRAs yet.</div>';
+	}
+
+	return kra_rows.map(kra => `
+		<div class="list-item">
+			<div class="achievement-title">${kra.label}</div>
+			<div style="width: 100%; margin-top: 6px;">
+				<div class="status-value">${kra.progress.toFixed(1)}%</div>
+				${render_status_bar(kra.progress)}
+			</div>
+		</div>
+	`).join("");
+}
+
+function render_personal_tables($container, payload, $page_container) {
+	const rows = payload.rows || [];
+	const goals = payload.goals || [];
+	const rollups = payload.rollups || {};
+
+	const kpi_table = build_kpi_table(rows);
+	const goal_table = build_goal_table(goals);
+	const kpa_table = build_kpa_table(rollups.kpas || []);
+
+	$container.html(`
+		<div class="dashboard-card">
+			<div class="card-header blue">MY KPI LIST</div>
+			<div class="card-content">${kpi_table}</div>
+		</div>
+		<div class="dashboard-card">
+			<div class="card-header cyan">MY GOALS & KRAS</div>
+			<div class="card-content">${goal_table}</div>
+		</div>
+		<div class="dashboard-card">
+			<div class="card-header yellow">MY KPAS & GOALS</div>
+			<div class="card-content">${kpa_table}</div>
+		</div>
+	`);
 
 	$container.find(".btn-edit-row").on("click", function () {
 		const row = rows[$(this).data("index")];
@@ -769,6 +797,161 @@ function render_personal_table($container, rows, $page_container) {
 		});
 		dialog.show();
 	});
+}
+
+function build_kpi_table(rows) {
+	if (!rows.length) {
+		return '<div class="empty-state">No KPIs yet. Create a scorecard to populate this table.</div>';
+	}
+
+	let html = `
+		<div class="table-responsive">
+			<table class="table table-bordered table-hover">
+				<thead class="thead-light">
+					<tr>
+						<th style="width: 20%">KPI</th>
+						<th style="width: 18%">Target</th>
+						<th style="width: 18%">Actual</th>
+						<th style="width: 26%">Score</th>
+						<th style="width: 10%">Rating</th>
+						<th style="width: 8%">Actions</th>
+					</tr>
+				</thead>
+				<tbody>
+	`;
+
+	rows.forEach((row, index) => {
+		const score = flt(row.score || 0);
+		html += `
+			<tr>
+				<td>${row.kpi_name || row.kpi || "-"}</td>
+				<td>${row.target ?? "-"}</td>
+				<td>${row.actual ?? "-"}</td>
+				<td>
+					<div class="status-value">${score.toFixed(1)}%</div>
+					${render_status_bar(score)}
+				</td>
+				<td>${row.rating || "-"}</td>
+				<td><button class="btn btn-xs btn-default btn-edit-row" data-index="${index}">Edit</button></td>
+			</tr>
+		`;
+	});
+
+	html += `</tbody></table></div>`;
+	return html;
+}
+
+function build_goal_table(goals) {
+	if (!goals.length) {
+		return '<div class="empty-state">No goals found for your profile.</div>';
+	}
+
+	let html = `
+		<div class="table-responsive">
+			<table class="table table-bordered table-hover">
+				<thead class="thead-light">
+					<tr>
+						<th style="width: 28%">Goal</th>
+						<th style="width: 52%">KRAs</th>
+						<th style="width: 20%">Progress</th>
+					</tr>
+				</thead>
+				<tbody>
+	`;
+
+	goals.forEach(goal => {
+		const kra_progress_values = (goal.kras || [])
+			.map(kra => flt(kra.progress))
+			.filter(value => !isNaN(value));
+		const kra_progress_avg = kra_progress_values.length
+			? (kra_progress_values.reduce((sum, value) => sum + value, 0) / kra_progress_values.length)
+			: null;
+
+		const kras = (goal.kras || []).map(kra => {
+			const progress = flt(kra.progress || 0);
+			return `
+				<div class="kpi-item">
+					<div class="kpi-title">${kra.kra_name}</div>
+					<div class="status-value">${progress.toFixed(1)}%</div>
+				</div>
+			`;
+		}).join("") || '<div class="empty-state">No KRAs linked.</div>';
+
+		const goal_progress = kra_progress_avg !== null ? kra_progress_avg : flt(goal.progress || 0);
+		html += `
+			<tr>
+				<td>
+					<div class="goal-name">${goal.goal_name || goal.name}</div>
+					<div class="small text-muted">${goal.start_date || ""} ${goal.end_date ? `- ${goal.end_date}` : ""}</div>
+				</td>
+				<td>${kras}</td>
+				<td>
+					<div class="status-value">${goal_progress.toFixed(1)}%</div>
+					${render_status_bar(goal_progress)}
+				</td>
+			</tr>
+		`;
+	});
+
+	html += `</tbody></table></div>`;
+	return html;
+}
+
+function build_kpa_table(kpas) {
+	if (!kpas.length) {
+		return '<div class="empty-state">No KPAs available yet.</div>';
+	}
+
+	let html = `
+		<div class="table-responsive">
+			<table class="table table-bordered table-hover">
+				<thead class="thead-light">
+					<tr>
+						<th style="width: 26%">KPA</th>
+						<th style="width: 50%">Goals</th>
+						<th style="width: 24%">Progress</th>
+					</tr>
+				</thead>
+				<tbody>
+	`;
+
+	kpas.forEach(kpa => {
+		const goals = (kpa.goals || []).map(goal => {
+			const progress = flt(goal.average_score || 0);
+			return `
+				<div class="kpi-item">
+					<div class="kpi-title">${goal.goal || goal.goal_name || goal.goal_id || "-"}</div>
+				</div>
+			`;
+		}).join("") || '<div class="empty-state">No goals linked.</div>';
+
+		const kpa_progress = flt(kpa.average_score || 0);
+		html += `
+			<tr>
+				<td>
+					<div class="goal-name">${kpa.kpa}</div>
+				</td>
+				<td>${goals}</td>
+				<td>
+					<div class="status-value">${kpa_progress.toFixed(1)}%</div>
+					${render_status_bar(kpa_progress)}
+				</td>
+			</tr>
+		`;
+	});
+
+	html += `</tbody></table></div>`;
+	return html;
+}
+
+function render_status_bar(percent) {
+	const value = Math.max(0, Math.min(100, flt(percent || 0)));
+	const color = value >= 80 ? "bg-success" : (value >= 60 ? "bg-warning" : "bg-danger");
+	return `
+		<div class="progress status-bar">
+			<div class="progress-bar ${color}" role="progressbar" style="width: ${value}%" aria-valuenow="${value}" aria-valuemin="0" aria-valuemax="100"></div>
+		</div>
+	`;
 }
 
 function open_doctype_modal(doctype) {

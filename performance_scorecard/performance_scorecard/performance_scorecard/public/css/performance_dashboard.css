@@ -194,6 +194,43 @@
     color: #a0aec0;
 }
 
+.status-bar {
+    height: 8px;
+    border-radius: 999px;
+    background: #edf2f7;
+    overflow: hidden;
+    margin-top: 6px;
+}
+
+.status-bar .progress-bar {
+    border-radius: 999px;
+}
+
+.status-value {
+    font-weight: 600;
+    color: #2d3748;
+    font-size: 12px;
+}
+
+.kpi-item {
+    margin-bottom: 10px;
+}
+
+.kpi-item:last-child {
+    margin-bottom: 0;
+}
+
+.kpi-title {
+    font-weight: 600;
+    color: #2d3748;
+    margin-bottom: 4px;
+}
+
+.goal-name {
+    font-weight: 600;
+    color: #2d3748;
+}
+
 /* KPI Cards */
 .dashboard-kpis {
     display: grid;
@@ -277,5 +314,4 @@
 .dashboard-content-area {
     padding: 0;
 }
-
 
