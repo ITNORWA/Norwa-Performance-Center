@@ -141,6 +141,7 @@ function bind_sidebar(page, data, home_html) {
 		$(this).addClass("active");
 
 		const section = $(this).data("section");
+		$content.removeClass("strategy-map-only");
 		if (section === "home") {
 			$content.html(home_html);
 			render_home_charts($body, data);
@@ -213,16 +214,19 @@ function render_strategy_plans($container) {
 		<div class="strategy-actions" style="margin-bottom: 15px; display: none;">
 			<button class="btn btn-primary btn-sm" data-action="add-goal">Add Goal</button>
 			<button class="btn btn-default btn-sm" data-action="add-kra">Add KRA</button>
-			<span class="dept-filter"></span>
 		</div>
 		<div class="strategy-content"></div>
 	`);
 
 	const $actions = $container.find(".strategy-actions");
-	const $deptFilter = $actions.find(".dept-filter");
 	const deptControl = frappe.ui.form.make_control({
-		df: { fieldname: "department", fieldtype: "Link", options: "Department", label: "Department" },
-		parent: $deptFilter,
+		df: {
+			fieldname: "department",
+			fieldtype: "Link",
+			options: "Department",
+			placeholder: "Search departments..."
+		},
+		parent: $actions,
 		render_input: true
 	});
 	deptControl.refresh();
@@ -283,7 +287,7 @@ function update_strategy_actions($actions, level) {
 		$actions.show();
 		$actions.find("[data-action='add-goal']").text(level === "Company" ? "Add Company Goal" : "Add Department Goal");
 		$actions.find("[data-action='add-kra']").toggle(level === "Department");
-		$actions.find(".dept-filter").toggle(level === "Department");
+		$actions.find(".control-input-wrapper").toggle(level === "Department");
 	} else {
 		$actions.hide();
 	}
@@ -524,8 +528,9 @@ function open_locked_modal(title, url, allowed_prefixes) {
 	return { dialog, frame: $frame };
 }
 
-function apply_iframe_lock(frame, allowed_prefixes) {
+function apply_iframe_lock(frame, allowed_prefixes, options) {
 	const prefixes = Array.isArray(allowed_prefixes) ? allowed_prefixes : [];
+	const extra_css = options && options.extra_css ? options.extra_css : "";
 	const max_attempts = 20;
 	let attempts = 0;
 
@@ -541,7 +546,7 @@ function apply_iframe_lock(frame, allowed_prefixes) {
 		}
 
 		win.__psc_locked = true;
-		inject_iframe_styles(win);
+		inject_iframe_styles(win, extra_css);
 
 		const original_set_route = win.frappe.set_route.bind(win.frappe);
 		win.frappe.set_route = function () {
@@ -601,7 +606,7 @@ function is_route_allowed(route, prefixes) {
 	});
 }
 
-function inject_iframe_styles(win) {
+function inject_iframe_styles(win, extra_css) {
 	try {
 		const doc = win.document;
 		if (!doc || doc.getElementById("psc-locked-style")) {
@@ -616,6 +621,7 @@ function inject_iframe_styles(win) {
 			.layout-main-section-wrapper {
 				margin-left: 0 !important;
 			}
+			${extra_css || ""}
 		`;
 		doc.head.appendChild(style);
 	} catch (e) {
@@ -853,16 +859,28 @@ function render_personal_table($container, rows, $page_container) {
 
 function render_strategy_maps($container) {
 	const url = "/app/strategy-maps";
-	$container.html(`
-		<div style="height: 80vh; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
-			<iframe src="${url}" style="width: 100%; height: 100%; border: 0;"></iframe>
-		</div>
-	`);
+	$container.addClass("strategy-map-only");
+	$container.html(`<iframe src="${url}" style="width: 100%; height: 80vh; border: 0;"></iframe>`);
 
 	const frame = $container.find("iframe")[0];
 	if (frame) {
 		$(frame).on("load", function () {
-			apply_iframe_lock(this, [["Page", "strategy-maps"], ["strategy-maps"]]);
+			apply_iframe_lock(this, [["Page", "strategy-maps"], ["strategy-maps"]], {
+				extra_css: `
+					.page-head, .page-title, .page-actions, .layout-main-section-wrapper .page-head {
+						display: none !important;
+					}
+					.layout-main-section-wrapper {
+						padding-top: 0 !important;
+					}
+					html, body, .page-body, .layout-main-section-wrapper, .layout-main-section {
+						background: #f5f7fb !important;
+					}
+					.page-body, .layout-main-section {
+						padding: 0 !important;
+					}
+				`
+			});
 		});
 	}
 }

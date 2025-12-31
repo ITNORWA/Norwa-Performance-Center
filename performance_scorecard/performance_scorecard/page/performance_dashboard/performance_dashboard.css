@@ -169,6 +169,11 @@
     min-height: 400px;
 }
 
+.dashboard-content-area.strategy-map-only {
+    padding: 0;
+    background: #f5f7fb;
+}
+
 .personal-actions {
     display: flex;
     flex-wrap: wrap;
@@ -200,6 +205,14 @@
 .strategy-tabs .nav-link:hover {
     color: #3182ce;
 }
+
+.strategy-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+}
+
 
 .kra-item:last-child {
     border-bottom: none !important;
