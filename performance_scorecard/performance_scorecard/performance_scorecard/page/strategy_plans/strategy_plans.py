@@ -76,6 +76,7 @@ def get_strategy_data(level, period=None, department=None):
 
     scorecard_filters = _get_scorecard_filters(level, employee or employee_list, filters.get("department"), session_user)
     kpi_scorecard_filters = scorecard_filters if level == "Individual" else None
+    kpi_employee_filter = (employee or employee_list) if level == "Individual" else None
     data = []
     kra_meta = frappe.get_meta("KRA")
     kra_fields = ["name", "kra_name", "weightage", "priority", "progress"]
@@ -113,7 +114,7 @@ def get_strategy_data(level, period=None, department=None):
             # Actually, for Strategy Plan, we are defining the plan. So we should probably have KPIs linked to KRA in the Master definition if possible, or just show KRAs.
             # The spec says "Unified Table View".
             
-            kpis = _get_kpis_for_kra(kra.name, kpi_scorecard_filters)
+            kpis = _get_kpis_for_kra(kra.name, kpi_scorecard_filters, kpi_employee_filter)
             kpi_scores = [flt(k.get("score")) for k in kpis if k.get("score") is not None]
             kra_progress = sum(kpi_scores) / len(kpi_scores) if kpi_scores else (kra.progress or 0)
 
@@ -296,10 +297,17 @@ def _get_scorecard_filters(level, employee, department, session_user):
     return filters
 
 
-def _get_kpis_for_kra(kra_name, scorecard_filters=None):
+def _get_kpis_for_kra(kra_name, scorecard_filters=None, employee_filter=None):
+    filters = {"kra": kra_name}
+    if employee_filter:
+        if isinstance(employee_filter, (list, tuple)):
+            filters["employee"] = ["in", list(employee_filter)]
+        else:
+            filters["employee"] = employee_filter
+
     kpi_rows = frappe.get_all(
         "KPI Master",
-        filters={"kra": kra_name},
+        filters=filters,
         fields=["name", "kpi_name"],
     )
 

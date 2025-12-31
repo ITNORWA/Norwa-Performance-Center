@@ -8,6 +8,7 @@
     "field_order": [
         "kra_name",
         "goal",
+        "owner_type",
         "parent_kra",
         "weightage",
         "priority",
@@ -30,11 +31,20 @@
             "reqd": 1
         },
         {
+            "fieldname": "owner_type",
+            "fieldtype": "Select",
+            "label": "Owner Type",
+            "options": "Department\nEmployee",
+            "reqd": 1,
+            "default": "Employee"
+        },
+        {
             "fieldname": "parent_kra",
             "fieldtype": "Link",
             "label": "Parent KRA",
             "options": "KRA",
-            "description": "Link to a Department KRA (if this is an Individual KRA)"
+            "description": "Link to a Department KRA (if this is an Individual KRA)",
+            "depends_on": "eval:doc.owner_type=='Employee'"
         },
         {
             "fieldname": "weightage",

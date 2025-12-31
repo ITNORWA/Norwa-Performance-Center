@@ -8,6 +8,7 @@
     "field_order": [
         "kpi_name",
         "kra",
+        "employee",
         "unit",
         "calculation_method",
         "column_break_1",
@@ -29,6 +30,13 @@
             "fieldtype": "Link",
             "label": "KRA",
             "options": "KRA"
+        },
+        {
+            "fieldname": "employee",
+            "fieldtype": "Link",
+            "label": "Employee",
+            "options": "Employee",
+            "read_only": 1
         },
         {
             "fieldname": "unit",

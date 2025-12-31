@@ -39,7 +39,10 @@ class PerformanceScorecard(Document):
 		kra_map = {k.name: k.goal for k in kras}
 		kpis = frappe.get_all(
 			"KPI Master",
-			filters={"kra": ["in", list(kra_map.keys())]},
+			filters={
+				"kra": ["in", list(kra_map.keys())],
+				"employee": self.employee,
+			},
 			fields=["name", "kra"],
 		)
 		if not kpis:

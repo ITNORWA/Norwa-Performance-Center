@@ -320,8 +320,12 @@ function load_strategy_data($container, level, department) {
 					render_personal_panel($container, payload.personal || { scorecards: [], updates: [] }, payload.rollups || {}, payload.goals || []);
 					render_personal_tables($content, payload, $container);
 				} else if (payload.meta && payload.meta.level === "Company" && payload.company) {
+					$container.find(".personal-actions, .personal-summaries").remove();
+					$content.empty();
 					render_company_strategy($content, payload.company);
 				} else {
+					$container.find(".personal-actions, .personal-summaries").remove();
+					$content.empty();
 					render_strategy_table($content, payload.goals || payload, payload.rollups || {}, payload.meta && payload.meta.level);
 				}
 			} else {
@@ -334,9 +338,15 @@ function load_strategy_data($container, level, department) {
 function update_strategy_actions($actions, level) {
 	if (level === "Company" || level === "Department") {
 		$actions.show();
-		$actions.find("[data-action='add-goal']").text(level === "Company" ? "Add Company Goal" : "Add Department Goal");
-		$actions.find("[data-action='add-kra']").toggle(level === "Department");
-		$actions.find(".dept-filter").toggle(level === "Department");
+		if (level === "Company") {
+			$actions.find("[data-action='add-goal']").hide();
+			$actions.find("[data-action='add-kra']").hide();
+			$actions.find(".dept-filter").hide();
+		} else {
+			$actions.find("[data-action='add-goal']").text("Add Department Goal").show();
+			$actions.find("[data-action='add-kra']").show();
+		$actions.find(".dept-filter").hide();
+		}
 	} else {
 		$actions.hide();
 	}
@@ -643,8 +653,6 @@ function render_personal_panel($container, personal, rollups, goals) {
 			<button class="btn btn-primary btn-sm" data-action="new-goal">Add Goal</button>
 			<button class="btn btn-default btn-sm" data-action="new-kra">Add KRA</button>
 			<button class="btn btn-default btn-sm" data-action="new-kpi">Add KPI</button>
-			<button class="btn btn-default btn-sm" data-action="new-target">Set Target</button>
-			<button class="btn btn-default btn-sm" data-action="new-update">Add Achievement</button>
 		</div>
 		<div class="personal-summaries">
 			<div class="dashboard-card">
@@ -687,10 +695,6 @@ function render_personal_panel($container, personal, rollups, goals) {
 			open_doctype_modal("KRA");
 		} else if (action === "new-kpi") {
 			open_doctype_modal("KPI Master");
-		} else if (action === "new-target") {
-			open_doctype_modal("Target");
-		} else if (action === "new-update") {
-			open_doctype_modal("Performance Update");
 		}
 	});
 
@@ -724,15 +728,16 @@ function build_personal_kra_rows(goals) {
 		return '<div class="empty-state">No KRAs yet.</div>';
 	}
 
-	return kra_rows.map(kra => `
-		<div class="list-item">
-			<div class="achievement-title">${kra.label}</div>
-			<div style="width: 100%; margin-top: 6px;">
-				<div class="status-value">${kra.progress.toFixed(1)}%</div>
-				${render_status_bar(kra.progress)}
+	return kra_rows.map(kra => {
+		const avg = kra.progress.toFixed(1);
+		const badge = kra.progress >= 80 ? "badge-green" : (kra.progress >= 60 ? "badge-yellow" : "badge-red");
+		return `
+			<div class="list-item">
+				<span>${kra.label}</span>
+				<span class="badge ${badge}">${avg}%</span>
 			</div>
-		</div>
-	`).join("");
+		`;
+	}).join("");
 }
 
 function render_personal_tables($container, payload, $page_container) {
