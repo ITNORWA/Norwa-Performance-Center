@@ -1,15 +1,19 @@
 .strategy-map-tree {
-    padding: 24px;
-    background: #f7f8fa;
+    padding: 32px;
     min-height: 80vh;
     overflow: auto;
+    background-color: #f5f7fb;
+    background-image:
+        linear-gradient(#e5e7eb 1px, transparent 1px),
+        linear-gradient(90deg, #e5e7eb 1px, transparent 1px);
+    background-size: 28px 28px;
 }
 
 #strategy-tree {
     display: flex;
     flex-direction: column;
-    gap: 18px;
     align-items: center;
+    gap: 20px;
     min-width: 100%;
 }
 
@@ -23,44 +27,37 @@
 .tree-content {
     display: flex;
     align-items: center;
-    gap: 12px;
-    cursor: pointer;
-    min-width: 320px;
     justify-content: center;
+    position: relative;
+    cursor: pointer;
 }
 
 .tree-circle {
-    width: 46px;
-    height: 46px;
-    border-radius: 50%;
-    background: linear-gradient(145deg, #ffffff, #e8ebf0);
-    border: 2px solid #d8dde6;
-    box-shadow: inset 0 2px 4px rgba(255,255,255,0.7),
-        0 4px 10px rgba(15, 23, 42, 0.12);
-    flex-shrink: 0;
+    display: none;
 }
 
 .tree-pill {
-    min-width: 260px;
-    max-width: 320px;
+    min-width: 170px;
+    max-width: 240px;
     background: #ffffff;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 10px 14px;
-    box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
-    position: relative;
+    border: 1px solid #d8dde6;
+    border-radius: 18px;
+    padding: 10px 12px;
+    box-shadow: 0 10px 18px rgba(15, 23, 42, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.8);
+    text-align: center;
 }
 
 .tree-title {
     font-weight: 600;
-    font-size: 14px;
+    font-size: 12px;
     color: #1f2937;
 }
 
 .tree-type {
-    font-size: 11px;
-    color: #94a3b8;
-    margin-top: 2px;
+    font-size: 10px;
+    color: #9ca3af;
+    margin-top: 4px;
     text-transform: uppercase;
     letter-spacing: 0.4px;
 }
@@ -68,15 +65,15 @@
 .tree-meta {
     font-size: 11px;
     color: #6b7280;
-    margin-top: 4px;
+    margin-top: 6px;
 }
 
 .tree-progress {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     margin-top: 6px;
-    font-size: 12px;
+    font-size: 10px;
     color: #4b5563;
 }
 
@@ -88,112 +85,84 @@
 }
 
 .tree-progress .progress-bar {
-    background: linear-gradient(90deg, #3b82f6, #22d3ee);
+    background: linear-gradient(90deg, #22c55e, #3b82f6);
 }
 
 .tree-expand {
-    margin-left: 6px;
-    width: 24px;
-    height: 24px;
-    border-radius: 6px;
-    background: #111827;
+    position: absolute;
+    right: -14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #1f2937;
     color: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
     font-size: 14px;
+    box-shadow: 0 6px 12px rgba(15, 23, 42, 0.18);
 }
 
 .tree-children {
     display: none;
-    gap: 24px;
-    margin-top: 16px;
-    padding-top: 16px;
-    border-top: 2px solid #cbd5e1;
+    gap: 28px;
+    margin-top: 18px;
+    padding-top: 18px;
     flex-wrap: wrap;
     justify-content: center;
     position: relative;
 }
 
-.tree-children .tree-node {
-    margin-left: 0;
-}
-
 .tree-node.expanded > .tree-children {
     display: flex;
-    flex-direction: row;
-    align-items: flex-start;
 }
-
-.tree-node.node-green .tree-pill {
-    border-left: 6px solid #22c55e;
-}
-
-.tree-node.node-blue .tree-pill {
-    border-left: 6px solid #3b82f6;
-}
-
-.tree-node.node-yellow .tree-pill {
-    border-left: 6px solid #f59e0b;
-}
-
-.tree-node.node-red .tree-pill {
-    border-left: 6px solid #ef4444;
-}
-
-.tree-node.type-company .tree-pill { border-top: 3px solid #1d4ed8; }
-.tree-node.type-department .tree-pill { border-top: 3px solid #0f766e; }
-.tree-node.type-employee .tree-pill { border-top: 3px solid #4d7c0f; }
-.tree-node.type-kpa .tree-pill { border-top: 3px solid #4f46e5; background: #eef2ff; }
-.tree-node.type-goal .tree-pill { border-top: 3px solid #0284c7; background: #ecfeff; }
-.tree-node.type-kra .tree-pill { border-top: 3px solid #b45309; background: #fff7ed; }
-.tree-node.type-kpi .tree-pill { border-top: 3px solid #be185d; background: #fdf2f8; }
 
 .tree-connector {
     position: absolute;
-    top: 74px;
+    top: -12px;
     left: 50%;
     width: 2px;
-    height: 16px;
-    background: #cbd5e1;
+    height: 12px;
+    background: #9ca3af;
     transform: translateX(-50%);
-    display: none;
 }
 
 .tree-node.expanded > .tree-connector {
     display: block;
 }
 
-.tree-node.has-children > .tree-content::after {
-    content: '';
+.tree-children::before {
+    content: "";
     position: absolute;
-    right: 22px;
-    top: 50%;
-    width: 0;
-    height: 0;
-    border-left: 6px solid #94a3b8;
-    border-top: 4px solid transparent;
-    border-bottom: 4px solid transparent;
-    transform: translateY(-50%);
+    top: 0;
+    left: 10%;
+    right: 10%;
+    height: 2px;
+    background: #9ca3af;
 }
 
 .tree-children > .tree-node::before {
-    content: '';
+    content: "";
     position: absolute;
-    top: -16px;
+    top: -18px;
     left: 50%;
     width: 2px;
-    height: 16px;
-    background: #cbd5e1;
+    height: 18px;
+    background: #9ca3af;
     transform: translateX(-50%);
 }
 
-.tree-children::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 12%;
-    right: 12%;
-    height: 2px;
-    background: #cbd5e1;
-}
+.tree-node.node-green .tree-pill { border-top: 4px solid #22c55e; }
+.tree-node.node-blue .tree-pill { border-top: 4px solid #3b82f6; }
+.tree-node.node-yellow .tree-pill { border-top: 4px solid #f59e0b; }
+.tree-node.node-red .tree-pill { border-top: 4px solid #ef4444; }
+
+.tree-node.type-company .tree-pill { border-left: 4px solid #1d4ed8; }
+.tree-node.type-department .tree-pill { border-left: 4px solid #0f766e; }
+.tree-node.type-employee .tree-pill { border-left: 4px solid #4d7c0f; }
+.tree-node.type-kpa .tree-pill { border-left: 4px solid #4f46e5; }
+.tree-node.type-goal .tree-pill { border-left: 4px solid #0284c7; }
+.tree-node.type-kra .tree-pill { border-left: 4px solid #b45309; }
+.tree-node.type-kpi .tree-pill { border-left: 4px solid #be185d; }

@@ -36,6 +36,7 @@ function load_root_nodes() {
 function build_node(node, context) {
     const typeClass = get_type_class(node.type);
     const colorClass = get_color_class(node.progress, node.end_date);
+    const showProgress = node.type !== "Employee";
     const $node = $(`
         <div class="tree-node ${colorClass} ${typeClass} ${node.expandable ? 'has-children' : ''}" data-id="${node.id}" data-type="${node.type}" data-expandable="${node.expandable}">
             <div class="tree-connector"></div>
@@ -45,12 +46,12 @@ function build_node(node, context) {
                     <div class="tree-title">${node.label}</div>
                     <div class="tree-type">${node.type}</div>
                     ${node.meta ? `<div class="tree-meta">${node.meta}</div>` : ''}
-                    <div class="tree-progress">
+                    ${showProgress ? `<div class="tree-progress">
                         <div class="progress">
                             <div class="progress-bar" style="width: ${node.progress || 0}%"></div>
                         </div>
                         <span>${Math.round(node.progress || 0)}%</span>
-                    </div>
+                    </div>` : ''}
                 </div>
                 ${node.expandable ? '<div class="tree-expand">+</div>' : ''}
             </div>
@@ -117,9 +118,8 @@ function get_color_class(progress, end_date) {
             return 'node-red';
         }
     }
-    if (progress >= 100) return 'node-green';
-    if (progress >= 76) return 'node-blue';
-    if (progress >= 51) return 'node-yellow';
+    if (progress >= 80) return 'node-green';
+    if (progress >= 60) return 'node-yellow';
     return 'node-red';
 }
 

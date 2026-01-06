@@ -81,62 +81,56 @@ function render_dashboard(page, data) {
 	frappe.route_options = null;
 
 	bind_sidebar(page, data, home_html, initial_section);
+	render_home_charts($(page.body), data);
 }
 
 function build_home_html(data) {
 	return `
-		<div class="grid-container">
+		<div class="home-charts-grid">
 			<div class="dashboard-card">
-				<div class="card-header blue">MY KEY OBJECTIVES</div>
+				<div class="card-header blue">Company KPA Progress</div>
+				<div class="chart-shell" id="home-kpa-company"></div>
+			</div>
+			<div class="dashboard-card">
+				<div class="card-header light-blue">Department KPA Progress</div>
+				<div class="chart-shell" id="home-kpa-department"></div>
+			</div>
+			<div class="dashboard-card">
+				<div class="card-header yellow">Individual KPA Progress</div>
+				<div class="chart-shell" id="home-kpa-individual"></div>
+			</div>
+		</div>
+		<div class="home-attention-grid">
+			<div class="dashboard-card">
+				<div class="card-header red">Needs Attention - Company</div>
 				<div class="card-content">
-					${data.objectives.length ?
-				data.objectives.map(o => `<div class="list-item">${o.goal_name} <span class="badge badge-green">${o.status}</span></div>`).join('') :
-				'<div class="empty-state">No key objectives assigned.</div>'}
+					${render_home_list(data.attention_company, "No company KRAs flagged.")}
 				</div>
 			</div>
-
 			<div class="dashboard-card">
-				<div class="card-header light-blue">MY KEY RESULTS</div>
+				<div class="card-header red">Needs Attention - Department</div>
 				<div class="card-content">
-					${data.key_results.length ?
-				data.key_results.map(k => `<div class="list-item">${k.kra_name}</div>`).join('') :
-				'<div class="empty-state">No key results tracked.</div>'}
+					${render_home_list(data.attention_department, "No department KRAs flagged.")}
 				</div>
 			</div>
-
 			<div class="dashboard-card">
-				<div class="card-header red">NEEDS ATTENTION (OVERDUE)</div>
+				<div class="card-header red">Needs Attention - Individual</div>
 				<div class="card-content">
-					${data.needs_attention.length ?
-				data.needs_attention.map(i => `<div class="list-item">${i.kpi}: ${i.actual}/${i.target}</div>`).join('') :
-				'<div class="empty-state">Nothing seems overdue right now.</div>'}
+					${render_home_list(data.attention_individual, "No individual KRAs flagged.")}
 				</div>
 			</div>
-
+		</div>
+		<div class="home-achievements-grid">
 			<div class="dashboard-card">
-				<div class="card-header cyan">MY TASKS</div>
+				<div class="card-header blue">Top 5 Weekly Achievements</div>
 				<div class="card-content">
-					${data.tasks.length ?
-				data.tasks.map(t => `<div class="list-item">Update ${t.kpi} <span class="badge badge-yellow">${t.status}</span></div>`).join('') :
-				'<div class="empty-state">No open tasks assigned.</div>'}
+					${render_home_list(data.weekly_top_kras, "No weekly achievements yet.")}
 				</div>
 			</div>
-
 			<div class="dashboard-card">
-				<div class="card-header yellow">KPIS NEEDING UPDATE</div>
+				<div class="card-header light-blue">Top 5 Quarterly Achievements</div>
 				<div class="card-content">
-					${data.kpis_needing_update.length ?
-				data.kpis_needing_update.map(k => `<div>${k.name}</div>`).join('') :
-				'<div class="empty-state">All your KPIs are up-to-date.</div>'}
-				</div>
-			</div>
-
-			<div class="dashboard-card">
-				<div class="card-header blue">RECENT KPI UPDATES</div>
-				<div class="card-content">
-					${data.recent_updates.length ?
-				data.recent_updates.map(u => `<div class="list-item">${u.kpi}: ${u.actual_value}</div>`).join('') :
-				'<div class="empty-state">No recent updates found for your KPIs.</div>'}
+					${render_home_list(data.quarterly_top_kras, "No quarterly achievements yet.")}
 				</div>
 			</div>
 		</div>
@@ -150,9 +144,11 @@ function bind_sidebar(page, data, home_html, initial_section) {
 	function render_section(section) {
 		$body.find(".sidebar-menu li").removeClass("active");
 		$body.find(`.sidebar-menu li[data-section="${section}"]`).addClass("active");
+		$content.removeClass("strategy-map-only");
 
 		if (section === "home") {
 			$content.html(home_html);
+			render_home_charts($body, data);
 			return;
 		}
 
@@ -171,6 +167,16 @@ function bind_sidebar(page, data, home_html, initial_section) {
 			return;
 		}
 
+		if (section === "dashboards") {
+			render_dashboards($content);
+			return;
+		}
+
+		if (section === "reports") {
+			render_reports($content);
+			return;
+		}
+
 		render_placeholder($content, "This section is coming soon.");
 	}
 
@@ -179,6 +185,26 @@ function bind_sidebar(page, data, home_html, initial_section) {
 	});
 
 	render_section(initial_section || "home");
+}
+
+function render_home_charts($body, data) {
+	const progress = data.kra_progress || {};
+	render_chart("#home-kpa-company", progress.company, "pie");
+	render_chart("#home-kpa-department", progress.department, "pie");
+	render_chart("#home-kpa-individual", progress.individual, "pie");
+}
+
+function render_home_list(items, empty_text) {
+	if (!items || !items.length) {
+		return `<div class="empty-state">${empty_text}</div>`;
+	}
+
+	return items.map(item => `
+		<div class="list-item">
+			<span>${item.label}</span>
+			<span class="badge badge-green">${format_score(item.value)}%</span>
+		</div>
+	`).join("");
 }
 
 function render_placeholder($container, message) {
@@ -527,7 +553,10 @@ function render_company_strategy($container, company) {
 	});
 }
 
-function open_route_modal(title, url) {
+function open_route_modal(title, url, allowed_prefixes) {
+	if (allowed_prefixes && allowed_prefixes.length) {
+		return open_locked_modal(title, url, allowed_prefixes);
+	}
 	const dialog = new frappe.ui.Dialog({
 		title: title,
 		size: "extra-large",
@@ -537,6 +566,7 @@ function open_route_modal(title, url) {
 		`<iframe src="${url}" style="width: 100%; height: 70vh; border: 0;"></iframe>`
 	);
 	dialog.show();
+	return { dialog, frame: dialog.get_field("frame").$wrapper.find("iframe") };
 }
 
 function open_doctype_modal(doctype, name) {
@@ -551,6 +581,154 @@ function open_doctype_modal(doctype, name) {
 		`<iframe src="${url}" style="width: 100%; height: 70vh; border: 0;"></iframe>`
 	);
 	dialog.show();
+}
+
+function open_report_modal(report_name, options) {
+	const url = `/app/query-report/${encodeURIComponent(report_name)}`;
+	let options_applied = false;
+
+	const modal = open_locked_modal(report_name, url, [["query-report", report_name]]);
+	const $frame = modal.frame;
+
+	$frame.on("load", function () {
+		if (!options || !Object.keys(options).length || options_applied) {
+			return;
+		}
+
+		try {
+			const win = this.contentWindow;
+			if (win && win.frappe) {
+				win.frappe.route_options = options;
+				win.frappe.set_route("query-report", report_name);
+				options_applied = true;
+			}
+		} catch (e) {
+			// Ignore iframe access errors.
+		}
+	});
+}
+
+function open_locked_modal(title, url, allowed_prefixes) {
+	const dialog = new frappe.ui.Dialog({
+		title: title,
+		size: "extra-large",
+		fields: [{ fieldname: "frame", fieldtype: "HTML" }]
+	});
+	dialog.show();
+
+	const $wrapper = dialog.get_field("frame").$wrapper;
+	$wrapper.empty();
+
+	const $frame = $('<iframe style="width: 100%; height: 70vh; border: 0;"></iframe>');
+	$wrapper.append($frame);
+
+	$frame.on("load", function () {
+		apply_iframe_lock(this, allowed_prefixes || []);
+	});
+
+	$frame.attr("src", url);
+	return { dialog, frame: $frame };
+}
+
+function apply_iframe_lock(frame, allowed_prefixes, options) {
+	const prefixes = Array.isArray(allowed_prefixes) ? allowed_prefixes : [];
+	const extra_css = options && options.extra_css ? options.extra_css : "";
+	const max_attempts = 20;
+	let attempts = 0;
+
+	const ensure_lock = () => {
+		attempts += 1;
+		const win = frame.contentWindow;
+		if (!win || !win.frappe || !win.frappe.set_route) {
+			return attempts < max_attempts;
+		}
+
+		if (win.__psc_locked) {
+			return false;
+		}
+
+		win.__psc_locked = true;
+		inject_iframe_styles(win, extra_css);
+
+		const original_set_route = win.frappe.set_route.bind(win.frappe);
+		win.frappe.set_route = function () {
+			const route = normalize_route(arguments);
+			if (!is_route_allowed(route, prefixes)) {
+				return;
+			}
+			return original_set_route.apply(win.frappe, arguments);
+		};
+
+		if (win.frappe.router && win.frappe.router.on) {
+			win.frappe.router.on("change", () => {
+				const route = win.frappe.get_route ? win.frappe.get_route() : [];
+				if (!is_route_allowed(route, prefixes) && prefixes.length) {
+					original_set_route.apply(win.frappe, prefixes[0]);
+				}
+			});
+		}
+
+		return false;
+	};
+
+	const interval = setInterval(() => {
+		if (!ensure_lock()) {
+			clearInterval(interval);
+		}
+	}, 300);
+}
+
+function normalize_route(args) {
+	if (!args || !args.length) {
+		return [];
+	}
+	if (Array.isArray(args[0])) {
+		return args[0];
+	}
+	return Array.from(args);
+}
+
+function is_route_allowed(route, prefixes) {
+	if (!prefixes || !prefixes.length) {
+		return true;
+	}
+	if (!route || !route.length) {
+		return true;
+	}
+	return prefixes.some(prefix => {
+		if (!prefix || !prefix.length) {
+			return false;
+		}
+		for (let i = 0; i < prefix.length; i += 1) {
+			if (route[i] !== prefix[i]) {
+				return false;
+			}
+		}
+		return true;
+	});
+}
+
+function inject_iframe_styles(win, extra_css) {
+	try {
+		const doc = win.document;
+		if (!doc || doc.getElementById("psc-locked-style")) {
+			return;
+		}
+		const style = doc.createElement("style");
+		style.id = "psc-locked-style";
+		style.textContent = `
+			.navbar, .desk-sidebar, .layout-side-section, .app-sidebar {
+				display: none !important;
+			}
+			.layout-main-section-wrapper {
+				margin-left: 0 !important;
+			}
+			${extra_css || ""}
+		`;
+		doc.head.appendChild(style);
+	} catch (e) {
+		// Ignore cross-origin or DOM errors.
+	}
 }
 
 function render_strategy_table($container, data, rollups, level) {
@@ -959,25 +1137,686 @@ function render_status_bar(percent) {
 	`;
 }
 
-function open_doctype_modal(doctype) {
-	const slug = frappe.router.slug(doctype);
-	const url = `/app/${slug}/new-${slug}`;
-	const dialog = new frappe.ui.Dialog({
-		title: doctype,
-		size: "extra-large",
-		fields: [{ fieldname: "frame", fieldtype: "HTML" }]
-	});
-	dialog.get_field("frame").$wrapper.html(
-		`<iframe src="${url}" style="width: 100%; height: 70vh; border: 0;"></iframe>`
-	);
-	dialog.show();
-}
-
 function render_strategy_maps($container) {
 	const url = "/app/strategy-maps";
+	$container.addClass("strategy-map-only");
+	$container.html(`<iframe src="${url}" style="width: 100%; height: 80vh; border: 0;"></iframe>`);
+
+	const frame = $container.find("iframe")[0];
+	if (frame) {
+		$(frame).on("load", function () {
+			apply_iframe_lock(this, [["Page", "strategy-maps"], ["strategy-maps"]], {
+				extra_css: `
+					.page-head, .page-title, .page-actions, .layout-main-section-wrapper .page-head {
+						display: none !important;
+					}
+					.layout-main-section-wrapper {
+						padding-top: 0 !important;
+					}
+					html, body, .page-body, .layout-main-section-wrapper, .layout-main-section {
+						background: #f5f7fb !important;
+					}
+					.page-body, .layout-main-section {
+						padding: 0 !important;
+					}
+				`
+			});
+		});
+	}
+}
+
+function render_reports($container) {
+	const state = {
+		scope: "All",
+		reports: [],
+		search: "",
+		filters: {
+			start_date: "",
+			end_date: "",
+			department: "",
+			employee: ""
+		}
+	};
+
 	$container.html(`
-		<div style="height: 80vh; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
-			<iframe src="${url}" style="width: 100%; height: 100%; border: 0;"></iframe>
+		<div class="reports-shell">
+			<div class="reports-hero">
+				<div>
+					<div class="reports-kicker">Performance</div>
+					<div class="reports-title">Performance Reports</div>
+					<div class="reports-subtitle">Track scorecards, KPIs, and operational insight at a glance.</div>
+				</div>
+				<div class="reports-actions">
+					<div class="reports-search">
+						<i class="fa fa-search"></i>
+						<input type="text" class="reports-search-input" placeholder="Search reports..." />
+					</div>
+					<button class="btn btn-primary btn-sm reports-refresh"><i class="fa fa-refresh"></i> Refresh</button>
+				</div>
+			</div>
+
+			<div class="reports-tabs">
+				<button class="reports-tab is-active" data-scope="All">All</button>
+				<button class="reports-tab" data-scope="Company">Company</button>
+				<button class="reports-tab" data-scope="Department">Department</button>
+				<button class="reports-tab" data-scope="Individual">Individual</button>
+			</div>
+
+			<div class="reports-filters scope-all">
+				<div class="reports-filters-grid">
+					<div class="reports-filter" data-filter="start-date">
+						<label>Period Start</label>
+						<div class="reports-control" data-control="start-date"></div>
+					</div>
+					<div class="reports-filter" data-filter="end-date">
+						<label>Period End</label>
+						<div class="reports-control" data-control="end-date"></div>
+					</div>
+					<div class="reports-filter" data-filter="department">
+						<label>Department</label>
+						<div class="reports-control" data-control="department"></div>
+					</div>
+					<div class="reports-filter" data-filter="employee">
+						<label>Employee</label>
+						<div class="reports-control" data-control="employee"></div>
+					</div>
+				</div>
+			</div>
+
+			<div class="reports-section">
+				<div class="section-header">
+					<div class="section-title">Featured</div>
+					<div class="section-subtitle">Pinned for quick access</div>
+				</div>
+				<div class="reports-grid featured-reports"></div>
+			</div>
+
+			<div class="reports-section">
+				<div class="section-header">
+					<div class="section-title">All Reports</div>
+					<div class="section-subtitle">Browse the full report catalog</div>
+				</div>
+				<div class="reports-list"></div>
+			</div>
 		</div>
 	`);
+
+	const $shell = $container.find(".reports-shell");
+	const $search = $shell.find(".reports-search-input");
+	const $tabs = $shell.find(".reports-tab");
+	const $featured = $shell.find(".featured-reports");
+	const $list = $shell.find(".reports-list");
+	const $filters = $shell.find(".reports-filters");
+	const $refresh = $shell.find(".reports-refresh");
+
+	const controls = {
+		start_date: frappe.ui.form.make_control({
+			df: { fieldname: "start_date", fieldtype: "Date", placeholder: "Start date" },
+			parent: $shell.find("[data-control='start-date']"),
+			render_input: true
+		}),
+		end_date: frappe.ui.form.make_control({
+			df: { fieldname: "end_date", fieldtype: "Date", placeholder: "End date" },
+			parent: $shell.find("[data-control='end-date']"),
+			render_input: true
+		}),
+		department: frappe.ui.form.make_control({
+			df: { fieldname: "department", fieldtype: "Link", options: "Department", placeholder: "Department" },
+			parent: $shell.find("[data-control='department']"),
+			render_input: true
+		}),
+		employee: frappe.ui.form.make_control({
+			df: {
+				fieldname: "employee",
+				fieldtype: "Link",
+				options: "Employee",
+				placeholder: "Employee",
+				get_query: () => {
+					const dept = controls.department.get_value();
+					if (!dept) {
+						return {};
+					}
+					return { filters: { department: dept } };
+				}
+			},
+			parent: $shell.find("[data-control='employee']"),
+			render_input: true
+		})
+	};
+
+	Object.values(controls).forEach(control => control.refresh());
+
+	const featured_names = [
+		"Performance Analytics",
+		"Scorecards by Department",
+		"Scorecards by Status",
+		"Overdue KPIs"
+	];
+
+	function set_scope(scope) {
+		state.scope = scope;
+		$tabs.removeClass("is-active");
+		$tabs.filter(`[data-scope='${scope}']`).addClass("is-active");
+		$filters.removeClass("scope-all scope-company scope-department scope-individual")
+			.addClass(`scope-${scope.toLowerCase()}`);
+
+		if (scope === "All") {
+			controls.department.set_value("");
+			controls.employee.set_value("");
+		}
+
+		if (scope === "Company") {
+			controls.employee.set_value("");
+		}
+
+		render_reports_list();
+	}
+
+	function update_filters() {
+		state.filters.start_date = controls.start_date.get_value();
+		state.filters.end_date = controls.end_date.get_value();
+		state.filters.department = controls.department.get_value();
+		state.filters.employee = controls.employee.get_value();
+	}
+
+	function build_route_options() {
+		update_filters();
+		const options = {};
+		if (state.filters.start_date) options.period_start = state.filters.start_date;
+		if (state.filters.end_date) options.period_end = state.filters.end_date;
+		if (state.filters.department) options.department = state.filters.department;
+		if (state.filters.employee) options.employee = state.filters.employee;
+		return options;
+	}
+
+	function open_report(report_name) {
+		open_report_modal(report_name, build_route_options());
+	}
+
+	function matches_search(report) {
+		if (!state.search) return true;
+		const label = (report.report_name || report.name || "").toLowerCase();
+		return label.includes(state.search.toLowerCase());
+	}
+
+	function render_card(report, is_featured) {
+		const name = report.report_name || report.name;
+		return `
+			<div class="report-card ${is_featured ? "report-card--featured" : ""}" data-report="${name}">
+				<div class="report-card-title">${name}</div>
+				<div class="report-meta">${report.report_type || "Report"} | ${report.ref_doctype || "Performance Scorecard"}</div>
+				<div class="report-actions">
+					<button class="btn btn-sm btn-primary report-open" data-report="${name}">Open</button>
+				</div>
+			</div>
+		`;
+	}
+
+	function render_list_row(report) {
+		const name = report.report_name || report.name;
+		return `
+			<div class="report-list-row" data-report="${name}">
+				<div>
+					<div class="report-row-title">${name}</div>
+					<div class="report-row-meta">${report.report_type || "Report"} | ${report.ref_doctype || "Performance Scorecard"}</div>
+				</div>
+				<div class="report-list-actions">
+					<button class="btn btn-sm btn-default report-open" data-report="${name}">Open</button>
+				</div>
+			</div>
+		`;
+	}
+
+	function render_reports_list() {
+		update_filters();
+		const reports = state.reports.filter(matches_search);
+		const featured = [];
+		const others = [];
+
+		reports.forEach(report => {
+			const name = report.report_name || report.name;
+			if (featured_names.includes(name)) {
+				featured.push(report);
+			} else {
+				others.push(report);
+			}
+		});
+
+		$featured.html(featured.length
+			? featured.map(r => render_card(r, true)).join("")
+			: '<div class="empty-state">No featured reports found.</div>');
+
+		$list.html(others.length
+			? others.map(render_list_row).join("")
+			: '<div class="empty-state">No reports match your filters.</div>');
+	}
+
+	function fetch_reports() {
+		$featured.html('<div class="text-muted">Loading...</div>');
+		$list.html("");
+
+		frappe.call({
+			method: "frappe.client.get_list",
+			args: {
+				doctype: "Report",
+				fields: ["name", "report_name", "report_type", "ref_doctype", "module"],
+				filters: {
+					module: "Performance Scorecard",
+					disabled: 0
+				},
+				order_by: "report_name asc"
+			},
+			callback: function (r) {
+				state.reports = r.message || [];
+				render_reports_list();
+			}
+		});
+	}
+
+	$tabs.on("click", function () {
+		set_scope($(this).data("scope"));
+	});
+
+	$search.on("input", function () {
+		state.search = $(this).val() || "";
+		render_reports_list();
+	});
+
+	$refresh.on("click", function () {
+		fetch_reports();
+	});
+
+	$shell.on("click", ".report-card, .report-list-row", function (e) {
+		if ($(e.target).closest(".report-open").length) {
+			return;
+		}
+		const report = $(this).data("report");
+		if (report) {
+			open_report(report);
+		}
+	});
+
+	$shell.on("click", ".report-open", function (e) {
+		e.preventDefault();
+		e.stopPropagation();
+		const report = $(this).data("report");
+		if (report) {
+			open_report(report);
+		}
+	});
+
+	controls.start_date.$input.on("change", render_reports_list);
+	controls.end_date.$input.on("change", render_reports_list);
+	controls.department.$input.on("change", function () {
+		if (state.scope === "Department" || state.scope === "Individual") {
+			controls.employee.set_value("");
+		}
+		render_reports_list();
+	});
+	controls.employee.$input.on("change", function () {
+		if (state.scope === "Individual") {
+			const employee = controls.employee.get_value();
+			if (employee) {
+				frappe.call({
+					method: "frappe.client.get_value",
+					args: {
+						doctype: "Employee",
+						filters: { name: employee },
+						fieldname: "department"
+					},
+					callback: function (r) {
+						const dept = r.message ? r.message.department : "";
+						if (dept) {
+							controls.department.set_value(dept);
+						}
+					}
+				});
+			}
+		}
+		render_reports_list();
+	});
+
+	set_scope("All");
+	fetch_reports();
+}
+
+function render_dashboards($container) {
+	$container.html(`
+		<div class="dashboards-shell">
+			<div class="dashboards-tabs">
+				<button class="dashboards-tab is-active" data-tab="company">Company</button>
+				<button class="dashboards-tab" data-tab="department">Department</button>
+				<button class="dashboards-tab" data-tab="employee">Employee</button>
+			</div>
+			<div class="dashboards-content">
+				<div class="dashboards-panel is-active" data-panel="company">
+					<div class="empty-state">Loading company dashboard...</div>
+				</div>
+				<div class="dashboards-panel" data-panel="department">
+					<div class="empty-state">Loading department dashboard...</div>
+				</div>
+				<div class="dashboards-panel" data-panel="employee">
+					<div class="empty-state">Loading employee dashboard...</div>
+				</div>
+			</div>
+		</div>
+	`);
+
+	const $tabs = $container.find(".dashboards-tab");
+	const $panels = $container.find(".dashboards-panel");
+
+	$tabs.on("click", function () {
+		const target = $(this).data("tab");
+		$tabs.removeClass("is-active");
+		$(this).addClass("is-active");
+		$panels.removeClass("is-active");
+		$panels.filter(`[data-panel="${target}"]`).addClass("is-active");
+	});
+
+	frappe.call({
+		method: "performance_scorecard.performance_scorecard.page.performance_dashboard.performance_dashboard.get_dashboard_insights",
+		callback: function (r) {
+			const insights = r.message || {};
+			render_company_dashboard($container, insights.company || {});
+			render_department_dashboard($container, insights.department || {}, insights.meta || {});
+			render_employee_dashboard($container, insights.employee || {}, insights.meta || {});
+		}
+	});
+}
+
+function render_company_dashboard($container, data) {
+	const avg_score = average_score(data.kpa_scores);
+	const dept_top = (data.department_comparison || [])[0];
+	const dept_bottom = (data.department_comparison || [])[data.department_comparison.length - 1];
+
+	const html = `
+		<div class="dashboards-grid dashboards-grid-4">
+			<div class="dashboard-card metric-card">
+				<div class="metric-label">Overall Company Score</div>
+				<div class="metric-value">${format_score(avg_score)}</div>
+				${render_light(avg_score)}
+			</div>
+			<div class="dashboard-card metric-card">
+				<div class="metric-label">Best Department</div>
+				<div class="metric-value">${dept_top ? dept_top.label : "N/A"}</div>
+				<div class="metric-sub">${dept_top ? format_score(dept_top.value) : "--"}</div>
+			</div>
+			<div class="dashboard-card metric-card">
+				<div class="metric-label">Bottom Department</div>
+				<div class="metric-value">${dept_bottom ? dept_bottom.label : "N/A"}</div>
+				<div class="metric-sub">${dept_bottom ? format_score(dept_bottom.value) : "--"}</div>
+			</div>
+			<div class="dashboard-card metric-card">
+				<div class="metric-label">Departments Tracked</div>
+				<div class="metric-value">${(data.department_comparison || []).length}</div>
+				<div class="metric-sub">Active departments</div>
+			</div>
+		</div>
+
+		<div class="dashboards-grid dashboards-grid-2">
+			<div class="dashboard-card">
+				<div class="card-header blue">KPA Scores</div>
+				<div class="chart-shell" id="company-kpa-chart"></div>
+			</div>
+			<div class="dashboard-card">
+				<div class="card-header light-blue">Department Comparison</div>
+				<div class="chart-shell" id="company-dept-chart"></div>
+			</div>
+		</div>
+
+		<div class="dashboards-grid dashboards-grid-2">
+			<div class="dashboard-card">
+				<div class="card-header yellow">Trend Analysis</div>
+				<div class="chart-shell" id="company-trend-chart"></div>
+			</div>
+			<div class="dashboard-card">
+				<div class="card-header cyan">Top 5 Employees</div>
+				<div class="list-stack">
+					${render_list((data.top_performers || []).slice(0, 5), "Top 5")}
+				</div>
+			</div>
+		</div>
+	`;
+
+	$container.find('[data-panel="company"]').html(html);
+	render_chart("#company-kpa-chart", data.kpa_scores, "bar");
+	render_chart("#company-dept-chart", data.department_comparison, "bar");
+	render_chart("#company-trend-chart", data.trend, "line");
+}
+
+function render_department_dashboard($container, data, meta) {
+	if (!meta.department) {
+		$container.find('[data-panel="department"]').html('<div class="empty-state">No department assigned to your user.</div>');
+		return;
+	}
+
+	const html = `
+		<div class="dashboards-grid dashboards-grid-4">
+			<div class="dashboard-card metric-card">
+				<div class="metric-label">Sales Team Score</div>
+				<div class="metric-value">${format_score(average_score(data.kpa_scores))}</div>
+				${render_light(average_score(data.kpa_scores))}
+			</div>
+			<div class="dashboard-card metric-card">
+				<div class="metric-label">Quota Attainment</div>
+				<div class="metric-value">${format_score(data.goal_achievement_rate)}%</div>
+				<div class="progress-line"><div class="progress-line-fill" style="width:${Math.min(data.goal_achievement_rate || 0, 100)}%"></div></div>
+			</div>
+			<div class="dashboard-card metric-card">
+				<div class="metric-label">At-Risk Deals</div>
+				<div class="metric-value">${(data.at_risk_kpis || []).length}</div>
+				<div class="metric-sub">Need attention</div>
+			</div>
+			<div class="dashboard-card metric-card">
+				<div class="metric-label">Active Reps</div>
+				<div class="metric-value">${(data.employee_distribution || []).reduce((sum, item) => sum + item.value, 0)}</div>
+				<div class="metric-sub">Assigned reps</div>
+			</div>
+		</div>
+
+		<div class="dashboards-grid dashboards-grid-2">
+			<div class="dashboard-card">
+				<div class="card-header blue">Team Score by KPA</div>
+				<div class="chart-shell" id="dept-kpa-chart"></div>
+			</div>
+			<div class="dashboard-card">
+				<div class="card-header light-blue">Rep Performance Mix</div>
+				<div class="chart-shell" id="dept-distribution-chart"></div>
+			</div>
+		</div>
+
+		<div class="dashboards-grid dashboards-grid-2">
+			<div class="dashboard-card">
+				<div class="card-header yellow">Sales Trend</div>
+				<div class="chart-shell" id="dept-trend-chart"></div>
+			</div>
+			<div class="dashboard-card">
+				<div class="card-header red">At-Risk Deals</div>
+				<div class="list-stack">
+					${render_at_risk(data.at_risk_kpis)}
+				</div>
+			</div>
+		</div>
+	`;
+
+	$container.find('[data-panel="department"]').html(html);
+	render_chart("#dept-kpa-chart", data.kpa_scores, "bar");
+	render_chart("#dept-distribution-chart", data.employee_distribution, "pie");
+	render_chart("#dept-trend-chart", data.trend, "line");
+}
+
+function render_employee_dashboard($container, data, meta) {
+	if (!meta.employee) {
+		$container.find('[data-panel="employee"]').html('<div class="empty-state">No employee profile linked to your user.</div>');
+		return;
+	}
+
+	const scorecard = data.scorecard || {};
+	const goal_progress = data.goal_progress || { items: [], average: 0 };
+
+	const html = `
+		<div class="dashboards-grid dashboards-grid-4">
+			<div class="dashboard-card metric-card">
+				<div class="metric-label">Rep Scorecard</div>
+				<div class="metric-value">${format_score(scorecard.overall_score)}</div>
+				<div class="metric-sub">${scorecard.status || "No scorecard"}</div>
+			</div>
+			<div class="dashboard-card metric-card">
+				<div class="metric-label">Pipeline Progress</div>
+				<div class="metric-value">${format_score(goal_progress.average)}%</div>
+				<div class="progress-line"><div class="progress-line-fill" style="width:${Math.min(goal_progress.average || 0, 100)}%"></div></div>
+			</div>
+			<div class="dashboard-card metric-card">
+				<div class="metric-label">Team Average</div>
+				<div class="metric-value">${format_score(data.department_average)}</div>
+				${render_light(data.department_average)}
+			</div>
+			<div class="dashboard-card metric-card">
+				<div class="metric-label">At-Risk Deals</div>
+				<div class="metric-value">${(data.at_risk_kpis || []).length}</div>
+				<div class="metric-sub">Follow up</div>
+			</div>
+		</div>
+
+		<div class="dashboards-grid dashboards-grid-2">
+			<div class="dashboard-card">
+				<div class="card-header blue">Deal Progress</div>
+				<div class="list-stack">
+					${render_goal_progress(goal_progress.items)}
+				</div>
+			</div>
+			<div class="dashboard-card">
+				<div class="card-header yellow">Sales Trend</div>
+				<div class="chart-shell" id="employee-trend-chart"></div>
+			</div>
+		</div>
+	`;
+
+	$container.find('[data-panel="employee"]').html(html);
+	render_chart("#employee-trend-chart", data.trend, "line");
+}
+
+function render_chart(target, items, type) {
+	const $target = $(target);
+	if (!$target.length) {
+		return;
+	}
+
+	$target.empty();
+
+	if (!items || !items.length) {
+		$target.html('<div class="empty-state">No data available.</div>');
+		return;
+	}
+
+	const cleaned = (items || []).map(item => {
+		if (!item) {
+			return null;
+		}
+
+		const label = item.label || "Unlabeled";
+		let raw = item.value;
+		if (typeof raw === "string") {
+			raw = raw.replace(/,/g, "");
+		}
+		const value = Number(raw);
+		if (!Number.isFinite(value)) {
+			return null;
+		}
+		return { label: label, value: value };
+	}).filter(Boolean);
+
+	if (!cleaned.length) {
+		$target.html('<div class="empty-state">No data available.</div>');
+		return;
+	}
+
+	const labels = cleaned.map(item => item.label);
+	const values = cleaned.map(item => item.value);
+
+	new frappe.Chart(target, {
+		data: {
+			labels: labels,
+			datasets: [{ values: values }]
+		},
+		type: type,
+		height: 220,
+		colors: ["#1AA6A4", "#F46B2A", "#0B2740", "#F4A261"]
+	});
+}
+
+function render_list(items, label) {
+	if (!items || !items.length) {
+		return `<div class="empty-state">${label} performers unavailable.</div>`;
+	}
+
+	const rows = items.map(item => `
+		<div class="list-row">
+			<span>${item.label}</span>
+			<span>${format_score(item.value)}</span>
+		</div>
+	`).join("");
+
+	return `
+		<div class="list-block">
+			<div class="list-title">${label}</div>
+			${rows}
+		</div>
+	`;
+}
+
+function render_at_risk(items) {
+	if (!items || !items.length) {
+		return '<div class="empty-state">All KPIs are on track.</div>';
+	}
+
+	return items.map(item => `
+		<div class="list-row">
+			<span>${item.label}</span>
+			<span class="status-pill ${score_class(item.value)}">${format_score(item.value)}</span>
+		</div>
+	`).join("");
+}
+
+function render_goal_progress(items) {
+	if (!items || !items.length) {
+		return '<div class="empty-state">No active goals assigned.</div>';
+	}
+
+	return items.map(goal => `
+		<div class="progress-row">
+			<div>${goal.goal_name}</div>
+			<div class="progress-line"><div class="progress-line-fill" style="width:${Math.min(goal.progress || 0, 100)}%"></div></div>
+		</div>
+	`).join("");
+}
+
+function format_score(value) {
+	if (value === null || value === undefined || value === "") {
+		return "--";
+	}
+	return Number(value).toFixed(1);
+}
+
+function average_score(items) {
+	if (!items || !items.length) {
+		return 0;
+	}
+	const total = items.reduce((sum, item) => sum + (item.value || 0), 0);
+	return total / items.length;
+}
+
+function score_class(value) {
+	if (value >= 80) {
+		return "is-green";
+	}
+	if (value >= 60) {
+		return "is-yellow";
+	}
+	return "is-red";
+}
+
+function render_light(value) {
+	const cls = score_class(value);
+	return `<span class="status-light ${cls}"></span>`;
 }
