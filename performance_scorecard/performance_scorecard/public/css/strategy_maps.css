@@ -1,0 +1,215 @@
+.strategy-map-tree {
+    padding: 0;
+    height: calc(100vh - 100px);
+    width: 100%;
+    overflow: auto;
+    background-color: #f5f7fb;
+    background-image:
+        linear-gradient(#e5e7eb 1px, transparent 1px),
+        linear-gradient(90deg, #e5e7eb 1px, transparent 1px);
+    background-size: 28px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    --column-color-1: #F47920;
+    --column-color-2: #009DDC;
+    --column-color-3: #00A651;
+    --column-color-4: #BDBDBD;
+}
+
+#strategy-tree {
+    padding: 60px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100%;
+    min-width: max-content;
+}
+
+.tree-node {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    position: relative;
+    padding: 10px 0;
+}
+
+.tree-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    z-index: 5;
+    margin-right: 50px;
+    cursor: pointer;
+}
+
+.tree-pill {
+    min-width: 200px;
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 12px 16px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    transition: all 0.2s ease;
+}
+
+.tree-content:hover .tree-pill {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    border-color: #3b82f6;
+}
+
+.tree-title {
+    font-weight: 700;
+    font-size: 13px;
+    color: #1e293b;
+}
+
+.tree-type {
+    font-size: 10px;
+    color: #64748b;
+    text-transform: uppercase;
+    margin-top: 4px;
+    display: block;
+    font-weight: 600;
+}
+
+.tree-meta {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 4px;
+}
+
+.tree-progress {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+    font-size: 10px;
+    color: #475569;
+}
+
+.tree-progress .progress {
+    flex: 1;
+    height: 6px;
+    background: #f1f5f9;
+    border-radius: 3px;
+    margin-bottom: 0;
+}
+
+.tree-progress .progress-bar {
+    background-color: #3b82f6;
+    border-radius: 3px;
+}
+
+.tree-children {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+}
+
+.tree-node:not(.expanded) > .tree-children {
+    display: none;
+}
+
+.tree-node.expanded > .tree-content::after {
+    content: "";
+    position: absolute;
+    right: -50px;
+    top: 50%;
+    width: 50px;
+    height: 2px;
+    background-color: #94a3b8;
+}
+
+.tree-children > .tree-node::before {
+    content: "";
+    position: absolute;
+    left: -50px;
+    top: 50%;
+    width: 50px;
+    height: 2px;
+    background-color: #94a3b8;
+}
+
+.tree-children > .tree-node::after {
+    content: "";
+    position: absolute;
+    left: -50px;
+    width: 2px;
+    background-color: #94a3b8;
+    height: 100%;
+    top: 0;
+}
+
+.tree-children > .tree-node:only-child::after {
+    display: none;
+}
+
+.tree-children > .tree-node:first-child::after {
+    top: 50%;
+    height: 50%;
+}
+
+.tree-children > .tree-node:last-child::after {
+    height: 50%;
+    bottom: 50%;
+}
+
+.tree-expand {
+    position: absolute;
+    right: -12px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #1e293b;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    cursor: pointer;
+    z-index: 10;
+    border: 2px solid #fff;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+#strategy-tree > .tree-node > .tree-content .tree-pill {
+    background-color: #1e40af;
+    color: white;
+    border: none;
+    min-width: 220px;
+    border-left: none;
+}
+
+#strategy-tree > .tree-node > .tree-content .tree-title {
+    color: white;
+    font-size: 14px;
+}
+
+#strategy-tree > .tree-node > .tree-content .tree-type {
+    color: #bfdbfe;
+}
+
+#strategy-tree > .tree-node > .tree-content .tree-meta {
+    color: #dbeafe;
+}
+
+.tree-node.node-green .tree-pill { border-left: 4px solid #22c55e; }
+.tree-node.node-blue .tree-pill { border-left: 4px solid #3b82f6; }
+.tree-node.node-yellow .tree-pill { border-left: 4px solid #f59e0b; }
+.tree-node.node-red .tree-pill { border-left: 4px solid #ef4444; }
+
+.tree-node.type-company .tree-pill { border-left: 4px solid #1d4ed8; }
+.tree-node.type-department .tree-pill { border-left: 4px solid #0f766e; }
+.tree-node.type-employee .tree-pill { border-left: 4px solid #4d7c0f; }
+.tree-node.type-kpa .tree-pill { border-left: 4px solid #4f46e5; }
+.tree-node.type-goal .tree-pill { border-left: 4px solid #0284c7; }
+.tree-node.type-kra .tree-pill { border-left: 4px solid #b45309; }
+.tree-node.type-kpi .tree-pill { border-left: 4px solid #be185d; }

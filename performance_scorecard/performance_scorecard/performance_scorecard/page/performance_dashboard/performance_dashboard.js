@@ -173,10 +173,12 @@ function bind_sidebar(page, data, home_html) {
 }
 
 function render_home_charts($body, data) {
+	const kpa_weights = data.kpa_weights || [];
 	const progress = data.kra_progress || {};
-	render_chart("#home-kpa-company", progress.company, "pie");
-	render_chart("#home-kpa-department", progress.department, "pie");
-	render_chart("#home-kpa-individual", progress.individual, "pie");
+	const palette = data.kpa_palette || [];
+	render_chart("#home-kpa-company", kpa_weights.length ? kpa_weights : progress.company, "pie", { colors: palette });
+	render_chart("#home-kpa-department", kpa_weights.length ? kpa_weights : progress.department, "pie", { colors: palette });
+	render_chart("#home-kpa-individual", kpa_weights.length ? kpa_weights : progress.individual, "pie", { colors: palette });
 }
 
 function render_home_list(items, empty_text) {
@@ -1306,15 +1308,13 @@ function render_company_dashboard($container, data) {
 }
 
 function render_department_dashboard($container, data, meta) {
-	if (!meta.department) {
-		$container.find('[data-panel="department"]').html('<div class="empty-state">No department assigned to your user.</div>');
-		return;
-	}
-
+	const department_label = meta && meta.department ? meta.department : "Department";
+	const empty_note = meta && meta.department ? "" : '<div class="empty-state">No department assigned to your user. Showing overview data.</div>';
 	const html = `
+		${empty_note}
 		<div class="dashboards-grid dashboards-grid-4">
 			<div class="dashboard-card metric-card">
-				<div class="metric-label">Sales Team Score</div>
+				<div class="metric-label">${department_label} Score</div>
 				<div class="metric-value">${format_score(average_score(data.kpa_scores))}</div>
 				${render_light(average_score(data.kpa_scores))}
 			</div>
@@ -1417,13 +1417,14 @@ function render_employee_dashboard($container, data, meta) {
 	render_chart("#employee-trend-chart", data.trend, "line");
 }
 
-function render_chart(target, items, type) {
+function render_chart(target, items, type, options) {
 	const $target = $(target);
 	if (!$target.length) {
 		return;
 	}
 
 	$target.empty();
+	$target.removeClass("psc-pie-chart");
 
 	if (!items || !items.length) {
 		$target.html('<div class="empty-state">No data available.</div>');
@@ -1455,6 +1456,43 @@ function render_chart(target, items, type) {
 	const labels = cleaned.map(item => item.label);
 	const values = cleaned.map(item => item.value);
 
+	const opts = options || {};
+	const defaultPalette = ["#42A5F5", "#EF6C00", "#BDBDBD", "#FBC02D"];
+	const palette = (opts.colors && opts.colors.length) ? opts.colors : defaultPalette;
+
+	if (type === "pie") {
+		$target.addClass("psc-pie-chart");
+		const $wrap = $('<div class="psc-chart-flex"></div>');
+		const $chart = $('<div class="psc-chart-canvas"></div>');
+		const $legend = $('<div class="psc-chart-legend" aria-label="Chart legend"></div>');
+		$wrap.append($chart, $legend);
+		$target.append($wrap);
+
+		new frappe.Chart($chart.get(0), {
+			data: {
+				labels: labels,
+				datasets: [{ values: values }]
+			},
+			type: "pie",
+			height: 220,
+			colors: palette
+		});
+
+		labels.forEach((label, index) => {
+			const color = palette[index % palette.length];
+			const value = values[index];
+			const $row = $(`
+				<div class="psc-legend-item">
+					<span class="psc-legend-swatch" style="background:${color}"></span>
+					<span class="psc-legend-label">${frappe.utils.escape_html(label)}</span>
+					<span class="psc-legend-value">${format_score(value)}</span>
+				</div>
+			`);
+			$legend.append($row);
+		});
+		return;
+	}
+
 	new frappe.Chart(target, {
 		data: {
 			labels: labels,
@@ -1462,7 +1500,7 @@ function render_chart(target, items, type) {
 		},
 		type: type,
 		height: 220,
-		colors: ["#1AA6A4", "#F46B2A", "#0B2740", "#F4A261"]
+		colors: palette
 	});
 }
 
