@@ -7,6 +7,7 @@ def get_dashboard_data():
 	user = frappe.session.user
 	employee = frappe.db.get_value("Employee", {"user_id": user}, "name")
 	department = frappe.db.get_value("Employee", employee, "department") if employee else None
+	chart_employee, chart_department = _get_employee_profile(user)
 
 	data = {
 		"company": frappe.defaults.get_user_default("Company") or frappe.db.get_single_value("Global Defaults", "default_company"),
@@ -27,7 +28,9 @@ def get_dashboard_data():
 		"attention_department": [],
 		"attention_individual": [],
 		"weekly_top_kras": [],
-		"quarterly_top_kras": []
+		"quarterly_top_kras": [],
+		"kpa_weights": [],
+		"kpa_palette": []
 	}
 
 	if employee:
@@ -90,20 +93,23 @@ def get_dashboard_data():
 		)
 
 	data["kra_progress"]["company"] = _get_kra_progress_by_kpa(owner_type="Company")
-	if department:
-		data["kra_progress"]["department"] = _get_kra_progress_by_kpa(owner_type="Department", department=department)
-	if employee:
-		data["kra_progress"]["individual"] = _get_kra_progress_by_kpa(owner_type="Employee", employee=employee)
+	if chart_department:
+		data["kra_progress"]["department"] = _get_kra_progress_by_kpa(owner_type="Department", department=chart_department)
+	if chart_employee:
+		data["kra_progress"]["individual"] = _get_kra_progress_by_kpa(owner_type="Employee", employee=chart_employee)
 
 	data["attention_company"] = _get_kra_attention(owner_type="Company")
-	if department:
-		data["attention_department"] = _get_kra_attention(owner_type="Department", department=department)
-	if employee:
-		data["attention_individual"] = _get_kra_attention(owner_type="Employee", employee=employee)
+	if chart_department:
+		data["attention_department"] = _get_kra_attention(owner_type="Department", department=chart_department)
+	if chart_employee:
+		data["attention_individual"] = _get_kra_attention(owner_type="Employee", employee=chart_employee)
 
-	if department:
-		data["weekly_top_kras"] = _get_top_kras_by_period(department, days=7, limit=5)
-		data["quarterly_top_kras"] = _get_top_kras_by_period(department, months=3, limit=5)
+	if chart_department:
+		data["weekly_top_kras"] = _get_top_kras_by_period(chart_department, days=7, limit=5)
+		data["quarterly_top_kras"] = _get_top_kras_by_period(chart_department, months=3, limit=5)
+
+	data["kpa_weights"] = _get_kpa_weightages()
+	data["kpa_palette"] = _get_kpa_palette()
 
 	return data
 
@@ -136,7 +142,8 @@ def get_dashboard_insights():
 			"employee_distribution": _get_department_distribution(department),
 			"goal_achievement_rate": _get_department_goal_achievement(department),
 			"at_risk_kpis": _get_department_at_risk_kpis(department),
-			"trend": _get_department_trend(department)
+			"trend": _get_department_trend(department),
+			"top_employees": _get_department_top_employees(department)
 		}
 
 	if employee:
@@ -156,6 +163,26 @@ def _get_employee_profile(user):
 	department = None
 	if employee:
 		department = frappe.db.get_value("Employee", employee, "department")
+	if not department:
+		department = frappe.defaults.get_user_default("Department")
+	if not employee:
+		employee = frappe.defaults.get_user_default("Employee")
+	if employee and not department:
+		department = frappe.db.get_value("Employee", employee, "department")
+	if not department:
+		department = frappe.db.get_value(
+			"Performance Scorecard",
+			{"department": ["is", "set"]},
+			"department",
+			order_by="modified desc"
+		)
+	if not employee:
+		employee = frappe.db.get_value(
+			"Performance Scorecard",
+			{"employee": ["is", "set"]},
+			"employee",
+			order_by="modified desc"
+		)
 	return employee, department
 
 
@@ -250,6 +277,27 @@ def _get_department_kpa_scores(department):
 
 	return [{"label": kpa, "value": sum(values) / len(values)} for kpa, values in grouped.items()]
 
+
+def _get_department_top_employees(department, limit=5):
+	rows = frappe.db.get_all(
+		"Performance Scorecard",
+		filters={"department": department},
+		fields=["employee", "overall_score", "modified"],
+		order_by="modified desc"
+	)
+
+	latest = {}
+	for row in rows:
+		if row.employee and row.employee not in latest:
+			latest[row.employee] = row.overall_score or 0
+
+	entries = []
+	for emp, score in latest.items():
+		label = frappe.db.get_value("Employee", emp, "employee_name") or emp
+		entries.append({"label": label, "value": score})
+
+	entries.sort(key=lambda x: x["value"], reverse=True)
+	return entries[:limit]
 
 def _get_department_distribution(department):
 	rows = frappe.db.get_all(
@@ -399,30 +447,79 @@ def _get_goal_kpa_field():
 
 
 def _get_kra_progress_by_kpa(owner_type, department=None, employee=None):
-	kpa_field = _get_goal_kpa_field()
-	if not kpa_field:
-		return []
-
-	conditions = ["g.owner_type = %s"]
-	values = [owner_type]
-	if department:
-		conditions.append("g.department = %s")
-		values.append(department)
-	if employee:
-		conditions.append("g.employee = %s")
+	conditions = ["si.kpa IS NOT NULL", "si.kpa != ''"]
+	values = []
+	if owner_type == "Department" and department:
+		conditions.append("(ps.department = %s OR e.department = %s)")
+		values.extend([department, department])
+	if owner_type == "Employee" and employee:
+		conditions.append("ps.employee = %s")
 		values.append(employee)
 
 	query = f"""
-		SELECT g.{kpa_field} as label,
-			AVG(IFNULL(k.progress, 0)) as value
-		FROM `tabKRA` k
-		INNER JOIN `tabGoal` g ON g.name = k.goal
+		SELECT si.kpa as kpa,
+			AVG(
+				CASE
+					WHEN si.score IS NOT NULL THEN si.score
+					WHEN si.target IS NOT NULL AND si.target != 0 THEN (IFNULL(si.actual, 0) / si.target) * 100
+					ELSE 0
+				END
+			) as value
+		FROM `tabScorecard Item` si
+		INNER JOIN `tabPerformance Scorecard` ps ON ps.name = si.parent
+		LEFT JOIN `tabEmployee` e ON e.name = ps.employee
 		WHERE {' AND '.join(conditions)}
-		GROUP BY g.{kpa_field}
-		ORDER BY g.{kpa_field} ASC
+		GROUP BY si.kpa
+		ORDER BY si.kpa ASC
 	"""
 	rows = frappe.db.sql(query, values, as_dict=True)
-	return [row for row in rows if row.get("label")]
+	values_by_kpa = {
+		row.get("kpa"): row.get("value", 0)
+		for row in rows
+		if row.get("kpa")
+	}
+
+	kpa_rows = frappe.db.get_all(
+		"KPA Master",
+		fields=["name", "kpa_name"],
+		order_by="kpa_name asc"
+	)
+	kpa_order = [row.name for row in kpa_rows if row.name]
+	kpa_labels = {row.name: (row.kpa_name or row.name) for row in kpa_rows}
+
+	if not kpa_order:
+		return [
+			{"label": kpa, "value": value}
+			for kpa, value in values_by_kpa.items()
+		]
+
+	ordered = [
+		{"label": kpa_labels.get(name, name), "value": values_by_kpa.get(name, 0)}
+		for name in kpa_order
+	]
+	extras = [
+		{"label": kpa_labels.get(name, name), "value": value}
+		for name, value in values_by_kpa.items()
+		if name not in kpa_order
+	]
+	return ordered + extras
+
+
+def _get_kpa_weightages():
+	rows = frappe.db.get_all(
+		"KPA Master",
+		fields=["name", "kpa_name", "weightage"],
+		order_by="kpa_name asc"
+	)
+	return [
+		{"label": (row.kpa_name or row.name), "value": (row.weightage or 0)}
+		for row in rows
+		if row.kpa_name or row.name
+	]
+
+
+def _get_kpa_palette():
+	return ["#F47920", "#009DDC", "#00A651", "#BDBDBD"]
 
 
 def _get_kra_attention(owner_type, department=None, employee=None, limit=5):

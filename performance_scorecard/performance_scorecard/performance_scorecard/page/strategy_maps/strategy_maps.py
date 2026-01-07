@@ -78,20 +78,25 @@ def get_children(node_type, node_id, context=None):
             filters=goal_filters,
             fields=["name", "goal_name", "progress", "end_date", "weightage"],
         )
-        context_label = ""
         if level == "Company":
             context_label = f"{_get_company_label(context.get('company') or frappe.db.get_single_value('Global Defaults', 'default_company') or '')} Company Goal"
         elif level == "Department":
             context_label = f"{_get_department_label(context.get('department'))} Department Goal"
-        elif level == "Employee":
+        else:
             context_label = f"{_get_employee_label(context.get('employee'))}'s Goal"
         for goal in goals:
+            goal_progress = _get_goal_progress(
+                goal.name,
+                level,
+                department=context.get("department"),
+                employee=context.get("employee")
+            )
             children.append({
                 "id": goal.name,
                 "label": goal.goal_name,
                 "type": "Goal",
                 "expandable": True,
-                "progress": goal.progress,
+                "progress": goal_progress,
                 "end_date": goal.end_date,
                 "meta": f"{context_label} · Contribution: {flt(goal.weightage) or 0}%"
             })
@@ -106,19 +111,23 @@ def get_children(node_type, node_id, context=None):
 
             dept_names = set([d.department for d in dept_goals if d.department])
             for dept in dept_names:
-                avg_progress = _avg([d.progress for d in dept_goals if d.department == dept]) or 0
-                avg_weight = _avg([d.weightage for d in dept_goals if d.department == dept]) or 0
+                avg_progress = _get_department_kpa_average(dept)
                 children.append({
                     "id": dept,
                     "label": _get_department_label(dept),
                     "type": "Department",
                     "expandable": True,
                     "progress": avg_progress,
-                    "meta": f"{_get_department_label(dept)} Department Goal · Contribution: {avg_weight:.1f}%"
+                    "meta": f"Avg KPA Score: {avg_progress:.1f}%"
                 })
         else:
             kras = frappe.get_all("KRA", filters={"goal": node_id}, fields=["name", "kra_name", "progress", "weightage"])
             for kra in kras:
+                kra_progress = _avg_score_for_kra(
+                    kra.name,
+                    department=context.get("department"),
+                    employee=context.get("employee")
+                )
                 if level == "Department":
                     dept_label = _get_department_label(context.get("department"))
                     meta_prefix = f"{dept_label} Department KRA"
@@ -131,7 +140,7 @@ def get_children(node_type, node_id, context=None):
                     "label": kra.kra_name,
                     "type": "KRA",
                     "expandable": True,
-                    "progress": kra.progress,
+                    "progress": kra_progress,
                     "meta": f"{meta_prefix} · Contribution: {flt(kra.weightage) or 0}%"
                 })
 
@@ -187,12 +196,15 @@ def get_children(node_type, node_id, context=None):
             for item in items:
                 if item.kpi not in seen_kpis:
                     kpi_name = frappe.db.get_value("KPI Master", item.kpi, "kpi_name")
+                    score = item.score
+                    if score is None and item.target not in (None, 0):
+                        score = (flt(item.actual or 0) / flt(item.target)) * 100
                     children.append({
                         "id": item.kpi,
                         "label": kpi_name,
                         "type": "KPI",
                         "expandable": False,
-                        "progress": item.score,
+                        "progress": score or 0,
                         "meta": f"{employee_label}'s KPI · Target: {item.target or '-'} | Actual: {item.actual or '-'}"
                     })
                     seen_kpis.add(item.kpi)
@@ -213,30 +225,31 @@ def get_children(node_type, node_id, context=None):
     return children
 
 def get_company_progress(company):
-    # Avg of all Company Goals
-    goals = frappe.get_all("Goal", filters={"owner_type": "Company", "status": "Active"}, fields=["progress"])
-    if not goals: return 0
-    return sum([flt(g.progress) for g in goals]) / len(goals)
+    # Avg of all company KPA scores derived from KPI performance
+    kpa_rows = frappe.get_all("KPA Master", fields=["name"])
+    if not kpa_rows:
+        return 0
+    scores = [_avg_score_for_kpa(row.name) for row in kpa_rows]
+    return sum(scores) / len(scores) if scores else 0
 
 def get_kpa_progress(kpa, level, owner_id):
-    filters = {"kpa": kpa, "status": "Active"}
-    if level == "Company":
-        filters["owner_type"] = "Company"
-    elif level == "Department":
-        filters["owner_type"] = "Department"
-        filters["department"] = owner_id
-    elif level == "Individual":
-        filters["owner_type"] = "Employee"
-        filters["employee"] = owner_id
-        
-    goals = frappe.get_all("Goal", filters=filters, fields=["progress"])
-    if not goals: return 0
-    return sum([flt(g.progress) for g in goals]) / len(goals)
+    if level == "Department":
+        return _avg_score_for_kpa(kpa, department=owner_id)
+    if level == "Individual":
+        return _avg_score_for_kpa(kpa, employee=owner_id)
+    return _avg_score_for_kpa(kpa)
 
 def get_department_progress_for_goal(dept, parent_goal_id):
-    goals = frappe.get_all("Goal", filters={"parent_goal": parent_goal_id, "department": dept}, fields=["progress"])
-    if not goals: return 0
-    return sum([flt(g.progress) for g in goals]) / len(goals)
+    if not dept or not parent_goal_id:
+        return 0
+    child_goals = frappe.get_all(
+        "Goal",
+        filters={"parent_goal": parent_goal_id, "department": dept},
+        pluck="name",
+    )
+    if not child_goals:
+        return 0
+    return _avg_score_for_goals(child_goals, department=dept)
 
 
 def _avg(values):
@@ -246,12 +259,122 @@ def _avg(values):
     return sum(vals) / len(vals)
 
 
+def _avg_score_for_kpa(kpa, department=None, employee=None):
+    if not kpa:
+        return 0
+    conditions = ["si.kpa = %s", "ps.docstatus = 0"]
+    values = [kpa]
+    if department:
+        conditions.append("(ps.department = %s OR e.department = %s)")
+        values.extend([department, department])
+    if employee:
+        conditions.append("ps.employee = %s")
+        values.append(employee)
+    return _avg_score_from_items(conditions, values)
+
+
+def _avg_score_for_goals(goal_names, department=None, employee=None):
+    if not goal_names:
+        return 0
+    placeholders = ", ".join(["%s"] * len(goal_names))
+    conditions = [f"si.goal IN ({placeholders})", "ps.docstatus = 0"]
+    values = list(goal_names)
+    if department:
+        conditions.append("(ps.department = %s OR e.department = %s)")
+        values.extend([department, department])
+    if employee:
+        conditions.append("ps.employee = %s")
+        values.append(employee)
+    return _avg_score_from_items(conditions, values)
+
+
+def _avg_score_for_kra(kra, department=None, employee=None):
+    if not kra:
+        return 0
+    conditions = ["si.kra = %s", "ps.docstatus = 0"]
+    values = [kra]
+    if department:
+        conditions.append("(ps.department = %s OR e.department = %s)")
+        values.extend([department, department])
+    if employee:
+        conditions.append("ps.employee = %s")
+        values.append(employee)
+    return _avg_score_from_items(conditions, values)
+
+
+def _avg_score_from_items(conditions, values):
+    query = f"""
+        SELECT AVG(
+            CASE
+                WHEN si.score IS NOT NULL THEN si.score
+                WHEN si.target IS NOT NULL AND si.target != 0 THEN (IFNULL(si.actual, 0) / si.target) * 100
+                ELSE 0
+            END
+        ) as avg_score
+        FROM `tabScorecard Item` si
+        INNER JOIN `tabPerformance Scorecard` ps ON ps.name = si.parent
+        LEFT JOIN `tabEmployee` e ON e.name = ps.employee
+        WHERE {' AND '.join(conditions)}
+    """
+    rows = frappe.db.sql(query, values, as_dict=True)
+    if not rows:
+        return 0
+    return flt(rows[0].get("avg_score") or 0)
+
+
+def _get_goal_progress(goal_name, level, department=None, employee=None):
+    if not goal_name:
+        return 0
+
+    goal_names = [goal_name]
+    if level == "Company":
+        dept_goals = frappe.get_all(
+            "Goal",
+            filters={"parent_goal": goal_name, "owner_type": "Department"},
+            pluck="name",
+        )
+        if dept_goals:
+            goal_names.extend(dept_goals)
+            emp_goals = frappe.get_all(
+                "Goal",
+                filters={"parent_goal": ["in", dept_goals], "owner_type": "Employee"},
+                pluck="name",
+            )
+            if emp_goals:
+                goal_names.extend(emp_goals)
+    elif level == "Department":
+        emp_goals = frappe.get_all(
+            "Goal",
+            filters={"parent_goal": goal_name, "owner_type": "Employee"},
+            pluck="name",
+        )
+        if emp_goals:
+            goal_names.extend(emp_goals)
+
+    return _avg_score_for_goals(goal_names, department=department, employee=employee)
+
+
+def _get_department_kpa_average(department):
+    kpa_rows = frappe.get_all("KPA Master", fields=["name"])
+    if not kpa_rows:
+        return 0
+    scores = [_avg_score_for_kpa(row.name, department=department) for row in kpa_rows]
+    return sum(scores) / len(scores) if scores else 0
+
+
 def _get_employee_kra_progress(kra, department):
     if not department:
         return []
 
     rows = frappe.db.sql("""
-        SELECT sc.employee as employee, AVG(IFNULL(item.score, 0)) as score
+        SELECT sc.employee as employee,
+            AVG(
+                CASE
+                    WHEN item.score IS NOT NULL THEN item.score
+                    WHEN item.target IS NOT NULL AND item.target != 0 THEN (IFNULL(item.actual, 0) / item.target) * 100
+                    ELSE 0
+                END
+            ) as score
         FROM `tabScorecard Item` item
         JOIN `tabPerformance Scorecard` sc ON sc.name = item.parent
         JOIN `tabEmployee` emp ON emp.name = sc.employee

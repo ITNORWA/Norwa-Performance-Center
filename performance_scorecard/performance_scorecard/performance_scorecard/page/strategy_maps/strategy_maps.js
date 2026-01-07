@@ -13,12 +13,96 @@ frappe.pages['strategy-maps'].on_page_load = function (wrapper) {
 
     $(page.body).append(`
         <div class="strategy-map-tree">
+            <div class="strategy-map-controls">
+                <button type="button" class="map-btn" data-action="reload" title="Reload">
+                    <i class="fa fa-refresh" aria-hidden="true"></i>
+                </button>
+                <button type="button" class="map-btn" data-action="zoom-out" title="Zoom out">−</button>
+                <button type="button" class="map-btn" data-action="reset-zoom" title="Reset zoom">100%</button>
+                <button type="button" class="map-btn" data-action="zoom-in" title="Zoom in">+</button>
+            </div>
             <div id="strategy-tree"></div>
         </div>
     `);
 
     load_root_nodes();
+    init_map_controls();
 };
+
+function init_map_controls() {
+    const $container = $('.strategy-map-tree');
+    const scaleState = { value: 1 };
+    const minScale = 0.6;
+    const maxScale = 1.6;
+    const step = 0.1;
+
+    function setScale(next) {
+        const clamped = Math.max(minScale, Math.min(maxScale, next));
+        scaleState.value = clamped;
+        $container.get(0).style.setProperty('--tree-scale', clamped);
+        $container.find('.map-btn[data-action="reset-zoom"]').text(`${Math.round(clamped * 100)}%`);
+    }
+
+    function adjustScale(delta) {
+        setScale(scaleState.value + delta);
+    }
+
+    $container.on('click', '.map-btn', function () {
+        const action = $(this).data('action');
+        if (action === 'reload') {
+            load_root_nodes();
+        } else if (action === 'zoom-in') {
+            adjustScale(step);
+        } else if (action === 'zoom-out') {
+            adjustScale(-step);
+        } else if (action === 'reset-zoom') {
+            setScale(1);
+        }
+    });
+
+    let isDragging = false;
+    let startX = 0;
+    let startY = 0;
+    let startScrollLeft = 0;
+    let startScrollTop = 0;
+
+    $container.on('mousedown', function (e) {
+        if ($(e.target).closest('.tree-content, .tree-expand, .map-btn').length) {
+            return;
+        }
+        isDragging = true;
+        startX = e.pageX - $container.offset().left;
+        startY = e.pageY - $container.offset().top;
+        startScrollLeft = $container.scrollLeft();
+        startScrollTop = $container.scrollTop();
+        $container.addClass('is-dragging');
+    });
+
+    $(document).on('mousemove', function (e) {
+        if (!isDragging) return;
+        e.preventDefault();
+        const x = e.pageX - $container.offset().left;
+        const y = e.pageY - $container.offset().top;
+        const walkX = x - startX;
+        const walkY = y - startY;
+        $container.scrollLeft(startScrollLeft - walkX);
+        $container.scrollTop(startScrollTop - walkY);
+    });
+
+    $(document).on('mouseup', function () {
+        if (!isDragging) return;
+        isDragging = false;
+        $container.removeClass('is-dragging');
+    });
+
+    $container.on('mouseleave', function () {
+        if (!isDragging) return;
+        isDragging = false;
+        $container.removeClass('is-dragging');
+    });
+
+    setScale(scaleState.value);
+}
 
 function load_root_nodes() {
     $('#strategy-tree').empty();

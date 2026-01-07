@@ -59,11 +59,7 @@ function render_dashboard(page, data) {
 		<!-- Main Content -->
 		<div class="dashboard-main">
 			<div class="dashboard-header">
-				<div class="page-title">${data.company}</div>
-				<div>
-					<i class="fa fa-bell" style="font-size:18px; color:#718096; margin-right:15px;"></i>
-					<i class="fa fa-user-circle" style="font-size:24px; color:#e53e3e;"></i>
-				</div>
+				<div class="page-title">Home</div>
 			</div>
 
 				<div class="dashboard-content-area">
@@ -140,11 +136,22 @@ function build_home_html(data) {
 function bind_sidebar(page, data, home_html, initial_section) {
 	const $body = $(page.body);
 	const $content = $body.find(".dashboard-content-area");
+	const $title = $body.find(".dashboard-header .page-title");
+	const section_titles = {
+		home: "Home",
+		"strategy-plans": "Strategy Plans",
+		"strategy-maps": "Strategy Maps",
+		"risk-management": "Risk Management",
+		dashboards: "Dashboards",
+		reports: "Reports",
+		administration: "Administration"
+	};
 
 	function render_section(section) {
 		$body.find(".sidebar-menu li").removeClass("active");
 		$body.find(`.sidebar-menu li[data-section="${section}"]`).addClass("active");
 		$content.removeClass("strategy-map-only");
+		$title.text(section_titles[section] || "Dashboard");
 
 		if (section === "home") {
 			$content.html(home_html);
@@ -189,9 +196,10 @@ function bind_sidebar(page, data, home_html, initial_section) {
 
 function render_home_charts($body, data) {
 	const progress = data.kra_progress || {};
-	render_chart("#home-kpa-company", progress.company, "pie");
-	render_chart("#home-kpa-department", progress.department, "pie");
-	render_chart("#home-kpa-individual", progress.individual, "pie");
+	const palette = data.kpa_palette || [];
+	render_chart("#home-kpa-company", progress.company, "pie", { colors: palette });
+	render_chart("#home-kpa-department", progress.department, "pie", { colors: palette });
+	render_chart("#home-kpa-individual", progress.individual, "pie", { colors: palette });
 }
 
 function render_home_list(items, empty_text) {
@@ -549,13 +557,30 @@ function render_company_strategy($container, company) {
 			return;
 		}
 		const route = `/app/performance-scorecard?department=${encodeURIComponent(dept)}`;
-		open_route_modal("Department Scorecards", route);
+		open_route_modal(
+			"Department Scorecards",
+			route,
+			[["List", "Performance Scorecard"], ["Form", "Performance Scorecard"], ["performance-scorecard"]]
+		);
 	});
 }
 
 function open_route_modal(title, url, allowed_prefixes) {
 	if (allowed_prefixes && allowed_prefixes.length) {
-		return open_locked_modal(title, url, allowed_prefixes);
+		return open_locked_modal(title, url, allowed_prefixes, {
+			extra_css: `
+				.page-head {
+					position: sticky !important;
+					top: 0;
+					z-index: 10;
+					background: #fff;
+				}
+				.layout-main-section-wrapper,
+				.layout-main-section {
+					padding-top: 0 !important;
+				}
+			`
+		});
 	}
 	const dialog = new frappe.ui.Dialog({
 		title: title,
@@ -572,15 +597,25 @@ function open_route_modal(title, url, allowed_prefixes) {
 function open_doctype_modal(doctype, name) {
 	const slug = frappe.router.slug(doctype);
 	const url = name ? `/app/${slug}/${encodeURIComponent(name)}` : `/app/${slug}/new-${slug}`;
-	const dialog = new frappe.ui.Dialog({
-		title: doctype,
-		size: "extra-large",
-		fields: [{ fieldname: "frame", fieldtype: "HTML" }]
-	});
-	dialog.get_field("frame").$wrapper.html(
-		`<iframe src="${url}" style="width: 100%; height: 70vh; border: 0;"></iframe>`
+	open_locked_modal(
+		doctype,
+		url,
+		[["Form", doctype], ["List", doctype], [slug]],
+		{
+			extra_css: `
+				.page-head {
+					position: sticky !important;
+					top: 0;
+					z-index: 10;
+					background: #fff;
+				}
+				.layout-main-section-wrapper,
+				.layout-main-section {
+					padding-top: 0 !important;
+				}
+			`
+		}
 	);
-	dialog.show();
 }
 
 function open_report_modal(report_name, options) {
@@ -608,7 +643,7 @@ function open_report_modal(report_name, options) {
 	});
 }
 
-function open_locked_modal(title, url, allowed_prefixes) {
+function open_locked_modal(title, url, allowed_prefixes, options) {
 	const dialog = new frappe.ui.Dialog({
 		title: title,
 		size: "extra-large",
@@ -623,7 +658,7 @@ function open_locked_modal(title, url, allowed_prefixes) {
 	$wrapper.append($frame);
 
 	$frame.on("load", function () {
-		apply_iframe_lock(this, allowed_prefixes || []);
+		apply_iframe_lock(this, allowed_prefixes || [], options);
 	});
 
 	$frame.attr("src", url);
@@ -879,7 +914,7 @@ function render_personal_panel($container, personal, rollups, goals) {
 	$container.find(".scorecard-item").on("click", function () {
 		const name = $(this).data("name");
 		if (name) {
-			frappe.set_route("Form", "Performance Scorecard", name);
+			open_doctype_modal("Performance Scorecard", name);
 		}
 	});
 }
@@ -1517,14 +1552,46 @@ function render_dashboards($container) {
 		method: "performance_scorecard.performance_scorecard.page.performance_dashboard.performance_dashboard.get_dashboard_insights",
 		callback: function (r) {
 			const insights = r.message || {};
-			render_company_dashboard($container, insights.company || {});
-			render_department_dashboard($container, insights.department || {}, insights.meta || {});
-			render_employee_dashboard($container, insights.employee || {}, insights.meta || {});
+			render_company_dashboard($container, insights.company || {}, null);
+			render_department_dashboard($container, insights.department || {}, insights.meta || {}, null);
+			render_employee_dashboard($container, insights.employee || {}, insights.meta || {}, null);
+
+			frappe.call({
+				method: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.get_strategy_data",
+				args: { level: "Company" },
+				callback: function (res) {
+					render_company_dashboard($container, insights.company || {}, res.message || {});
+				}
+			});
+
+			frappe.call({
+				method: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.get_strategy_data",
+				args: { level: "Department", department: (insights.meta || {}).department || null },
+				callback: function (res) {
+					render_department_dashboard($container, insights.department || {}, insights.meta || {}, res.message || {});
+				}
+			});
+
+			frappe.call({
+				method: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.get_strategy_data",
+				args: { level: "Individual" },
+				callback: function (res) {
+					render_employee_dashboard($container, insights.employee || {}, insights.meta || {}, res.message || {});
+				}
+			});
 		}
 	});
 }
 
-function render_company_dashboard($container, data) {
+function render_company_dashboard($container, data, strategy) {
+	const panel = $container.find('[data-panel="company"]');
+	if (!strategy || !strategy.meta) {
+		panel.html('<div class="empty-state">Loading company dashboard...</div>');
+		return;
+	}
+
+	const company_rollups = strategy.company || {};
+	const company_goals = build_company_goal_items(company_rollups);
 	const avg_score = average_score(data.kpa_scores);
 	const dept_top = (data.department_comparison || [])[0];
 	const dept_bottom = (data.department_comparison || [])[data.department_comparison.length - 1];
@@ -1566,8 +1633,8 @@ function render_company_dashboard($container, data) {
 
 		<div class="dashboards-grid dashboards-grid-2">
 			<div class="dashboard-card">
-				<div class="card-header yellow">Trend Analysis</div>
-				<div class="chart-shell" id="company-trend-chart"></div>
+				<div class="card-header yellow">Company Goals Performance</div>
+				<div class="chart-shell" id="company-goal-chart"></div>
 			</div>
 			<div class="dashboard-card">
 				<div class="card-header cyan">Top 5 Employees</div>
@@ -1576,93 +1643,175 @@ function render_company_dashboard($container, data) {
 				</div>
 			</div>
 		</div>
+
+		<div class="dashboards-grid dashboards-grid-2">
+			<div class="dashboard-card">
+				<div class="card-header yellow">Trend Analysis</div>
+				<div class="chart-shell" id="company-trend-chart"></div>
+			</div>
+		</div>
 	`;
 
-	$container.find('[data-panel="company"]').html(html);
+	panel.html(html);
 	render_chart("#company-kpa-chart", data.kpa_scores, "bar");
 	render_chart("#company-dept-chart", data.department_comparison, "bar");
+	render_chart("#company-goal-chart", company_goals, "bar");
 	render_chart("#company-trend-chart", data.trend, "line");
 }
 
-function render_department_dashboard($container, data, meta) {
+function render_department_dashboard($container, data, meta, strategy) {
+	const panel = $container.find('[data-panel="department"]');
 	if (!meta.department) {
-		$container.find('[data-panel="department"]').html('<div class="empty-state">No department assigned to your user.</div>');
+		panel.html('<div class="empty-state">No department assigned to your user.</div>');
 		return;
 	}
+	if (!strategy || !strategy.meta) {
+		panel.html('<div class="empty-state">Loading department dashboard...</div>');
+		return;
+	}
+
+	const rollups = strategy.rollups || {};
+	const goals = strategy.goals || [];
+	const kpa_items = (rollups.kpas || []).map(kpa => ({
+		label: kpa.kpa,
+		value: flt(kpa.average_score || 0)
+	}));
+	const goal_items = build_goal_chart_items(goals);
+	const kra_items = build_kra_chart_items(goals);
+	const top_goals = slice_ranked(goal_items, 5, "desc");
+	const risk_goals = slice_ranked(goal_items, 5, "asc");
+	const top_kras = slice_ranked(kra_items, 5, "desc");
+	const risk_kras = slice_ranked(kra_items, 5, "asc");
+	const overall_score = Number.isFinite(rollups.overall_score)
+		? rollups.overall_score
+		: average_score(data.kpa_scores);
 
 	const html = `
 		<div class="dashboards-grid dashboards-grid-4">
 			<div class="dashboard-card metric-card">
-				<div class="metric-label">Sales Team Score</div>
-				<div class="metric-value">${format_score(average_score(data.kpa_scores))}</div>
-				${render_light(average_score(data.kpa_scores))}
+				<div class="metric-label">Overall Department Score</div>
+				<div class="metric-value">${format_score(overall_score)}</div>
+				${render_light(overall_score)}
 			</div>
 			<div class="dashboard-card metric-card">
-				<div class="metric-label">Quota Attainment</div>
+				<div class="metric-label">Goal Achievement</div>
 				<div class="metric-value">${format_score(data.goal_achievement_rate)}%</div>
 				<div class="progress-line"><div class="progress-line-fill" style="width:${Math.min(data.goal_achievement_rate || 0, 100)}%"></div></div>
 			</div>
 			<div class="dashboard-card metric-card">
-				<div class="metric-label">At-Risk Deals</div>
-				<div class="metric-value">${(data.at_risk_kpis || []).length}</div>
-				<div class="metric-sub">Need attention</div>
+				<div class="metric-label">At-Risk Goals</div>
+				<div class="metric-value">${risk_goals.length}</div>
+				<div class="metric-sub">Below target</div>
 			</div>
 			<div class="dashboard-card metric-card">
-				<div class="metric-label">Active Reps</div>
-				<div class="metric-value">${(data.employee_distribution || []).reduce((sum, item) => sum + item.value, 0)}</div>
-				<div class="metric-sub">Assigned reps</div>
+				<div class="metric-label">Top Performers</div>
+				<div class="metric-value">${(data.top_employees || []).length}</div>
+				<div class="metric-sub">Department leaders</div>
 			</div>
 		</div>
 
 		<div class="dashboards-grid dashboards-grid-2">
 			<div class="dashboard-card">
-				<div class="card-header blue">Team Score by KPA</div>
+				<div class="card-header blue">KPA Performance Mix</div>
 				<div class="chart-shell" id="dept-kpa-chart"></div>
 			</div>
 			<div class="dashboard-card">
-				<div class="card-header light-blue">Rep Performance Mix</div>
-				<div class="chart-shell" id="dept-distribution-chart"></div>
+				<div class="card-header light-blue">Goals Performance</div>
+				<div class="chart-shell" id="dept-goal-chart"></div>
 			</div>
 		</div>
 
 		<div class="dashboards-grid dashboards-grid-2">
 			<div class="dashboard-card">
-				<div class="card-header yellow">Sales Trend</div>
-				<div class="chart-shell" id="dept-trend-chart"></div>
+				<div class="card-header yellow">KRA Performance</div>
+				<div class="chart-shell" id="dept-kra-chart"></div>
 			</div>
 			<div class="dashboard-card">
-				<div class="card-header red">At-Risk Deals</div>
+				<div class="card-header red">Goal Performance Trend</div>
+				<div class="chart-shell" id="dept-trend-chart"></div>
+			</div>
+		</div>
+
+		<div class="dashboards-grid dashboards-grid-2">
+			<div class="dashboard-card">
+				<div class="card-header blue">Best Goals</div>
 				<div class="list-stack">
-					${render_at_risk(data.at_risk_kpis)}
+					${render_ranked_list(top_goals, "No goals scored yet.")}
+				</div>
+			</div>
+			<div class="dashboard-card">
+				<div class="card-header red">At-Risk Goals</div>
+				<div class="list-stack">
+					${render_ranked_list(risk_goals, "No goals at risk.")}
+				</div>
+			</div>
+		</div>
+
+		<div class="dashboards-grid dashboards-grid-2">
+			<div class="dashboard-card">
+				<div class="card-header blue">Best KRAs</div>
+				<div class="list-stack">
+					${render_ranked_list(top_kras, "No KRAs scored yet.")}
+				</div>
+			</div>
+			<div class="dashboard-card">
+				<div class="card-header red">At-Risk KRAs</div>
+				<div class="list-stack">
+					${render_ranked_list(risk_kras, "No KRAs at risk.")}
+				</div>
+			</div>
+		</div>
+
+		<div class="dashboards-grid dashboards-grid-2">
+			<div class="dashboard-card">
+				<div class="card-header cyan">Top 5 Employees</div>
+				<div class="list-stack">
+					${render_list((data.top_employees || []).slice(0, 5), "Top 5")}
 				</div>
 			</div>
 		</div>
 	`;
 
-	$container.find('[data-panel="department"]').html(html);
-	render_chart("#dept-kpa-chart", data.kpa_scores, "bar");
-	render_chart("#dept-distribution-chart", data.employee_distribution, "pie");
+	panel.html(html);
+	render_chart("#dept-kpa-chart", kpa_items.length ? kpa_items : data.kpa_scores, "pie");
+	render_chart("#dept-goal-chart", goal_items, "bar");
+	render_chart("#dept-kra-chart", kra_items, "bar");
 	render_chart("#dept-trend-chart", data.trend, "line");
 }
 
-function render_employee_dashboard($container, data, meta) {
+function render_employee_dashboard($container, data, meta, strategy) {
+	const panel = $container.find('[data-panel="employee"]');
 	if (!meta.employee) {
-		$container.find('[data-panel="employee"]').html('<div class="empty-state">No employee profile linked to your user.</div>');
+		panel.html('<div class="empty-state">No employee profile linked to your user.</div>');
+		return;
+	}
+	if (!strategy || !strategy.meta) {
+		panel.html('<div class="empty-state">Loading employee dashboard...</div>');
 		return;
 	}
 
 	const scorecard = data.scorecard || {};
 	const goal_progress = data.goal_progress || { items: [], average: 0 };
+	const rollups = strategy.rollups || {};
+	const goals = strategy.goals || [];
+	const kpa_items = (rollups.kpas || []).map(kpa => ({
+		label: kpa.kpa,
+		value: flt(kpa.average_score || 0)
+	}));
+	const goal_items = build_goal_chart_items(goals);
+	const overall_score = Number.isFinite(rollups.overall_score)
+		? rollups.overall_score
+		: (scorecard.overall_score || 0);
 
 	const html = `
 		<div class="dashboards-grid dashboards-grid-4">
 			<div class="dashboard-card metric-card">
-				<div class="metric-label">Rep Scorecard</div>
-				<div class="metric-value">${format_score(scorecard.overall_score)}</div>
+				<div class="metric-label">My Scorecard</div>
+				<div class="metric-value">${format_score(overall_score)}</div>
 				<div class="metric-sub">${scorecard.status || "No scorecard"}</div>
 			</div>
 			<div class="dashboard-card metric-card">
-				<div class="metric-label">Pipeline Progress</div>
+				<div class="metric-label">Goal Progress</div>
 				<div class="metric-value">${format_score(goal_progress.average)}%</div>
 				<div class="progress-line"><div class="progress-line-fill" style="width:${Math.min(goal_progress.average || 0, 100)}%"></div></div>
 			</div>
@@ -1672,7 +1821,7 @@ function render_employee_dashboard($container, data, meta) {
 				${render_light(data.department_average)}
 			</div>
 			<div class="dashboard-card metric-card">
-				<div class="metric-label">At-Risk Deals</div>
+				<div class="metric-label">At-Risk KPIs</div>
 				<div class="metric-value">${(data.at_risk_kpis || []).length}</div>
 				<div class="metric-sub">Follow up</div>
 			</div>
@@ -1680,20 +1829,108 @@ function render_employee_dashboard($container, data, meta) {
 
 		<div class="dashboards-grid dashboards-grid-2">
 			<div class="dashboard-card">
-				<div class="card-header blue">Deal Progress</div>
-				<div class="list-stack">
-					${render_goal_progress(goal_progress.items)}
-				</div>
+				<div class="card-header blue">KPA Performance</div>
+				<div class="chart-shell" id="employee-kpa-chart"></div>
 			</div>
 			<div class="dashboard-card">
-				<div class="card-header yellow">Sales Trend</div>
+				<div class="card-header light-blue">Goal Progress</div>
+				<div class="chart-shell" id="employee-goal-chart"></div>
+			</div>
+		</div>
+
+		<div class="dashboards-grid dashboards-grid-2">
+			<div class="dashboard-card">
+				<div class="card-header yellow">Performance Trend</div>
 				<div class="chart-shell" id="employee-trend-chart"></div>
+			</div>
+			<div class="dashboard-card">
+				<div class="card-header red">At-Risk KPIs</div>
+				<div class="list-stack">
+					${render_at_risk(data.at_risk_kpis)}
+				</div>
 			</div>
 		</div>
 	`;
 
-	$container.find('[data-panel="employee"]').html(html);
+	panel.html(html);
+	render_chart("#employee-kpa-chart", kpa_items, "pie");
+	render_chart("#employee-goal-chart", goal_items, "bar");
 	render_chart("#employee-trend-chart", data.trend, "line");
+}
+
+function build_goal_chart_items(goals) {
+	const items = (goals || []).map(goal => {
+		const kra_progress_values = (goal.kras || [])
+			.map(kra => flt(kra.progress))
+			.filter(value => !isNaN(value));
+		const avg = kra_progress_values.length
+			? (kra_progress_values.reduce((sum, value) => sum + value, 0) / kra_progress_values.length)
+			: flt(goal.progress || 0);
+		return { label: goal.goal_name || goal.name || "Goal", value: avg };
+	});
+
+	items.sort((a, b) => b.value - a.value);
+	return items.slice(0, 6);
+}
+
+function build_kra_chart_items(goals) {
+	const kra_map = new Map();
+	(goals || []).forEach(goal => {
+		(goal.kras || []).forEach(kra => {
+			const label = kra.kra_name || kra.name || "KRA";
+			if (!kra_map.has(label)) {
+				kra_map.set(label, []);
+			}
+			kra_map.get(label).push(flt(kra.progress || 0));
+		});
+	});
+
+	const items = Array.from(kra_map.entries()).map(([label, values]) => {
+		const avg = values.length ? values.reduce((sum, v) => sum + v, 0) / values.length : 0;
+		return { label, value: avg };
+	});
+
+	items.sort((a, b) => b.value - a.value);
+	return items.slice(0, 6);
+}
+
+function build_company_goal_items(company_rollups) {
+	const kpas = (company_rollups || {}).kpas || [];
+	const goals = [];
+	kpas.forEach(kpa => {
+		(kpa.goals || []).forEach(goal => {
+			goals.push({
+				label: goal.goal || goal.goal_name || "Goal",
+				value: flt(goal.average_score || 0)
+			});
+		});
+	});
+
+	goals.sort((a, b) => b.value - a.value);
+	return goals.slice(0, 8);
+}
+
+function slice_ranked(items, count, order) {
+	if (!items || !items.length) {
+		return [];
+	}
+	const sorted = [...items].sort((a, b) => {
+		return order === "asc" ? a.value - b.value : b.value - a.value;
+	});
+	return sorted.slice(0, count);
+}
+
+function render_ranked_list(items, empty_text) {
+	if (!items || !items.length) {
+		return `<div class="empty-state">${empty_text}</div>`;
+	}
+
+	return items.map(item => `
+		<div class="list-row">
+			<span>${item.label}</span>
+			<span class="status-pill ${score_class(item.value)}">${format_score(item.value)}</span>
+		</div>
+	`).join("");
 }
 
 function render_chart(target, items, type) {
