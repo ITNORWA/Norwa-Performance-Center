@@ -71,6 +71,14 @@ function render_dashboard(page, data) {
 
 	$(page.body).append(html);
 
+	$(page.body).off("click", ".home-link").on("click", ".home-link", function () {
+		const doctype = $(this).data("doctype");
+		const name = $(this).data("name");
+		if (doctype && name) {
+			open_doctype_modal(doctype, name);
+		}
+	});
+
 	const url_params = new URLSearchParams(window.location.search || "");
 	const route_opts = frappe.route_options || {};
 	const initial_section = route_opts.section || url_params.get("section") || "home";
@@ -96,37 +104,41 @@ function build_home_html(data) {
 				<div class="chart-shell" id="home-kpa-individual"></div>
 			</div>
 		</div>
-		<div class="home-attention-grid">
+		<div class="home-summary-grid">
 			<div class="dashboard-card">
-				<div class="card-header red">Needs Attention - Company</div>
-				<div class="card-content">
-					${render_home_list(data.attention_company, "No company KRAs flagged.")}
+				<div class="card-header red">At-Risk Summary</div>
+				<div class="card-content summary-split">
+					<div>
+						<div class="summary-subtitle">Company (${(data.attention_company || []).length})</div>
+						${render_home_list(data.attention_company, "No company KRAs flagged.", { doctype: "KRA" })}
+					</div>
+					<div>
+						<div class="summary-subtitle">Department (${(data.attention_department || []).length})</div>
+						${render_home_list(data.attention_department, "No department KRAs flagged.", { doctype: "KRA" })}
+					</div>
+					<div>
+						<div class="summary-subtitle">Individual (${(data.attention_individual || []).length})</div>
+						${render_home_list(data.attention_individual, "No individual KRAs flagged.", { doctype: "KRA" })}
+					</div>
 				</div>
 			</div>
 			<div class="dashboard-card">
-				<div class="card-header red">Needs Attention - Department</div>
-				<div class="card-content">
-					${render_home_list(data.attention_department, "No department KRAs flagged.")}
+				<div class="card-header blue">Top Achievements</div>
+				<div class="card-content summary-split">
+					<div>
+						<div class="summary-subtitle">Weekly</div>
+						${render_home_list(data.weekly_top_kras, "No weekly achievements yet.", { doctype: "KRA" })}
+					</div>
+					<div>
+						<div class="summary-subtitle">Quarterly</div>
+						${render_home_list(data.quarterly_top_kras, "No quarterly achievements yet.", { doctype: "KRA" })}
+					</div>
 				</div>
 			</div>
 			<div class="dashboard-card">
-				<div class="card-header red">Needs Attention - Individual</div>
+				<div class="card-header light-blue">Pending Tasks</div>
 				<div class="card-content">
-					${render_home_list(data.attention_individual, "No individual KRAs flagged.")}
-				</div>
-			</div>
-		</div>
-		<div class="home-achievements-grid">
-			<div class="dashboard-card">
-				<div class="card-header blue">Top 5 Weekly Achievements</div>
-				<div class="card-content">
-					${render_home_list(data.weekly_top_kras, "No weekly achievements yet.")}
-				</div>
-			</div>
-			<div class="dashboard-card">
-				<div class="card-header light-blue">Top 5 Quarterly Achievements</div>
-				<div class="card-content">
-					${render_home_list(data.quarterly_top_kras, "No quarterly achievements yet.")}
+					${render_task_list(data.tasks)}
 				</div>
 			</div>
 		</div>
@@ -202,15 +214,29 @@ function render_home_charts($body, data) {
 	render_chart("#home-kpa-individual", progress.individual, "pie", { colors: palette });
 }
 
-function render_home_list(items, empty_text) {
+function render_home_list(items, empty_text, options) {
 	if (!items || !items.length) {
 		return `<div class="empty-state">${empty_text}</div>`;
 	}
 
+	const doctype = options && options.doctype;
 	return items.map(item => `
-		<div class="list-item">
+		<div class="list-item ${doctype && item.name ? "home-link" : ""}" ${doctype && item.name ? `data-doctype="${doctype}" data-name="${item.name}"` : ""}>
 			<span>${item.label}</span>
 			<span class="badge badge-green">${format_score(item.value)}%</span>
+		</div>
+	`).join("");
+}
+
+function render_task_list(items) {
+	if (!items || !items.length) {
+		return '<div class="empty-state">No pending tasks.</div>';
+	}
+
+	return items.map(item => `
+		<div class="list-item home-link" data-doctype="Performance Update" data-name="${item.name}">
+			<span>${item.kpi || item.name}</span>
+			<span class="badge badge-yellow">${item.status || "Draft"}</span>
 		</div>
 	`).join("");
 }
@@ -235,6 +261,7 @@ function render_strategy_plans($container) {
 			</ul>
 		</div>
 		<div class="strategy-actions" style="margin-bottom: 15px; display: none;">
+			<button class="btn btn-primary btn-sm" data-action="add-kpa">Add KPA</button>
 			<button class="btn btn-primary btn-sm" data-action="add-goal">Add Goal</button>
 			<button class="btn btn-default btn-sm" data-action="add-kra">Add KRA</button>
 			<span class="dept-filter"></span>
@@ -263,12 +290,15 @@ function render_strategy_plans($container) {
 	update_strategy_actions($actions, "Company");
 	load_strategy_data($container, "Company", null);
 
-	$actions.find("[data-action='add-goal']").on("click", function () {
-		open_doctype_modal("Goal");
-	});
-	$actions.find("[data-action='add-kra']").on("click", function () {
-		open_doctype_modal("KRA");
-	});
+		$actions.find("[data-action='add-goal']").on("click", function () {
+			open_doctype_modal("Goal");
+		});
+		$actions.find("[data-action='add-kra']").on("click", function () {
+			open_doctype_modal("KRA");
+		});
+		$actions.find("[data-action='add-kpa']").on("click", function () {
+			open_doctype_modal("KPA Master");
+		});
 	deptControl.$input.on("change", function () {
 		const level = $container.find(".nav-link.active").data("level");
 		if (level === "Department") {
@@ -353,6 +383,7 @@ function load_strategy_data($container, level, department) {
 				if (payload.meta && payload.meta.level === "Individual") {
 					render_personal_panel($container, payload.personal || { scorecards: [], updates: [] }, payload.rollups || {}, payload.goals || []);
 					render_personal_tables($content, payload, $container);
+					load_weekly_commitments($content, payload.meta && payload.meta.employee);
 				} else if (payload.meta && payload.meta.level === "Company" && payload.company) {
 					$container.find(".personal-actions, .personal-summaries").remove();
 					$content.empty();
@@ -373,12 +404,14 @@ function update_strategy_actions($actions, level) {
 	if (level === "Company" || level === "Department") {
 		$actions.show();
 		if (level === "Company") {
-			$actions.find("[data-action='add-goal']").hide();
+			$actions.find("[data-action='add-goal']").text("Add Company Goal").show();
+			$actions.find("[data-action='add-kpa']").show();
 			$actions.find("[data-action='add-kra']").hide();
 			$actions.find(".dept-filter").hide();
 		} else {
 			$actions.find("[data-action='add-goal']").text("Add Department Goal").show();
 			$actions.find("[data-action='add-kra']").show();
+			$actions.find("[data-action='add-kpa']").hide();
 		$actions.find(".dept-filter").hide();
 		}
 	} else {
@@ -395,10 +428,6 @@ function render_company_strategy($container, company) {
 
 	const edit_icon = frappe.utils.icon("edit", "sm");
 	let html = `
-		<div class="personal-actions">
-			<button class="btn btn-primary btn-sm" data-action="new-company-kpa">Add KPA</button>
-			<button class="btn btn-primary btn-sm" data-action="new-company-goal">Add Goal</button>
-		</div>
 		<div class="table-responsive">
 			<table class="table table-bordered table-hover">
 				<thead class="thead-light">
@@ -484,13 +513,6 @@ function render_company_strategy($container, company) {
 
 	$container.html(html);
 
-	$container.find("[data-action='new-company-kpa']").on("click", function () {
-		open_doctype_modal("KPA Master");
-	});
-	$container.find("[data-action='new-company-goal']").on("click", function () {
-		open_doctype_modal("Goal");
-	});
-
 	$container.find(".editable-cell").on("click", function () {
 		const $cell = $(this);
 		if ($cell.hasClass("editing")) {
@@ -574,9 +596,22 @@ function open_route_modal(title, url, allowed_prefixes) {
 					top: 0;
 					z-index: 10;
 					background: #fff;
+					margin: 0 !important;
+					padding-top: 6px !important;
+				}
+				.page-head::before {
+					content: "";
+					position: absolute;
+					inset: 0;
+					background: #fff;
+					z-index: -1;
+				}
+				.page-head .page-actions {
+					margin-top: 0 !important;
 				}
 				.layout-main-section-wrapper,
-				.layout-main-section {
+				.layout-main-section,
+				.page-body {
 					padding-top: 0 !important;
 				}
 			`
@@ -608,9 +643,22 @@ function open_doctype_modal(doctype, name) {
 					top: 0;
 					z-index: 10;
 					background: #fff;
+					margin: 0 !important;
+					padding-top: 6px !important;
+				}
+				.page-head::before {
+					content: "";
+					position: absolute;
+					inset: 0;
+					background: #fff;
+					z-index: -1;
+				}
+				.page-head .page-actions {
+					margin-top: 0 !important;
 				}
 				.layout-main-section-wrapper,
-				.layout-main-section {
+				.layout-main-section,
+				.page-body {
 					padding-top: 0 !important;
 				}
 			`
@@ -866,6 +914,7 @@ function render_personal_panel($container, personal, rollups, goals) {
 			<button class="btn btn-primary btn-sm" data-action="new-goal">Add Goal</button>
 			<button class="btn btn-default btn-sm" data-action="new-kra">Add KRA</button>
 			<button class="btn btn-default btn-sm" data-action="new-kpi">Add KPI</button>
+			<button class="btn btn-default btn-sm" data-action="new-weekly-commitment">Add Weekly Commitment</button>
 		</div>
 		<div class="personal-summaries">
 			<div class="dashboard-card">
@@ -908,6 +957,8 @@ function render_personal_panel($container, personal, rollups, goals) {
 			open_doctype_modal("KRA");
 		} else if (action === "new-kpi") {
 			open_doctype_modal("KPI Master");
+		} else if (action === "new-weekly-commitment") {
+			open_doctype_modal("Weekly Commitment");
 		}
 	});
 
@@ -963,6 +1014,14 @@ function render_personal_tables($container, payload, $page_container) {
 	const kpa_table = build_kpa_table(rollups.kpas || []);
 
 	$container.html(`
+		<div class="dashboard-card weekly-commitments-card">
+			<div class="card-header blue">Weekly Commitments</div>
+			<div class="card-content">
+				<div class="weekly-commitments-list">
+					<div class="empty-state">Loading commitments...</div>
+				</div>
+			</div>
+		</div>
 		<div class="dashboard-card">
 			<div class="card-header blue">MY KPI LIST</div>
 			<div class="card-content">${kpi_table}</div>
@@ -1015,6 +1074,125 @@ function render_personal_tables($container, payload, $page_container) {
 		});
 		dialog.show();
 	});
+
+}
+
+function load_weekly_commitments($container, employee) {
+	const $list = $container.find(".weekly-commitments-list");
+	if (!$list.length) {
+		return;
+	}
+	const $card = $container.find(".weekly-commitments-card");
+	if (!employee) {
+		$list.html('<div class="empty-state">No employee profile linked.</div>');
+		return;
+	}
+
+	frappe.call({
+		method: "frappe.client.get_list",
+		args: {
+			doctype: "Weekly Commitment",
+			fields: ["name", "title", "description", "week_start", "week_end", "kpi", "status"],
+			filters: { employee: employee },
+			order_by: "week_start desc"
+		},
+		callback: function (r) {
+			const items = r.message || [];
+			if (!items.length) {
+				fetch_by_owner();
+				return;
+			}
+			$card.show();
+			$list.html(render_weekly_commitments_table(items));
+		}
+	});
+
+	function fetch_by_owner() {
+		frappe.call({
+			method: "frappe.client.get_list",
+			args: {
+				doctype: "Weekly Commitment",
+				fields: ["name", "title", "description", "week_start", "week_end", "kpi", "status"],
+				filters: { owner: frappe.session.user },
+				order_by: "week_start desc"
+			},
+			callback: function (r) {
+				const items = r.message || [];
+				if (!items.length) {
+					$card.hide();
+					return;
+				}
+				$card.show();
+				$list.html(render_weekly_commitments_table(items));
+			}
+		});
+	}
+
+	$list.off("change", "input, select, textarea").on("change", "input, select, textarea", function () {
+		const $row = $(this).closest("tr");
+		const name = $row.data("name");
+		const field = $(this).data("field");
+		const value = $(this).val();
+		if (!name || !field) {
+			return;
+		}
+		frappe.call({
+			method: "frappe.client.set_value",
+			args: {
+				doctype: "Weekly Commitment",
+				name: name,
+				fieldname: field,
+				value: value
+			}
+		});
+	});
+}
+
+function render_weekly_commitments_table(items) {
+	if (!items || !items.length) {
+		return '<div class="empty-state">No weekly commitments yet.</div>';
+	}
+
+	const rows = items.map(item => `
+		<tr data-name="${item.name}">
+			<td><input class="form-control input-xs" data-field="title" value="${frappe.utils.escape_html(item.title || "")}" /></td>
+			<td><input class="form-control input-xs" data-field="week_start" type="date" value="${item.week_start || ""}" /></td>
+			<td><input class="form-control input-xs" data-field="week_end" type="date" value="${item.week_end || ""}" /></td>
+			<td><input class="form-control input-xs" data-field="kpi" value="${frappe.utils.escape_html(item.kpi || "")}" /></td>
+			<td>
+				<select class="form-control input-xs" data-field="status">
+					${render_weekly_commitment_options(item.status)}
+				</select>
+			</td>
+		</tr>
+	`).join("");
+
+	return `
+		<div class="table-responsive">
+			<table class="table table-bordered table-hover">
+				<thead class="thead-light">
+					<tr>
+						<th style="width: 40%">Title</th>
+						<th style="width: 20%">Week Start</th>
+						<th style="width: 18%">Week End</th>
+						<th style="width: 22%">KPI</th>
+						<th style="width: 20%">Progress</th>
+					</tr>
+				</thead>
+				<tbody>
+					${rows}
+				</tbody>
+			</table>
+		</div>
+	`;
+}
+
+function render_weekly_commitment_options(current) {
+	const options = ["0%", "25%", "50%", "75%", "100%"];
+	return options.map(value => {
+		const selected = value === (current || "0%") ? "selected" : "";
+		return `<option value="${value}" ${selected}>${value}</option>`;
+	}).join("");
 }
 
 function build_kpi_table(rows) {
@@ -1095,7 +1273,7 @@ function build_goal_table(goals) {
 			`;
 		}).join("") || '<div class="empty-state">No KRAs linked.</div>';
 
-		const goal_progress = kra_progress_avg !== null ? kra_progress_avg : flt(goal.progress || 0);
+		const goal_progress = kra_progress_avg !== null ? kra_progress_avg : 0;
 		html += `
 			<tr>
 				<td>
@@ -1615,8 +1793,8 @@ function render_company_dashboard($container, data, strategy) {
 			</div>
 			<div class="dashboard-card metric-card">
 				<div class="metric-label">Departments Tracked</div>
-				<div class="metric-value">${(data.department_comparison || []).length}</div>
-				<div class="metric-sub">Active departments</div>
+				<div class="metric-value">${(data.department_comparison || [])[0]?.label || "N/A"}</div>
+				<div class="metric-sub">${data.department_comparison && data.department_comparison.length > 1 ? `${data.department_comparison.length} departments` : "Active department"}</div>
 			</div>
 		</div>
 
@@ -1682,9 +1860,7 @@ function render_department_dashboard($container, data, meta, strategy) {
 	const risk_goals = slice_ranked(goal_items, 5, "asc");
 	const top_kras = slice_ranked(kra_items, 5, "desc");
 	const risk_kras = slice_ranked(kra_items, 5, "asc");
-	const overall_score = Number.isFinite(rollups.overall_score)
-		? rollups.overall_score
-		: average_score(data.kpa_scores);
+	const overall_score = average_score(data.kpa_scores);
 
 	const html = `
 		<div class="dashboards-grid dashboards-grid-4">
@@ -1700,13 +1876,13 @@ function render_department_dashboard($container, data, meta, strategy) {
 			</div>
 			<div class="dashboard-card metric-card">
 				<div class="metric-label">At-Risk Goals</div>
-				<div class="metric-value">${risk_goals.length}</div>
-				<div class="metric-sub">Below target</div>
+				<div class="metric-value">${risk_goals[0] ? risk_goals[0].label : "N/A"}</div>
+				<div class="metric-sub">${risk_goals.length ? `${risk_goals.length} below target` : "Below target"}</div>
 			</div>
 			<div class="dashboard-card metric-card">
 				<div class="metric-label">Top Performers</div>
-				<div class="metric-value">${(data.top_employees || []).length}</div>
-				<div class="metric-sub">Department leaders</div>
+				<div class="metric-value">${(data.top_employees || [])[0]?.label || "N/A"}</div>
+				<div class="metric-sub">${data.top_employees && data.top_employees.length > 1 ? `${data.top_employees.length} leaders` : "Department leaders"}</div>
 			</div>
 		</div>
 
@@ -1802,6 +1978,7 @@ function render_employee_dashboard($container, data, meta, strategy) {
 	const overall_score = Number.isFinite(rollups.overall_score)
 		? rollups.overall_score
 		: (scorecard.overall_score || 0);
+	const target_items = data.kpi_targets || [];
 
 	const html = `
 		<div class="dashboards-grid dashboards-grid-4">
@@ -1840,7 +2017,7 @@ function render_employee_dashboard($container, data, meta, strategy) {
 
 		<div class="dashboards-grid dashboards-grid-2">
 			<div class="dashboard-card">
-				<div class="card-header yellow">Performance Trend</div>
+				<div class="card-header yellow">KPI Performance Trend</div>
 				<div class="chart-shell" id="employee-trend-chart"></div>
 			</div>
 			<div class="dashboard-card">
@@ -1850,12 +2027,20 @@ function render_employee_dashboard($container, data, meta, strategy) {
 				</div>
 			</div>
 		</div>
+
+		<div class="dashboards-grid dashboards-grid-2">
+			<div class="dashboard-card">
+				<div class="card-header cyan">KPI Actual vs Target</div>
+				<div class="chart-shell" id="employee-target-chart"></div>
+			</div>
+		</div>
 	`;
 
 	panel.html(html);
 	render_chart("#employee-kpa-chart", kpa_items, "pie");
 	render_chart("#employee-goal-chart", goal_items, "bar");
 	render_chart("#employee-trend-chart", data.trend, "line");
+	render_target_actual_chart("#employee-target-chart", target_items);
 }
 
 function build_goal_chart_items(goals) {
@@ -1979,6 +2164,54 @@ function render_chart(target, items, type) {
 		type: type,
 		height: 220,
 		colors: ["#1AA6A4", "#F46B2A", "#0B2740", "#F4A261"]
+	});
+}
+
+function render_target_actual_chart(target, items) {
+	const $target = $(target);
+	if (!$target.length) {
+		return;
+	}
+
+	$target.empty();
+
+	if (!items || !items.length) {
+		$target.html('<div class="empty-state">No target data available.</div>');
+		return;
+	}
+
+	const sorted_items = [...items].sort((a, b) => {
+		const a_target = Number(a.target || 0);
+		const b_target = Number(b.target || 0);
+		if (a_target !== b_target) {
+			return a_target - b_target;
+		}
+		return Number(a.actual || 0) - Number(b.actual || 0);
+	});
+
+	const labels = sorted_items.map(item => item.label || "KPI");
+	const targets = sorted_items.map(item => Number(item.target || 0));
+	const actuals = sorted_items.map(item => Number(item.actual || 0));
+
+	new frappe.Chart(target, {
+		data: {
+			labels: labels,
+			datasets: [
+				{ name: "Target", values: targets },
+				{ name: "Actual", values: actuals }
+			]
+		},
+		type: "line",
+		height: 260,
+		lineOptions: {
+			spline: 1,
+			regionFill: 0,
+			dotSize: 4
+		},
+		axisOptions: {
+			yAxisMin: 0
+		},
+		colors: ["#718096", "#2f5aa8"]
 	});
 }
 

@@ -123,11 +123,20 @@ def get_children(node_type, node_id, context=None):
         else:
             kras = frappe.get_all("KRA", filters={"goal": node_id}, fields=["name", "kra_name", "progress", "weightage"])
             for kra in kras:
-                kra_progress = _avg_score_for_kra(
-                    kra.name,
-                    department=context.get("department"),
-                    employee=context.get("employee")
-                )
+                department = context.get("department")
+                if level == "Department":
+                    child_kras = frappe.get_all("KRA", filters={"parent_kra": kra.name}, pluck="name")
+                    if child_kras:
+                        child_scores = [_avg_score_for_kra(child, department=department) for child in child_kras]
+                        kra_progress = sum(child_scores) / len(child_scores) if child_scores else 0
+                    else:
+                        kra_progress = 0
+                else:
+                    kra_progress = _avg_score_for_kra(
+                        kra.name,
+                        department=department,
+                        employee=context.get("employee")
+                    )
                 if level == "Department":
                     dept_label = _get_department_label(context.get("department"))
                     meta_prefix = f"{dept_label} Department KRA"
@@ -179,7 +188,7 @@ def get_children(node_type, node_id, context=None):
                     "label": employee_name or employee_id,
                     "type": "Employee",
                     "expandable": True,
-                    "progress": progress or 0,
+                    "progress": _get_employee_kpa_average(employee_id),
                     "meta": f"{dept_label} Department"
                 })
         elif level == "Employee":
@@ -236,7 +245,15 @@ def get_kpa_progress(kpa, level, owner_id):
     if level == "Department":
         return _avg_score_for_kpa(kpa, department=owner_id)
     if level == "Individual":
-        return _avg_score_for_kpa(kpa, employee=owner_id)
+        goal_names = frappe.get_all(
+            "Goal",
+            filters={"kpa": kpa, "owner_type": "Employee", "employee": owner_id, "status": "Active"},
+            pluck="name",
+        )
+        if not goal_names:
+            return 0
+        goal_scores = [_get_goal_progress(goal, "Employee", employee=owner_id) for goal in goal_names]
+        return sum(goal_scores) / len(goal_scores) if goal_scores else 0
     return _avg_score_for_kpa(kpa)
 
 def get_department_progress_for_goal(dept, parent_goal_id):
@@ -350,6 +367,15 @@ def _get_goal_progress(goal_name, level, department=None, employee=None):
         )
         if emp_goals:
             goal_names.extend(emp_goals)
+    elif level == "Employee":
+        kra_names = frappe.get_all("KRA", filters={"goal": goal_name}, pluck="name")
+        if not kra_names:
+            return 0
+        kra_scores = [
+            _avg_score_for_kra(kra, employee=employee)
+            for kra in kra_names
+        ]
+        return sum(kra_scores) / len(kra_scores) if kra_scores else 0
 
     return _avg_score_for_goals(goal_names, department=department, employee=employee)
 
@@ -359,6 +385,16 @@ def _get_department_kpa_average(department):
     if not kpa_rows:
         return 0
     scores = [_avg_score_for_kpa(row.name, department=department) for row in kpa_rows]
+    return sum(scores) / len(scores) if scores else 0
+
+
+def _get_employee_kpa_average(employee):
+    if not employee:
+        return 0
+    kpa_rows = frappe.get_all("KPA Master", fields=["name"])
+    if not kpa_rows:
+        return 0
+    scores = [_avg_score_for_kpa(row.name, employee=employee) for row in kpa_rows]
     return sum(scores) / len(scores) if scores else 0
 
 

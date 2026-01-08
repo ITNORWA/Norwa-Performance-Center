@@ -152,6 +152,7 @@ def get_dashboard_insights():
 			"goal_progress": _get_employee_goal_progress(employee),
 			"department_average": _get_department_average(department),
 			"at_risk_kpis": _get_employee_at_risk_kpis(employee),
+			"kpi_targets": _get_employee_kpi_targets(employee),
 			"trend": _get_employee_trend(employee)
 		}
 
@@ -187,31 +188,15 @@ def _get_employee_profile(user):
 
 
 def _get_company_kpa_scores():
-	kpa_field = _get_goal_kpa_field()
-	if not kpa_field:
-		return []
-
-	rows = frappe.db.get_all(
-		"Goal",
-		filters={"owner_type": "Company"},
-		fields=[kpa_field, "progress"]
-	)
-
-	grouped = {}
-	for row in rows:
-		kpa = row.get(kpa_field)
-		if not kpa:
-			continue
-		grouped.setdefault(kpa, []).append(row.progress or 0)
-
-	return [{"label": kpa, "value": sum(values) / len(values)} for kpa, values in grouped.items()]
+	# KPI-based KPA averages across all scorecards
+	return _get_kra_progress_by_kpa(owner_type="Company")
 
 
 def _get_department_comparison():
 	rows = frappe.db.get_all(
 		"Goal",
 		filters={"owner_type": "Department"},
-		fields=["department", "progress"]
+		fields=["name", "department"]
 	)
 
 	grouped = {}
@@ -219,12 +204,19 @@ def _get_department_comparison():
 		dept = row.department
 		if not dept:
 			continue
-		grouped.setdefault(dept, []).append(row.progress or 0)
+		grouped.setdefault(dept, []).append(row.name)
 
-	comparison = [
-		{"label": dept, "value": sum(values) / len(values)}
-		for dept, values in grouped.items()
-	]
+	comparison = []
+	for dept, dept_goals in grouped.items():
+		employee_goals = frappe.db.get_all(
+			"Goal",
+			filters={"owner_type": "Employee", "parent_goal": ["in", dept_goals]},
+			pluck="name"
+		)
+		goal_names = dept_goals + employee_goals
+		value = _avg_score_for_goals(goal_names, department=dept)
+		comparison.append({"label": dept, "value": value})
+
 	return sorted(comparison, key=lambda x: x["value"], reverse=True)
 
 
@@ -258,24 +250,8 @@ def _get_top_employees():
 
 
 def _get_department_kpa_scores(department):
-	kpa_field = _get_goal_kpa_field()
-	if not kpa_field:
-		return []
-
-	rows = frappe.db.get_all(
-		"Goal",
-		filters={"owner_type": "Department", "department": department},
-		fields=[kpa_field, "progress"]
-	)
-
-	grouped = {}
-	for row in rows:
-		kpa = row.get(kpa_field)
-		if not kpa:
-			continue
-		grouped.setdefault(kpa, []).append(row.progress or 0)
-
-	return [{"label": kpa, "value": sum(values) / len(values)} for kpa, values in grouped.items()]
+	# KPI-based KPA averages for the department
+	return _get_kra_progress_by_kpa(owner_type="Department", department=department)
 
 
 def _get_department_top_employees(department, limit=5):
@@ -320,14 +296,22 @@ def _get_department_distribution(department):
 
 
 def _get_department_goal_achievement(department):
-	rows = frappe.db.get_all(
+	dept_goals = frappe.db.get_all(
 		"Goal",
 		filters={"owner_type": "Department", "department": department},
-		fields=["progress"]
+		fields=["name", "progress"]
 	)
-	if not rows:
+	if not dept_goals:
 		return 0
-	return sum([row.progress or 0 for row in rows]) / len(rows)
+
+	goal_scores = []
+	for goal in dept_goals:
+		progress = goal.progress
+		if progress is None:
+			progress = _avg_score_for_goals([goal.name], department=department)
+		goal_scores.append(progress or 0)
+
+	return sum(goal_scores) / len(goal_scores) if goal_scores else 0
 
 
 def _get_department_at_risk_kpis(department):
@@ -387,11 +371,84 @@ def _get_employee_goal_progress(employee):
 	goals = frappe.db.get_all(
 		"Goal",
 		filters={"owner_type": "Employee", "employee": employee},
-		fields=["goal_name", "progress"]
+		fields=["name", "goal_name"]
 	)
-	items = [{"goal_name": g.goal_name, "progress": g.progress or 0} for g in goals]
+	items = []
+	for goal in goals:
+		kras = frappe.db.get_all(
+			"KRA",
+			filters={"goal": goal.name},
+			pluck="name"
+		)
+		if kras:
+			kra_scores = [_avg_score_for_kra(kra, employee=employee) for kra in kras]
+			progress = sum(kra_scores) / len(kra_scores) if kra_scores else 0
+		else:
+			progress = 0
+		items.append({"goal_name": goal.goal_name, "progress": progress})
 	average = sum([g["progress"] for g in items]) / len(items) if items else 0
 	return {"items": items, "average": average}
+
+
+def _avg_score_for_goals(goal_names, department=None, employee=None):
+	if not goal_names:
+		return 0
+	placeholders = ", ".join(["%s"] * len(goal_names))
+	conditions = [f"si.goal IN ({placeholders})", "ps.docstatus = 0"]
+	values = list(goal_names)
+	if department:
+		conditions.append("(ps.department = %s OR e.department = %s)")
+		values.extend([department, department])
+	if employee:
+		conditions.append("ps.employee = %s")
+		values.append(employee)
+	query = f"""
+		SELECT AVG(
+			CASE
+				WHEN si.score IS NOT NULL THEN si.score
+				WHEN si.target IS NOT NULL AND si.target != 0 THEN (IFNULL(si.actual, 0) / si.target) * 100
+				ELSE 0
+			END
+		) as avg_score
+		FROM `tabScorecard Item` si
+		INNER JOIN `tabPerformance Scorecard` ps ON ps.name = si.parent
+		LEFT JOIN `tabEmployee` e ON e.name = ps.employee
+		WHERE {' AND '.join(conditions)}
+	"""
+	rows = frappe.db.sql(query, values, as_dict=True)
+	if not rows:
+		return 0
+	return rows[0].get("avg_score") or 0
+
+
+def _avg_score_for_kra(kra, department=None, employee=None):
+	if not kra:
+		return 0
+	conditions = ["si.kra = %s", "ps.docstatus = 0"]
+	values = [kra]
+	if department:
+		conditions.append("(ps.department = %s OR e.department = %s)")
+		values.extend([department, department])
+	if employee:
+		conditions.append("ps.employee = %s")
+		values.append(employee)
+	query = f"""
+		SELECT AVG(
+			CASE
+				WHEN si.score IS NOT NULL THEN si.score
+				WHEN si.target IS NOT NULL AND si.target != 0 THEN (IFNULL(si.actual, 0) / si.target) * 100
+				ELSE 0
+			END
+		) as avg_score
+		FROM `tabScorecard Item` si
+		INNER JOIN `tabPerformance Scorecard` ps ON ps.name = si.parent
+		LEFT JOIN `tabEmployee` e ON e.name = ps.employee
+		WHERE {' AND '.join(conditions)}
+	"""
+	rows = frappe.db.sql(query, values, as_dict=True)
+	if not rows:
+		return 0
+	return rows[0].get("avg_score") or 0
 
 
 def _get_department_average(department):
@@ -435,6 +492,46 @@ def _get_employee_trend(employee):
 		ORDER BY label ASC
 	"""
 	return frappe.db.sql(query, (start, employee), as_dict=True)
+
+
+def _get_employee_kpi_targets(employee, limit=6):
+	scorecard = frappe.db.get_value(
+		"Performance Scorecard",
+		{"employee": employee},
+		"name",
+		order_by="modified desc"
+	)
+	if not scorecard:
+		return []
+
+	items = frappe.db.get_all(
+		"Scorecard Item",
+		filters={"parent": scorecard},
+		fields=["kpi", "target", "actual"],
+		order_by="modified desc",
+		limit=limit
+	)
+	if not items:
+		return []
+
+	kpis = [item.kpi for item in items if item.kpi]
+	kpi_names = {}
+	if kpis:
+		for row in frappe.db.get_all(
+			"KPI Master",
+			filters={"name": ["in", list(set(kpis))]},
+			fields=["name", "kpi_name"]
+		):
+			kpi_names[row.name] = row.kpi_name
+
+	return [
+		{
+			"label": kpi_names.get(item.kpi) or item.kpi,
+			"target": item.target,
+			"actual": item.actual
+		}
+		for item in items
+	]
 
 
 def _get_goal_kpa_field():
@@ -533,7 +630,8 @@ def _get_kra_attention(owner_type, department=None, employee=None, limit=5):
 		values.append(employee)
 
 	query = f"""
-		SELECT k.kra_name as label,
+		SELECT k.name,
+			k.kra_name as label,
 			IFNULL(k.progress, 0) as value
 		FROM `tabKRA` k
 		INNER JOIN `tabGoal` g ON g.name = k.goal
@@ -558,7 +656,8 @@ def _get_top_kras_by_period(department, days=None, months=None, limit=5):
 		start = add_months(nowdate(), -3)
 
 	query = """
-		SELECT k.kra_name as label,
+		SELECT k.name,
+			k.kra_name as label,
 			IFNULL(k.progress, 0) as value
 		FROM `tabKRA` k
 		INNER JOIN `tabGoal` g ON g.name = k.goal
