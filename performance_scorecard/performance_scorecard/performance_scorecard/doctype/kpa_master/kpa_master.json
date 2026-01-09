@@ -7,7 +7,8 @@
     "engine": "InnoDB",
     "field_order": [
         "kpa_name",
-        "weightage"
+        "weightage",
+        "progress"
     ],
     "fields": [
         {
@@ -23,6 +24,12 @@
             "fieldtype": "Percent",
             "in_list_view": 1,
             "label": "Weightage"
+        },
+        {
+            "fieldname": "progress",
+            "fieldtype": "Percent",
+            "label": "Progress",
+            "read_only": 1
         }
     ],
     "index_web_pages_for_search": 1,

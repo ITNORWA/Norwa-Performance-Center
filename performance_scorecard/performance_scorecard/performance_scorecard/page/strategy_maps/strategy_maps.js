@@ -1,5 +1,5 @@
 frappe.pages['strategy-maps'].on_page_load = function (wrapper) {
-    var page = frappe.ui.make_app_page({
+    const page = frappe.ui.make_app_page({
         parent: wrapper,
         title: 'Strategy Maps',
         single_column: true
@@ -33,6 +33,11 @@ frappe.pages['strategy-maps'].on_page_load = function (wrapper) {
 function load_root_nodes(page) {
     $('#strategy-columns').empty();
 
+    load_root_nodes();
+};
+
+function load_root_nodes() {
+    $('#strategy-tree').empty();
     frappe.call({
         method: "performance_scorecard.performance_scorecard.page.strategy_maps.strategy_maps.get_root_nodes",
         callback: function (r) {

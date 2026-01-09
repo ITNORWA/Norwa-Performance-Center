@@ -314,3 +314,64 @@
 .badge-green { background: #c6f6d5; color: #22543d; }
 .badge-red { background: #fed7d7; color: #822727; }
 .badge-yellow { background: #fefcbf; color: #744210; }
+
+.inline-edit {
+    padding: 0 4px;
+    font-size: 12px;
+}
+
+.editable-cell {
+    cursor: pointer;
+    position: relative;
+    padding-right: 24px;
+}
+
+.editable-cell.editing {
+    background: #fffaf0;
+}
+
+.inline-editor .form-control {
+    height: 28px;
+    padding: 2px 6px;
+    font-size: 12px;
+}
+
+.edit-icon {
+    opacity: 0.4;
+    display: inline-flex;
+    align-items: center;
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+.editable-cell:hover .edit-icon {
+    opacity: 0.9;
+}
+
+.editable-cell {
+    display: table-cell;
+}
+
+.achievement-title {
+    font-weight: 600;
+    color: #2d3748;
+}
+
+.achievement-meta {
+    display: flex;
+    gap: 10px;
+    font-size: 12px;
+    color: #718096;
+}
+
+.kpa-goals-table thead th {
+    font-weight: 600;
+    color: #4a5568;
+    background: #f7f7f7;
+}
+
+.kpa-goals-table tbody td {
+    vertical-align: middle;
+}

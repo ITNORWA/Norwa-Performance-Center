@@ -158,6 +158,51 @@ function render_list_items(items, label_field, progress_field, doctype) {
 		return `<div class="p-4 text-center text-muted small">No active ${doctype}s found.</div>`;
 	}
 
+	let html = `
+		<div class="table-responsive">
+			<table class="table table-bordered table-hover">
+				<thead class="thead-light">
+					<tr>
+						<th style="width: 26%">KPA</th>
+						<th style="width: 50%">Goals</th>
+						<th style="width: 24%">Progress</th>
+					</tr>
+				</thead>
+				<tbody>
+	`;
+
+	kpas.forEach(kpa => {
+		const goals = (kpa.goals || []).map(goal => {
+			const progress = flt(goal.average_score || 0);
+			return `
+				<div class="kpi-item">
+					<div class="kpi-title">${goal.goal || goal.goal_name || goal.goal_id || "-"}</div>
+				</div>
+			`;
+		}).join("") || '<div class="empty-state">No goals linked.</div>';
+
+		const kpa_progress = flt(kpa.average_score || 0);
+		html += `
+			<tr>
+				<td>
+					<div class="goal-name">${kpa.kpa}</div>
+				</td>
+				<td>${goals}</td>
+				<td>
+					<div class="status-value">${kpa_progress.toFixed(1)}%</div>
+					${render_status_bar(kpa_progress)}
+				</td>
+			</tr>
+		`;
+	});
+
+	html += `</tbody></table></div>`;
+	return html;
+}
+
+function render_status_bar(percent) {
+	const value = Math.max(0, Math.min(100, flt(percent || 0)));
+	const color = value >= 80 ? "bg-success" : (value >= 60 ? "bg-warning" : "bg-danger");
 	return `
         <div class="list-group list-group-flush">
             ${items.map(item => `

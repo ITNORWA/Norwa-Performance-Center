@@ -7,6 +7,7 @@
     "engine": "InnoDB",
     "field_order": [
         "goal_name",
+        "kpa",
         "parent_goal",
         "kpa",
         "parent_kra",
@@ -30,6 +31,12 @@
             "label": "Goal Name",
             "reqd": 1,
             "unique": 1
+        },
+        {
+            "fieldname": "kpa",
+            "fieldtype": "Link",
+            "label": "KPA",
+            "options": "KPA Master"
         },
         {
             "fieldname": "parent_goal",

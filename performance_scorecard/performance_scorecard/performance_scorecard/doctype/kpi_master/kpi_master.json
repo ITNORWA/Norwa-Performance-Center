@@ -7,6 +7,8 @@
     "engine": "InnoDB",
     "field_order": [
         "kpi_name",
+        "kra",
+        "employee",
         "unit",
         "calculation_method",
         "column_break_1",
@@ -22,6 +24,19 @@
             "label": "KPI Name",
             "reqd": 1,
             "unique": 1
+        },
+        {
+            "fieldname": "kra",
+            "fieldtype": "Link",
+            "label": "KRA",
+            "options": "KRA"
+        },
+        {
+            "fieldname": "employee",
+            "fieldtype": "Link",
+            "label": "Employee",
+            "options": "Employee",
+            "read_only": 1
         },
         {
             "fieldname": "unit",
