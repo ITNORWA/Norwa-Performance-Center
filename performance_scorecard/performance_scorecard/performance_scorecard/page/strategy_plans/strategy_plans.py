@@ -2,29 +2,44 @@ import frappe
 from frappe.utils import flt
 
 @frappe.whitelist()
-def get_strategy_data(level, period=None, department=None):
+def get_strategy_data(level, period=None, department=None, employee=None):
     # Fetch data based on level (Company, Department, Individual)
     # Return a list of items (Goals -> KRAs -> KPIs)
     
     filters = {"status": ["!=", "Archived"]}
-    employee = None
     session_user = frappe.session.user
-    employee = frappe.db.get_value("Employee", {"user_id": session_user}, "name")
+    session_employee = frappe.db.get_value("Employee", {"user_id": session_user}, "name")
+    selected_employee = employee or session_employee
+    selected_department = department
+    dept_employees = []
 
     if level == "Company":
         filters["owner_type"] = "Company"
     elif level == "Department":
         filters["owner_type"] = "Department"
         # Filter by user's department
-        if employee:
-            dept = frappe.db.get_value("Employee", employee, "department")
-            filters["department"] = dept
-        if department:
-            filters["department"] = department
+        if session_employee and not selected_department:
+            selected_department = frappe.db.get_value("Employee", session_employee, "department")
+        if selected_department:
+            filters["department"] = selected_department
     elif level == "Individual":
         filters["owner_type"] = "Employee"
-        if employee:
-            filters["employee"] = employee
+        if selected_department:
+            filters["department"] = selected_department
+            dept_employees = frappe.get_all(
+                "Employee",
+                filters={"department": selected_department},
+                pluck="name",
+            )
+            if selected_employee and selected_employee not in dept_employees:
+                selected_employee = None
+        if selected_employee:
+            filters["employee"] = selected_employee
+        elif selected_department:
+            if dept_employees:
+                filters["employee"] = ["in", dept_employees]
+            else:
+                filters["employee"] = "__none__"
         else:
             # Fallback for users without an Employee record
             filters["owner"] = session_user
@@ -69,14 +84,17 @@ def get_strategy_data(level, period=None, department=None):
             kpa_map[row.name] = row.kpa_name
 
     employee_list = []
-    if level == "Individual" and not employee:
-        employee_list = sorted({g.get("employee") for g in goals if g.get("employee")})
+    if level == "Individual" and not selected_employee:
+        if selected_department:
+            employee_list = sorted(dept_employees)
+        else:
+            employee_list = sorted({g.get("employee") for g in goals if g.get("employee")})
         if len(employee_list) == 1:
-            employee = employee_list[0]
+            selected_employee = employee_list[0]
 
-    scorecard_filters = _get_scorecard_filters(level, employee or employee_list, filters.get("department"), session_user)
+    scorecard_filters = _get_scorecard_filters(level, selected_employee or employee_list, filters.get("department"), session_user)
     kpi_scorecard_filters = scorecard_filters if level == "Individual" else None
-    kpi_employee_filter = (employee or employee_list) if level == "Individual" else None
+    kpi_employee_filter = (selected_employee or employee_list) if level == "Individual" else None
     data = []
     kra_meta = frappe.get_meta("KRA")
     kra_fields = ["name", "kra_name", "weightage", "priority", "progress"]
@@ -138,7 +156,7 @@ def get_strategy_data(level, period=None, department=None):
         "goals": data,
         "meta": {
             "level": level,
-            "employee": employee,
+            "employee": selected_employee,
             "department": filters.get("department"),
         },
         "personal": {
@@ -151,17 +169,17 @@ def get_strategy_data(level, period=None, department=None):
     }
 
     if level == "Individual":
-        if not employee and not employee_list:
+        if not selected_employee and not employee_list:
             response["personal"]["scorecards"] = []
             response["personal"]["updates"] = []
             response["rows"] = []
             response["rollups"] = {"kpas": [], "overall_score": 0}
             return response
 
-        if employee_list and not employee:
-            scorecard_filters = {"employee": ["in", employee_list]}
+        if employee_list and not selected_employee:
+            scorecard_filters = {"employee": ["in", employee_list], "docstatus": ["in", [0, 1]]}
         else:
-            scorecard_filters = {"employee": employee}
+            scorecard_filters = {"employee": selected_employee, "docstatus": ["in", [0, 1]]}
         goal_names = [g.get("name") for g in goals if g.get("name")]
         scorecards = frappe.get_all(
             "Performance Scorecard",
@@ -187,14 +205,19 @@ def get_strategy_data(level, period=None, department=None):
                 )
 
         response["personal"]["scorecards"] = scorecards
-        response["personal"]["updates"] = frappe.get_all(
-            "Performance Update",
-            filters={"owner": session_user},
-            fields=["name", "kpi", "actual_value", "status", "modified"],
-            order_by="modified desc",
-            limit=10,
-        )
-        _enrich_updates(response["personal"]["updates"])
+        if selected_department and not selected_employee:
+            response["personal"]["updates"] = []
+        elif selected_employee and selected_employee != session_employee:
+            response["personal"]["updates"] = []
+        else:
+            response["personal"]["updates"] = frappe.get_all(
+                "Performance Update",
+                filters={"owner": session_user},
+                fields=["name", "kpi", "actual_value", "status", "modified"],
+                order_by="modified desc",
+                limit=10,
+            )
+            _enrich_updates(response["personal"]["updates"])
 
         latest_scorecard = scorecards[0].name if scorecards else frappe.db.get_value(
             "Performance Scorecard",
@@ -238,7 +261,7 @@ def get_strategy_data(level, period=None, department=None):
                     }
                 )
 
-    response["rollups"] = _build_rollups(level, employee, filters.get("department"), session_user)
+    response["rollups"] = _build_rollups(level, selected_employee, filters.get("department"), session_user)
     if level == "Company":
         response["company"] = _build_company_rollups()
     return response
@@ -283,7 +306,7 @@ def _enrich_updates(updates):
 
 
 def _get_scorecard_filters(level, employee, department, session_user):
-    filters = {"docstatus": 0}
+    filters = {"docstatus": ["in", [0, 1]]}
     if level == "Department" and department:
         filters["department"] = department
     elif level == "Individual":
@@ -373,6 +396,16 @@ def _build_rollups(level, employee, department, session_user):
                 filters["employee"] = ["in", list(employee)]
             else:
                 filters["employee"] = employee
+        elif department:
+            dept_employees = frappe.get_all(
+                "Employee",
+                filters={"department": department},
+                pluck="name",
+            )
+            if dept_employees:
+                filters["employee"] = ["in", dept_employees]
+            else:
+                filters["employee"] = "__none__"
         else:
             filters["owner"] = session_user
 

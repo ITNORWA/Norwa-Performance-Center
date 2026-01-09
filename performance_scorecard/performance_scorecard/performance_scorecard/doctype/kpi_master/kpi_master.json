@@ -34,9 +34,8 @@
         {
             "fieldname": "employee",
             "fieldtype": "Link",
-            "label": "Employee",
-            "options": "Employee",
-            "read_only": 1
+            "label": "Owner (Employee)",
+            "options": "Employee"
         },
         {
             "fieldname": "unit",

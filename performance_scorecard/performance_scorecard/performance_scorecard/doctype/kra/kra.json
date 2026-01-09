@@ -9,6 +9,8 @@
         "kra_name",
         "goal",
         "owner_type",
+        "department",
+        "employee",
         "parent_kra",
         "weightage",
         "priority",
@@ -37,6 +39,20 @@
             "options": "Department\nEmployee",
             "reqd": 1,
             "default": "Employee"
+        },
+        {
+            "fieldname": "department",
+            "fieldtype": "Link",
+            "label": "Department",
+            "options": "Department",
+            "depends_on": "eval:doc.owner_type=='Department'"
+        },
+        {
+            "fieldname": "employee",
+            "fieldtype": "Link",
+            "label": "Employee",
+            "options": "Employee",
+            "depends_on": "eval:doc.owner_type=='Employee'"
         },
         {
             "fieldname": "parent_kra",

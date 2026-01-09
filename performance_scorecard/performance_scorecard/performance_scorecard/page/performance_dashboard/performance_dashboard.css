@@ -398,6 +398,51 @@
     align-items: center;
 }
 
+.strategy-filters {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.strategy-filter {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 6px;
+}
+
+.strategy-filter .filter-control {
+    min-width: 220px;
+}
+
+.strategy-filter .control-label {
+    display: none;
+}
+
+.strategy-filters .filter-refresh {
+    padding: 4px 8px;
+}
+
+.dashboards-filters {
+    display: inline-flex;
+    align-items: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+
+.dashboards-filters .control-label {
+    display: none;
+}
+
+.dashboards-filter .filter-control {
+    min-width: 220px;
+}
+
+.dashboards-filters .dashboards-refresh {
+    padding: 4px 8px;
+}
+
 
 .kra-item:last-child {
     border-bottom: none !important;

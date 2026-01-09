@@ -109,8 +109,8 @@ function build_home_html(data) {
 				<div class="card-header red">At-Risk Summary</div>
 				<div class="card-content summary-split">
 					<div>
-						<div class="summary-subtitle">Company (${(data.attention_company || []).length})</div>
-						${render_home_list(data.attention_company, "No company KRAs flagged.", { doctype: "KRA" })}
+						<div class="summary-subtitle">Company Goals (${(data.attention_company || []).length})</div>
+						${render_home_list(data.attention_company, "No company goals flagged.", { doctype: "Goal" })}
 					</div>
 					<div>
 						<div class="summary-subtitle">Department (${(data.attention_department || []).length})</div>
@@ -123,16 +123,15 @@ function build_home_html(data) {
 				</div>
 			</div>
 			<div class="dashboard-card">
-				<div class="card-header blue">Top Achievements</div>
-				<div class="card-content summary-split">
-					<div>
-						<div class="summary-subtitle">Weekly</div>
-						${render_home_list(data.weekly_top_kras, "No weekly achievements yet.", { doctype: "KRA" })}
-					</div>
-					<div>
-						<div class="summary-subtitle">Quarterly</div>
-						${render_home_list(data.quarterly_top_kras, "No quarterly achievements yet.", { doctype: "KRA" })}
-					</div>
+				<div class="card-header blue">Weekly Achievements</div>
+				<div class="card-content">
+					${render_home_list(data.weekly_top_kras, "No weekly achievements yet.", { doctype: "Goal" })}
+				</div>
+			</div>
+			<div class="dashboard-card">
+				<div class="card-header blue">Quarterly Achievements</div>
+				<div class="card-content">
+					${render_home_list(data.quarterly_top_kras, "No quarterly achievements yet.", { doctype: "Goal" })}
 				</div>
 			</div>
 			<div class="dashboard-card">
@@ -219,13 +218,25 @@ function render_home_list(items, empty_text, options) {
 		return `<div class="empty-state">${empty_text}</div>`;
 	}
 
-	const doctype = options && options.doctype;
+	const doctype = (options && options.doctype) || null;
 	return items.map(item => `
-		<div class="list-item ${doctype && item.name ? "home-link" : ""}" ${doctype && item.name ? `data-doctype="${doctype}" data-name="${item.name}"` : ""}>
-			<span>${item.label}</span>
+		<div class="list-item ${((item.doctype || doctype) && item.name) ? "home-link" : ""}" ${((item.doctype || doctype) && item.name) ? `data-doctype="${item.doctype || doctype}" data-name="${item.name}"` : ""}>
+			<span>${truncate_words(item.label, 3)}</span>
 			<span class="badge badge-green">${format_score(item.value)}%</span>
 		</div>
 	`).join("");
+}
+
+function truncate_words(text, max_words) {
+	if (!text) {
+		return "-";
+	}
+	const raw = frappe.utils.escape_html(String(text));
+	const words = raw.split(/\s+/).filter(Boolean);
+	if (words.length <= max_words) {
+		return raw;
+	}
+	return `${words.slice(0, max_words).join(" ")}…`;
 }
 
 function render_task_list(items) {
@@ -264,19 +275,50 @@ function render_strategy_plans($container) {
 			<button class="btn btn-primary btn-sm" data-action="add-kpa">Add KPA</button>
 			<button class="btn btn-primary btn-sm" data-action="add-goal">Add Goal</button>
 			<button class="btn btn-default btn-sm" data-action="add-kra">Add KRA</button>
-			<span class="dept-filter"></span>
+			<span class="strategy-filters">
+				<span class="dept-filter strategy-filter">
+					<span class="filter-control"></span>
+				</span>
+				<span class="employee-filter strategy-filter">
+					<span class="filter-control"></span>
+				</span>
+				<button class="btn btn-default btn-sm filter-refresh" title="Reload Filters">
+					<i class="fa fa-refresh"></i>
+				</button>
+			</span>
 		</div>
 		<div class="strategy-content"></div>
 	`);
 
 	const $actions = $container.find(".strategy-actions");
 	const $deptFilter = $actions.find(".dept-filter");
+	const $employeeFilter = $actions.find(".employee-filter");
 	const deptControl = frappe.ui.form.make_control({
-		df: { fieldname: "department", fieldtype: "Link", options: "Department", label: "Department" },
-		parent: $deptFilter,
+		df: { fieldname: "department", fieldtype: "Link", options: "Department", label: "", placeholder: "Department" },
+		parent: $deptFilter.find(".filter-control"),
 		render_input: true
 	});
 	deptControl.refresh();
+
+	const employeeControl = frappe.ui.form.make_control({
+		df: {
+			fieldname: "employee",
+			fieldtype: "Link",
+			options: "Employee",
+			label: "",
+			placeholder: "Employee ID",
+			get_query: () => {
+				const dept = deptControl.get_value();
+				if (!dept) {
+					return {};
+				}
+				return { filters: { department: dept } };
+			}
+		},
+		parent: $employeeFilter.find(".filter-control"),
+		render_input: true
+	});
+	employeeControl.refresh();
 
 	$container.find(".nav-link").on("click", function (e) {
 		e.preventDefault();
@@ -284,7 +326,7 @@ function render_strategy_plans($container) {
 		$(this).addClass("active");
 		const level = $(this).data("level");
 		update_strategy_actions($actions, level);
-		load_strategy_data($container, level, deptControl.get_value());
+		load_strategy_data($container, level, deptControl.get_value(), employeeControl.get_value());
 	});
 
 	update_strategy_actions($actions, "Company");
@@ -303,6 +345,29 @@ function render_strategy_plans($container) {
 		const level = $container.find(".nav-link.active").data("level");
 		if (level === "Department") {
 			load_strategy_data($container, "Department", deptControl.get_value());
+			return;
+		}
+		if (level === "Individual") {
+			employeeControl.set_value("");
+			load_strategy_data($container, "Individual", deptControl.get_value(), employeeControl.get_value());
+		}
+	});
+
+	employeeControl.$input.on("change", function () {
+		const level = $container.find(".nav-link.active").data("level");
+		if (level === "Individual") {
+			load_strategy_data($container, "Individual", deptControl.get_value(), employeeControl.get_value());
+		}
+	});
+
+	$actions.on("click", ".filter-refresh", function () {
+		const level = $container.find(".nav-link.active").data("level");
+		if (level === "Department") {
+			load_strategy_data($container, "Department", deptControl.get_value());
+			return;
+		}
+		if (level === "Individual") {
+			load_strategy_data($container, "Individual", deptControl.get_value(), employeeControl.get_value());
 		}
 	});
 }
@@ -370,13 +435,17 @@ function render_risk_management($container) {
 	});
 }
 
-function load_strategy_data($container, level, department) {
+function load_strategy_data($container, level, department, employee) {
 	const $content = $container.find(".strategy-content");
 	$content.html('<div class="text-center text-muted">Loading...</div>');
+	$container.data("strategy-filters", {
+		department: department || "",
+		employee: employee || ""
+	});
 
 	frappe.call({
 		method: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.get_strategy_data",
-		args: { level: level, department: department },
+		args: { level: level, department: department, employee: employee },
 		callback: function (r) {
 			if (r.message) {
 				const payload = r.message;
@@ -408,14 +477,24 @@ function update_strategy_actions($actions, level) {
 			$actions.find("[data-action='add-kpa']").show();
 			$actions.find("[data-action='add-kra']").hide();
 			$actions.find(".dept-filter").hide();
+			$actions.find(".employee-filter").hide();
+			$actions.find(".strategy-filters").hide();
 		} else {
 			$actions.find("[data-action='add-goal']").text("Add Department Goal").show();
 			$actions.find("[data-action='add-kra']").show();
 			$actions.find("[data-action='add-kpa']").hide();
-		$actions.find(".dept-filter").hide();
+			$actions.find(".dept-filter").show();
+			$actions.find(".employee-filter").hide();
+			$actions.find(".strategy-filters").show();
 		}
 	} else {
-		$actions.hide();
+		$actions.show();
+		$actions.find("[data-action='add-goal']").hide();
+		$actions.find("[data-action='add-kra']").hide();
+		$actions.find("[data-action='add-kpa']").hide();
+		$actions.find(".dept-filter").show();
+		$actions.find(".employee-filter").show();
+		$actions.find(".strategy-filters").show();
 	}
 }
 
@@ -1066,7 +1145,8 @@ function render_personal_tables($container, payload, $page_container) {
 					callback: () => {
 						dialog.hide();
 						if ($page_container && $page_container.length) {
-							load_strategy_data($page_container, "Individual");
+							const filters = $page_container.data("strategy-filters") || {};
+							load_strategy_data($page_container, "Individual", filters.department, filters.employee);
 						}
 					}
 				});
@@ -1701,6 +1781,17 @@ function render_dashboards($container) {
 				<button class="dashboards-tab" data-tab="department">Department</button>
 				<button class="dashboards-tab" data-tab="employee">Employee</button>
 			</div>
+			<div class="dashboards-filters">
+				<span class="dashboards-filter">
+					<span class="filter-control" data-control="department"></span>
+				</span>
+				<span class="dashboards-filter">
+					<span class="filter-control" data-control="employee"></span>
+				</span>
+				<button class="btn btn-default btn-sm dashboards-refresh" title="Reload Filters">
+					<i class="fa fa-refresh"></i>
+				</button>
+			</div>
 			<div class="dashboards-content">
 				<div class="dashboards-panel is-active" data-panel="company">
 					<div class="empty-state">Loading company dashboard...</div>
@@ -1717,6 +1808,36 @@ function render_dashboards($container) {
 
 	const $tabs = $container.find(".dashboards-tab");
 	const $panels = $container.find(".dashboards-panel");
+	const $filters = $container.find(".dashboards-filters");
+	const $refresh = $container.find(".dashboards-refresh");
+
+	const controls = {
+		department: frappe.ui.form.make_control({
+			df: { fieldname: "department", fieldtype: "Link", options: "Department", label: "", placeholder: "Department" },
+			parent: $filters.find("[data-control='department']"),
+			render_input: true
+		}),
+		employee: frappe.ui.form.make_control({
+			df: {
+				fieldname: "employee",
+				fieldtype: "Link",
+				options: "Employee",
+				label: "",
+				placeholder: "Employee ID",
+				get_query: () => {
+					const dept = controls.department.get_value();
+					if (!dept) {
+						return {};
+					}
+					return { filters: { department: dept } };
+				}
+			},
+			parent: $filters.find("[data-control='employee']"),
+			render_input: true
+		})
+	};
+
+	Object.values(controls).forEach(control => control.refresh());
 
 	$tabs.on("click", function () {
 		const target = $(this).data("tab");
@@ -1724,41 +1845,87 @@ function render_dashboards($container) {
 		$(this).addClass("is-active");
 		$panels.removeClass("is-active");
 		$panels.filter(`[data-panel="${target}"]`).addClass("is-active");
-	});
-
-	frappe.call({
-		method: "performance_scorecard.performance_scorecard.page.performance_dashboard.performance_dashboard.get_dashboard_insights",
-		callback: function (r) {
-			const insights = r.message || {};
-			render_company_dashboard($container, insights.company || {}, null);
-			render_department_dashboard($container, insights.department || {}, insights.meta || {}, null);
-			render_employee_dashboard($container, insights.employee || {}, insights.meta || {}, null);
-
-			frappe.call({
-				method: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.get_strategy_data",
-				args: { level: "Company" },
-				callback: function (res) {
-					render_company_dashboard($container, insights.company || {}, res.message || {});
-				}
-			});
-
-			frappe.call({
-				method: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.get_strategy_data",
-				args: { level: "Department", department: (insights.meta || {}).department || null },
-				callback: function (res) {
-					render_department_dashboard($container, insights.department || {}, insights.meta || {}, res.message || {});
-				}
-			});
-
-			frappe.call({
-				method: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.get_strategy_data",
-				args: { level: "Individual" },
-				callback: function (res) {
-					render_employee_dashboard($container, insights.employee || {}, insights.meta || {}, res.message || {});
-				}
-			});
+		if (target === "company") {
+			$filters.hide();
+		} else if (target === "department") {
+			$filters.show();
+			$filters.find("[data-control='employee']").closest(".dashboards-filter").hide();
+			controls.employee.set_value("");
+		} else {
+			$filters.show();
+			$filters.find("[data-control='employee']").closest(".dashboards-filter").show();
 		}
 	});
+
+	function fetch_dashboards() {
+		const department = controls.department.get_value();
+		const employee = controls.employee.get_value();
+
+		frappe.call({
+			method: "performance_scorecard.performance_scorecard.page.performance_dashboard.performance_dashboard.get_dashboard_insights",
+			args: { department: department, employee: employee },
+			callback: function (r) {
+				const insights = r.message || {};
+				const resolved_department = department || (insights.meta || {}).department || "";
+				const resolved_employee = employee || (insights.meta || {}).employee || "";
+				if (!department && resolved_department) {
+					controls.department.set_value(resolved_department);
+				}
+				if (!employee && resolved_employee) {
+					controls.employee.set_value(resolved_employee);
+				}
+				render_company_dashboard($container, insights.company || {}, null);
+				render_department_dashboard($container, insights.department || {}, insights.meta || {}, null);
+				render_employee_dashboard($container, insights.employee || {}, insights.meta || {}, null);
+
+				frappe.call({
+					method: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.get_strategy_data",
+					args: { level: "Company" },
+					callback: function (res) {
+						render_company_dashboard($container, insights.company || {}, res.message || {});
+					}
+				});
+
+				frappe.call({
+					method: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.get_strategy_data",
+					args: { level: "Department", department: resolved_department || null },
+					callback: function (res) {
+						render_department_dashboard($container, insights.department || {}, insights.meta || {}, res.message || {});
+					}
+				});
+
+				frappe.call({
+					method: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.get_strategy_data",
+					args: { level: "Individual", department: resolved_department, employee: resolved_employee },
+					callback: function (res) {
+						render_employee_dashboard($container, insights.employee || {}, insights.meta || {}, res.message || {});
+					}
+				});
+			}
+		});
+	}
+
+	$refresh.on("click", function () {
+		fetch_dashboards();
+	});
+
+	controls.department.$input.on("change", function () {
+		const tab = $tabs.filter(".is-active").data("tab");
+		if (tab === "department" || tab === "employee") {
+			controls.employee.set_value("");
+			fetch_dashboards();
+		}
+	});
+
+	controls.employee.$input.on("change", function () {
+		const tab = $tabs.filter(".is-active").data("tab");
+		if (tab === "employee") {
+			fetch_dashboards();
+		}
+	});
+
+	$filters.hide();
+	fetch_dashboards();
 }
 
 function render_company_dashboard($container, data, strategy) {

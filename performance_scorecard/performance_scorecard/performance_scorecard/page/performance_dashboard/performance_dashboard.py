@@ -104,9 +104,9 @@ def get_dashboard_data():
 	if chart_employee:
 		data["attention_individual"] = _get_kra_attention(owner_type="Employee", employee=chart_employee)
 
-	if chart_department:
-		data["weekly_top_kras"] = _get_top_kras_by_period(chart_department, days=7, limit=5)
-		data["quarterly_top_kras"] = _get_top_kras_by_period(chart_department, months=3, limit=5)
+	if chart_employee:
+		data["weekly_top_kras"] = _get_top_goals_by_period(chart_employee, days=7, limit=5)
+		data["quarterly_top_kras"] = _get_top_goals_by_period(chart_employee, months=3, limit=5)
 
 	data["kpa_weights"] = _get_kpa_weightages()
 	data["kpa_palette"] = _get_kpa_palette()
@@ -115,14 +115,24 @@ def get_dashboard_data():
 
 
 @frappe.whitelist()
-def get_dashboard_insights():
+def get_dashboard_insights(department=None, employee=None):
 	user = frappe.session.user
-	employee, department = _get_employee_profile(user)
+	profile_employee, profile_department = _get_employee_profile(user)
+	selected_department = department or profile_department
+	selected_employee = employee if employee or department else profile_employee
+	employee_department = None
+
+	if selected_employee:
+		employee_department = frappe.db.get_value("Employee", selected_employee, "department")
+		if selected_department and employee_department and employee_department != selected_department:
+			selected_employee = None
+		elif not selected_department:
+			selected_department = employee_department
 
 	insights = {
 		"meta": {
-			"employee": employee,
-			"department": department
+			"employee": selected_employee,
+			"department": selected_department
 		},
 		"company": {},
 		"department": {},
@@ -136,24 +146,25 @@ def get_dashboard_insights():
 		"top_performers": _get_top_employees()
 	}
 
-	if department:
+	if selected_department:
 		insights["department"] = {
-			"kpa_scores": _get_department_kpa_scores(department),
-			"employee_distribution": _get_department_distribution(department),
-			"goal_achievement_rate": _get_department_goal_achievement(department),
-			"at_risk_kpis": _get_department_at_risk_kpis(department),
-			"trend": _get_department_trend(department),
-			"top_employees": _get_department_top_employees(department)
+			"kpa_scores": _get_department_kpa_scores(selected_department),
+			"employee_distribution": _get_department_distribution(selected_department),
+			"goal_achievement_rate": _get_department_goal_achievement(selected_department),
+			"at_risk_kpis": _get_department_at_risk_kpis(selected_department),
+			"trend": _get_department_trend(selected_department),
+			"top_employees": _get_department_top_employees(selected_department)
 		}
 
-	if employee:
+	if selected_employee:
+		dept_for_employee = selected_department or employee_department
 		insights["employee"] = {
-			"scorecard": _get_employee_scorecard(employee),
-			"goal_progress": _get_employee_goal_progress(employee),
-			"department_average": _get_department_average(department),
-			"at_risk_kpis": _get_employee_at_risk_kpis(employee),
-			"kpi_targets": _get_employee_kpi_targets(employee),
-			"trend": _get_employee_trend(employee)
+			"scorecard": _get_employee_scorecard(selected_employee),
+			"goal_progress": _get_employee_goal_progress(selected_employee),
+			"department_average": _get_department_average(dept_for_employee),
+			"at_risk_kpis": _get_employee_at_risk_kpis(selected_employee),
+			"kpi_targets": _get_employee_kpi_targets(selected_employee),
+			"trend": _get_employee_trend(selected_employee)
 		}
 
 	return insights
@@ -644,8 +655,8 @@ def _get_kra_attention(owner_type, department=None, employee=None, limit=5):
 	return frappe.db.sql(query, values, as_dict=True)
 
 
-def _get_top_kras_by_period(department, days=None, months=None, limit=5):
-	if not department:
+def _get_top_goals_by_period(employee, days=None, months=None, limit=5):
+	if not employee:
 		return []
 
 	if days:
@@ -656,15 +667,15 @@ def _get_top_kras_by_period(department, days=None, months=None, limit=5):
 		start = add_months(nowdate(), -3)
 
 	query = """
-		SELECT k.name,
-			k.kra_name as label,
-			IFNULL(k.progress, 0) as value
-		FROM `tabKRA` k
-		INNER JOIN `tabGoal` g ON g.name = k.goal
-		WHERE g.owner_type = 'Department'
-			AND g.department = %s
-			AND k.modified >= %s
-		ORDER BY k.progress DESC
+		SELECT g.name,
+			g.goal_name as label,
+			IFNULL(g.progress, 0) as value,
+			'Goal' as doctype
+		FROM `tabGoal` g
+		WHERE g.owner_type = 'Employee'
+			AND g.employee = %s
+			AND g.modified >= %s
+		ORDER BY g.progress DESC
 		LIMIT %s
 	"""
-	return frappe.db.sql(query, (department, start, limit), as_dict=True)
+	return frappe.db.sql(query, (employee, start, limit), as_dict=True)
