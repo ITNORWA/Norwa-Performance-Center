@@ -45,64 +45,22 @@ doctype_js = {
 # ------------------
 doc_events = {
 	"Goal": {
-		"after_insert": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_goal",
-		"on_update": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_goal",
+		"after_save": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_goal",
 		"on_trash": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_goal",
 	},
 	"KRA": {
-		"after_insert": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_kra",
-		"on_update": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_kra",
+		"after_save": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_kra",
 		"on_trash": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_kra",
 	},
 	"KPI Master": {
-		"after_insert": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_kpi",
-		"on_update": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_kpi",
+		"after_save": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_kpi",
 		"on_trash": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_kpi",
 	},
 	"Performance Scorecard": {
-		"on_update": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_scorecard",
+		"after_save": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_scorecard",
 	},
 	"Performance Update": {
-		"on_update": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_update",
+		"after_save": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_update",
 		"on_submit": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_update",
 	},
-}
-
-# Scheduled Tasks
-# ------------------
-# scheduler_events = {
-# 	"all": [
-# 		"performance_scorecard.tasks.all"
-# 	],
-# 	"daily": [
-# 		"performance_scorecard.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"performance_scorecard.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"performance_scorecard.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"performance_scorecard.tasks.monthly"
-# 	],
-# }
-# DocEvents
-# ---------
-doc_events = {
-    "Goal": {
-        "after_save": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_goal"
-    },
-    "KRA": {
-        "after_save": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_kra"
-    },
-    "KPI Master": {
-        "after_save": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_kpi"
-    },
-    "Performance Scorecard": {
-        "after_save": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_scorecard"
-    },
-    "Performance Update": {
-        "after_save": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_update"
-    }
 }
