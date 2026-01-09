@@ -60,3 +60,22 @@ doctype_js = {
 # 		"performance_scorecard.tasks.monthly"
 # 	],
 # }
+# DocEvents
+# ---------
+doc_events = {
+    "Goal": {
+        "after_save": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_goal"
+    },
+    "KRA": {
+        "after_save": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_kra"
+    },
+    "KPI Master": {
+        "after_save": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_kpi"
+    },
+    "Performance Scorecard": {
+        "after_save": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_scorecard"
+    },
+    "Performance Update": {
+        "after_save": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_update"
+    }
+}

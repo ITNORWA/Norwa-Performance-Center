@@ -5,398 +5,241 @@ frappe.pages['performance-dashboard'].on_page_load = function (wrapper) {
 		single_column: true
 	});
 
-	page.set_primary_action('Refresh', function () {
-		load_dashboard(page);
-	});
+	render_sidebar(page);
+	load_dashboard_data(page);
+};
 
-	load_dashboard(page);
+function render_sidebar(page) {
+	let sidebar_html = `
+        <div class="pc-sidebar">
+            <div class="sidebar-header">
+                <img src="/assets/performance_scorecard/images/performance_scorecard_logo.jpg" class="sidebar-logo">
+                <span class="sidebar-title">Performance Center</span>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/app/performance-dashboard" class="nav-item active">
+                    <i class="fa fa-th-large"></i> Home
+                </a>
+                <a href="/app/strategy-plans" class="nav-item">
+                    <i class="fa fa-map"></i> Strategy Plans
+                </a>
+                <a href="/app/strategy-maps" class="nav-item">
+                    <i class="fa fa-sitemap"></i> Strategy Maps
+                </a>
+                <a href="/app/risk-dashboard" class="nav-item">
+                    <i class="fa fa-warning"></i> Risk Management
+                </a>
+                <div class="nav-divider"></div>
+                <a href="#" class="nav-item" id="nav-administration">
+                    <i class="fa fa-cog"></i> Administration
+                </a>
+            </nav>
+        </div>
+    `;
+
+	$(page.wrapper).find('.layout-side-section').remove();
+	$(page.wrapper).find('.layout-main-section').before(sidebar_html);
+
+	$(page.wrapper).find('#nav-administration').on('click', function (e) {
+		e.preventDefault();
+		frappe.set_route('Form', 'Performance Settings');
+	});
 }
 
-function load_dashboard(page) {
-	$(page.body).empty();
-	$(page.body).append('<div class="dashboard-content">Loading...</div>');
-
+function load_dashboard_data(page) {
 	frappe.call({
 		method: "performance_scorecard.performance_scorecard.page.performance_dashboard.performance_dashboard.get_dashboard_data",
 		callback: function (r) {
-			if (r.message) {
-				render_dashboard(page, r.message);
-			}
+			render_dashboard(page, r.message);
 		}
 	});
 }
 
 function render_dashboard(page, data) {
-	$(page.body).empty();
+	let $container = $(page.main);
+	$container.empty();
 
-	const home_html = build_home_html(data);
+	let welcome_html = `
+        <div class="dashboard-welcome d-flex justify-content-between align-items-center mb-4 p-4 bg-white shadow-sm rounded-lg">
+            <div>
+                <h2 class="mb-1 fw-bold text-dark">Welcome back, ${data.fullname} 👋</h2>
+                <p class="text-muted mb-0">${data.designation} | ${data.company}</p>
+            </div>
+            <div class="dashboard-actions">
+                <button class="btn btn-primary rounded-pill px-4" onclick="frappe.set_route('Form', 'Performance Update', 'new')">
+                    <i class="fa fa-plus me-1"></i> Update Performance
+                </button>
+            </div>
+        </div>
+    `;
+	$container.append(welcome_html);
 
-	let html = `
-		<div class="dashboard-container">
-			<!-- Sidebar -->
-			<div class="dashboard-sidebar">
-			<div class="sidebar-header">
-				<h3 style="color:white; margin:0;">${data.company}</h3>
-			</div>
-				<ul class="sidebar-menu">
-					<li class="active" data-section="home"><i class="fa fa-home"></i> Home</li>
-					<li data-section="strategy-plans"><i class="fa fa-list"></i> Strategy Plans</li>
-					<li data-section="strategy-maps"><i class="fa fa-sitemap"></i> Strategy Maps</li>
-					<li data-section="risk-management"><i class="fa fa-exclamation-triangle"></i> Risk Management</li>
-					<li data-section="dashboards"><i class="fa fa-tachometer"></i> Dashboards</li>
-					<li data-section="reports"><i class="fa fa-file-text"></i> Reports</li>
-					<li data-section="administration"><i class="fa fa-cog"></i> Administration</li>
-				</ul>
-			<div class="user-profile">
-				<div class="user-avatar"></div>
-				<div>
-					<div style="font-weight:bold; font-size:12px;">${data.fullname}</div>
-					<div style="font-size:10px; color:#a0aec0;">${data.designation}</div>
-				</div>
-			</div>
-		</div>
+	let grid_html = `
+        <div class="dashboard-grid">
+            <!-- Left Column: Primary Focus -->
+            <div class="grid-main">
+                <div class="row g-4">
+                    <!-- Objectives Card -->
+                    <div class="col-md-6">
+                        <div class="card h-100 border-0 shadow-sm rounded-lg overflow-hidden">
+                            <div class="card-header bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0 fw-bold"><i class="fa fa-bullseye text-primary me-2"></i> My Objectives</h5>
+                                <span class="badge bg-light text-muted rounded-pill">${data.objectives.length}</span>
+                            </div>
+                            <div class="card-body p-0">
+                                ${render_list_items(data.objectives, 'goal_name', 'progress', 'Goal')}
+                            </div>
+                        </div>
+                    </div>
 
-		<!-- Main Content -->
-		<div class="dashboard-main">
-			<div class="dashboard-header">
-				<div class="page-title">${data.company}</div>
-				<div>
-					<i class="fa fa-bell" style="font-size:18px; color:#718096; margin-right:15px;"></i>
-					<i class="fa fa-user-circle" style="font-size:24px; color:#e53e3e;"></i>
-				</div>
-			</div>
+                    <!-- Key Results Card -->
+                    <div class="col-md-6">
+                        <div class="card h-100 border-0 shadow-sm rounded-lg overflow-hidden">
+                            <div class="card-header bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0 fw-bold"><i class="fa fa-check-circle text-success me-2"></i> Key Results (KRAs)</h5>
+                                <span class="badge bg-light text-muted rounded-pill">${data.key_results.length}</span>
+                            </div>
+                            <div class="card-body p-0">
+                                ${render_list_items(data.key_results, 'kra_name', 'progress', 'KRA')}
+                            </div>
+                        </div>
+                    </div>
 
-				<div class="dashboard-content-area">
-					${home_html}
-				</div>
-			</div>
-		</div>
-		`;
+                    <!-- Needs Attention Card -->
+                    <div class="col-12">
+                        <div class="card border-0 shadow-sm rounded-lg overflow-hidden">
+                            <div class="card-header bg-white border-0 py-3 px-4 d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0 fw-bold"><i class="fa fa-exclamation-triangle text-danger me-2"></i> Needs Attention</h5>
+                                <span class="badge bg-soft-danger text-danger rounded-pill">Low Scores</span>
+                            </div>
+                            <div class="card-body p-0">
+                                ${render_attention_items(data.needs_attention)}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-	$(page.body).append(html);
+            <!-- Right Column: Activities & Tasks -->
+            <div class="grid-side">
+                <div class="row g-4">
+                    <!-- Pending Tasks -->
+                    <div class="col-12">
+                        <div class="card border-0 shadow-sm rounded-lg overflow-hidden">
+                            <div class="card-header bg-white border-0 py-3 px-4">
+                                <h5 class="mb-0 fw-bold"><i class="fa fa-tasks text-info me-2"></i> Pending Updates</h5>
+                            </div>
+                            <div class="card-body p-3">
+                                ${render_task_items(data.tasks)}
+                            </div>
+                        </div>
+                    </div>
 
-	bind_sidebar(page, data, home_html);
+                    <!-- Recent Updates -->
+                    <div class="col-12">
+                        <div class="card border-0 shadow-sm rounded-lg overflow-hidden">
+                            <div class="card-header bg-white border-0 py-3 px-4">
+                                <h5 class="mb-0 fw-bold"><i class="fa fa-history text-muted me-2"></i> Recent History</h5>
+                            </div>
+                            <div class="card-body p-0">
+                                ${render_history_items(data.recent_updates)}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+	$container.append(grid_html);
 }
 
-function build_home_html(data) {
-	let critical = data.settings.critical_threshold;
+function render_list_items(items, label_field, progress_field, doctype) {
+	if (!items || items.length === 0) {
+		return `<div class="p-4 text-center text-muted small">No active ${doctype}s found.</div>`;
+	}
+
 	return `
-		<div class="grid-container">
-			<div class="dashboard-card">
-				<div class="card-header blue">MY KEY OBJECTIVES</div>
-				<div class="card-content">
-					${data.objectives.length ?
-			data.objectives.map(o => `<div class="list-item">${o.goal_name} <span class="badge badge-green">${o.status}</span></div>`).join('') :
-			'<div class="empty-state">No key objectives assigned.</div>'}
-				</div>
-			</div>
-
-			<div class="dashboard-card">
-				<div class="card-header light-blue">MY KEY RESULTS</div>
-				<div class="card-content">
-					${data.key_results.length ?
-			data.key_results.map(k => `<div class="list-item">${k.kra_name}</div>`).join('') :
-			'<div class="empty-state">No key results tracked.</div>'}
-				</div>
-			</div>
-
-			<div class="dashboard-card">
-				<div class="card-header red">NEEDS ATTENTION (SCORE < ${critical}%)</div>
-				<div class="card-content">
-					${data.needs_attention.length ?
-			data.needs_attention.map(i => `<div class="list-item">${i.kpi}: ${i.actual}/${i.target} (${i.score}%)</div>`).join('') :
-			'<div class="empty-state">Nothing seems overdue right now.</div>'}
-				</div>
-			</div>
-
-			<div class="dashboard-card">
-				<div class="card-header cyan">MY TASKS</div>
-				<div class="card-content">
-					${data.tasks.length ?
-			data.tasks.map(t => `<div class="list-item">Update ${t.kpi} <span class="badge badge-yellow">${t.status}</span></div>`).join('') :
-			'<div class="empty-state">No open tasks assigned.</div>'}
-				</div>
-			</div>
-
-			<div class="dashboard-card">
-				<div class="card-header yellow">KPIS NEEDING UPDATE</div>
-				<div class="card-content">
-					${data.kpis_needing_update.length ?
-			data.kpis_needing_update.map(k => `<div>${k.name}</div>`).join('') :
-			'<div class="empty-state">All your KPIs are up-to-date.</div>'}
-				</div>
-			</div>
-
-			<div class="dashboard-card">
-				<div class="card-header blue">RECENT KPI UPDATES</div>
-				<div class="card-content">
-					${data.recent_updates.length ?
-			data.recent_updates.map(u => `<div class="list-item">${u.kpi}: ${u.actual_value}</div>`).join('') :
-			'<div class="empty-state">No recent updates found for your KPIs.</div>'}
-				</div>
-			</div>
-		</div>
-	`;
+        <div class="list-group list-group-flush">
+            ${items.map(item => `
+                <div class="list-group-item p-3 border-0 border-bottom-light clickable-item" onclick="frappe.set_route('Form', '${doctype}', '${item.name}')">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="fw-semibold text-dark truncate-1" title="${item[label_field]}">${item[label_field]}</span>
+                        <span class="small fw-bold ${item[progress_field] >= 80 ? 'text-success' : 'text-warning'}">${Math.round(item[progress_field])}%</span>
+                    </div>
+                    <div class="progress" style="height: 4px;">
+                        <div class="progress-bar ${item[progress_field] >= 80 ? 'bg-success' : 'bg-warning'}" role="progressbar" style="width: ${item[progress_field]}%"></div>
+                    </div>
+                </div>
+            `).join('')}
+        </div>
+    `;
 }
 
-function bind_sidebar(page, data, home_html) {
-	const $body = $(page.body);
-	const $content = $body.find(".dashboard-content-area");
-
-	$body.find(".sidebar-menu li").on("click", function () {
-		$body.find(".sidebar-menu li").removeClass("active");
-		$(this).addClass("active");
-
-		const section = $(this).data("section");
-		if (section === "home") {
-			$content.html(home_html);
-			return;
-		}
-
-		if (section === "strategy-plans") {
-			render_strategy_plans($content);
-			return;
-		}
-
-		if (section === "strategy-maps") {
-			render_strategy_maps($content);
-			return;
-		}
-
-		if (section === "risk-management") {
-			frappe.set_route("risk-dashboard");
-			return;
-		}
-
-		if (section === "administration") {
-			frappe.set_route("Form", "Performance Settings");
-			return;
-		}
-
-		render_placeholder($content, "This section is coming soon.");
-	});
-}
-
-function render_placeholder($container, message) {
-	$container.html(`<div class="empty-state">${message}</div>`);
-}
-
-function render_strategy_plans($container) {
-	$container.html(`
-		<div class="strategy-tabs" style="margin-bottom: 20px;">
-			<ul class="nav nav-tabs">
-				<li class="nav-item">
-					<a class="nav-link active" data-level="Company" href="#">Company Strategy</a>
-				</li>
-				<li class="nav-item">
-					<a class="nav-link" data-level="Department" href="#">Department Strategy</a>
-				</li>
-				<li class="nav-item">
-					<a class="nav-link" data-level="Individual" href="#">My Performance</a>
-				</li>
-			</ul>
-		</div>
-		<div class="strategy-content"></div>
-	`);
-
-	$container.find(".nav-link").on("click", function (e) {
-		e.preventDefault();
-		$container.find(".nav-link").removeClass("active");
-		$(this).addClass("active");
-		load_strategy_data($container, $(this).data("level"));
-	});
-
-	load_strategy_data($container, "Company");
-}
-
-function load_strategy_data($container, level) {
-	const $content = $container.find(".strategy-content");
-	$content.html('<div class="text-center text-muted">Loading...</div>');
-
-	frappe.call({
-		method: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.get_strategy_data",
-		args: { level: level },
-		callback: function (r) {
-			if (r.message) {
-				const payload = r.message;
-				if (payload.meta && payload.meta.level === "Individual") {
-					render_personal_panel($container, payload.personal || { scorecards: [], updates: [] });
-					render_personal_table($content, payload.rows || []);
-				} else {
-					render_strategy_table($content, payload.goals || payload);
-				}
-			} else {
-				$content.html('<div class="text-center text-muted">No strategy defined for this level.</div>');
-			}
-		}
-	});
-}
-
-function render_strategy_table($container, data) {
-	if (!data.length) {
-		$container.html('<div class="text-center text-muted">No goals found.</div>');
-		return;
+function render_attention_items(items) {
+	if (!items || items.length === 0) {
+		return `<div class="p-4 text-center text-muted small">All good! No performance issues detected.</div>`;
 	}
 
-	let html = `
-		<div class="table-responsive">
-			<table class="table table-bordered table-hover">
-				<thead class="thead-light">
-					<tr>
-						<th style="width: 20%">KPA</th>
-						<th style="width: 30%">Goal</th>
-						<th style="width: 10%">Weight</th>
-						<th style="width: 30%">Key Result Areas (KRAs)</th>
-						<th style="width: 10%">Actions</th>
-					</tr>
-				</thead>
-				<tbody>
-	`;
-
-	data.forEach(goal => {
-		let kras_html = goal.kras.map(k => `
-			<div class="kra-item" style="margin-bottom: 5px; padding-bottom: 5px; border-bottom: 1px dashed #eee;">
-				<strong>${k.kra_name}</strong> <span class="badge badge-secondary">${k.weightage}%</span>
-				<div class="text-muted small">${k.description || ''}</div>
-			</div>
-		`).join('');
-
-		html += `
-			<tr>
-				<td>${goal.kpa || '-'}</td>
-				<td>
-					<div style="font-weight: bold;">${goal.goal_name}</div>
-					<div class="small text-muted">${goal.start_date} - ${goal.end_date}</div>
-				</td>
-				<td>${goal.weightage}%</td>
-				<td>${kras_html || '<span class="text-muted">No KRAs</span>'}</td>
-				<td>
-					<button class="btn btn-xs btn-default btn-edit" data-name="${goal.name}">Edit</button>
-				</td>
-			</tr>
-		`;
-	});
-
-	html += `</tbody></table></div>`;
-	$container.html(html);
-
-	$container.find(".btn-edit").on("click", function () {
-		const goal_name = $(this).data("name");
-		frappe.set_route("Form", "Goal", goal_name);
-	});
+	return `
+        <table class="table table-hover mb-0 align-middle small">
+            <thead class="bg-light">
+                <tr>
+                    <th class="ps-4">KPI Metric</th>
+                    <th>Target</th>
+                    <th>Actual</th>
+                    <th class="pe-4">Score</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${items.map(item => `
+                    <tr class="clickable-item" onclick="frappe.set_route('Form', 'KPI Master', '${item.kpi}')">
+                        <td class="ps-4 fw-bold text-danger">${item.kpi_name}</td>
+                        <td>${item.target}</td>
+                        <td>${item.actual}</td>
+                        <td class="pe-4"><span class="badge bg-soft-danger text-danger rounded-pill px-2">${item.score}%</span></td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
 }
 
-function render_personal_panel($container, personal) {
-	$container.find(".personal-actions").remove();
-	$container.find(".personal-summaries").remove();
-
-	let html = `
-		<div class="personal-actions">
-			<button class="btn btn-primary btn-sm" data-action="new-scorecard">Add Scorecard</button>
-			<button class="btn btn-primary btn-sm" data-action="new-goal">Add Goal</button>
-			<button class="btn btn-default btn-sm" data-action="new-kra">Add KRA</button>
-			<button class="btn btn-default btn-sm" data-action="new-kpa">Add KPA</button>
-			<button class="btn btn-default btn-sm" data-action="new-kpi">Add KPI</button>
-			<button class="btn btn-default btn-sm" data-action="new-target">Set Target</button>
-			<button class="btn btn-default btn-sm" data-action="new-update">Add Achievement</button>
-		</div>
-		<div class="personal-summaries">
-			<div class="dashboard-card">
-				<div class="card-header blue">MY SCORECARDS</div>
-				<div class="card-content">
-					${personal.scorecards.length ?
-			personal.scorecards.map(s => `
-						<div class="list-item scorecard-item" data-name="${s.name}">
-							<span class="scorecard-link">${s.name}</span>
-							<span class="badge badge-green">${s.status}</span>
-						</div>
-					`).join('') :
-			'<div class="empty-state">No scorecards yet.</div>'}
-				</div>
-			</div>
-			<div class="dashboard-card">
-				<div class="card-header cyan">MY ACHIEVEMENTS</div>
-				<div class="card-content">
-					${personal.updates.length ?
-			personal.updates.map(u => `<div class="list-item">${u.kpi}: ${u.actual_value}</div>`).join('') :
-			'<div class="empty-state">No achievements yet.</div>'}
-				</div>
-			</div>
-		</div>
-	`;
-
-	$container.find(".strategy-content").before(html);
-
-	$container.find(".personal-actions .btn").on("click", function () {
-		const action = $(this).data("action");
-		if (action === "new-scorecard") {
-			frappe.new_doc("Performance Scorecard");
-		} else if (action === "new-goal") {
-			frappe.new_doc("Goal");
-		} else if (action === "new-kra") {
-			frappe.new_doc("KRA");
-		} else if (action === "new-kpa") {
-			frappe.new_doc("KPA Master");
-		} else if (action === "new-kpi") {
-			frappe.new_doc("KPI Master");
-		} else if (action === "new-target") {
-			frappe.new_doc("Target");
-		} else if (action === "new-update") {
-			frappe.new_doc("Performance Update");
-		}
-	});
-
-	$container.find(".scorecard-item").on("click", function () {
-		const name = $(this).data("name");
-		if (name) {
-			frappe.set_route("Form", "Performance Scorecard", name);
-		}
-	});
-}
-
-function render_personal_table($container, rows) {
-	if (!rows.length) {
-		$container.html('<div class="text-center text-muted">No items yet. Create a scorecard to populate this table.</div>');
-		return;
+function render_task_items(items) {
+	if (!items || items.length === 0) {
+		return `<div class="text-center text-muted small py-2">No pending drafts.</div>`;
 	}
 
-	let html = `
-		<div class="table-responsive">
-			<table class="table table-bordered table-hover">
-				<thead class="thead-light">
-					<tr>
-						<th style="width: 14%">Key Performance Area</th>
-						<th style="width: 18%">Goals</th>
-						<th style="width: 16%">Key Result Areas (KRAs)</th>
-						<th style="width: 18%">Performance Measures (Metrics)</th>
-						<th style="width: 10%">Target</th>
-						<th style="width: 8%">Actual</th>
-						<th style="width: 8%">Score</th>
-						<th style="width: 8%">Rating</th>
-					</tr>
-				</thead>
-				<tbody>
-	`;
-
-	rows.forEach(row => {
-		html += `
-			<tr>
-				<td>${row.kpa || "-"}</td>
-				<td>${row.goal || "-"}</td>
-				<td>${row.kra || "-"}</td>
-				<td>${row.kpi_name || row.kpi || "-"}</td>
-				<td>${row.target ?? "-"}</td>
-				<td>${row.actual ?? "-"}</td>
-				<td>${row.score ?? "-"}</td>
-				<td>${row.rating || "-"}</td>
-			</tr>
-		`;
-	});
-
-	html += `</tbody></table></div>`;
-	$container.html(html);
+	return items.map(item => `
+        <div class="p-2 mb-2 bg-light rounded d-flex justify-content-between align-items-center clickable-item" onclick="frappe.set_route('Form', 'Performance Update', '${item.name}')">
+            <div class="small fw-semibold truncate-1">${item.kpi}</div>
+            <i class="fa fa-chevron-right text-muted x-small"></i>
+        </div>
+    `).join('');
 }
 
-function render_strategy_maps($container) {
-	frappe.set_route("strategy-maps");
+function render_history_items(items) {
+	if (!items || items.length === 0) {
+		return `<div class="p-4 text-center text-muted small">No update history.</div>`;
+	}
+
+	return `
+        <div class="list-group list-group-flush">
+            ${items.map(item => `
+                <div class="list-group-item p-3 border-0 border-bottom-light small">
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">${frappe.datetime.pretty_date(item.modified)}</span>
+                        <span class="fw-bold text-primary">${item.actual_value}</span>
+                    </div>
+                    <div class="text-dark fw-semibold mt-1 truncate-1">${item.kpi_name}</div>
+                </div>
+            `).join('')}
+        </div>
+    `;
 }
+
+// Real-time listener for Home Dashboard
+frappe.realtime.on('strategy_refresh', function (data) {
+	if (frappe.get_route()[0] === 'performance-dashboard') {
+		load_dashboard_data(frappe.pages['performance-dashboard']);
+	}
+});

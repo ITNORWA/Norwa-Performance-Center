@@ -8,6 +8,7 @@
     "field_order": [
         "goal_name",
         "parent_goal",
+        "kpa",
         "parent_kra",
         "weightage",
         "column_break_1",
@@ -35,6 +36,12 @@
             "fieldtype": "Link",
             "label": "Parent Goal",
             "options": "Goal"
+        },
+        {
+            "fieldname": "kpa",
+            "fieldtype": "Link",
+            "label": "KPA",
+            "options": "KPA Master"
         },
         {
             "fieldname": "parent_kra",

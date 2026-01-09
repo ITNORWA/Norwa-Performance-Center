@@ -42,7 +42,7 @@ def get_children(node_type, node_id, context=None):
         # Company KPA -> Company Goals
         goals = frappe.get_all("Goal", filters={
             "owner_type": "Company", 
-            "parent_kpa": node_id,
+            "kpa": node_id,
             "status": "Active"
         }, fields=["name", "goal_name", "progress", "end_date"])
         
@@ -92,7 +92,7 @@ def get_children(node_type, node_id, context=None):
         goals = frappe.get_all("Goal", filters={
             "owner_type": "Department",
             "department": department,
-            "parent_kpa": node_id,
+            "kpa": node_id,
             "status": "Active"
         }, fields=["name", "goal_name", "progress", "end_date"])
         
@@ -155,7 +155,7 @@ def get_children(node_type, node_id, context=None):
         goals = frappe.get_all("Goal", filters={
             "owner_type": "Employee",
             "employee": employee,
-            "parent_kpa": node_id,
+            "kpa": node_id,
             "status": "Active"
         }, fields=["name", "goal_name", "progress", "end_date"])
         
@@ -213,7 +213,7 @@ def get_company_progress(company):
     return sum([flt(g.progress) for g in goals]) / len(goals)
 
 def get_kpa_progress(kpa, level, owner_id):
-    filters = {"parent_kpa": kpa, "status": "Active"}
+    filters = {"kpa": kpa, "status": "Active"}
     if level == "Company":
         filters["owner_type"] = "Company"
     elif level == "Department":
