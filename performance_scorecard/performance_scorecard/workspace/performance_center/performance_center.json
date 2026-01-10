@@ -1,0 +1,20 @@
+{
+    "charts": [],
+    "content": "[{\"type\":\"header\",\"data\":{\"text\":\"Performance Center\",\"level\":2,\"col\":12}}]",
+    "creation": "2024-05-22 10:00:00.000000",
+    "docstatus": 0,
+    "doctype": "Workspace",
+    "idx": 0,
+    "is_standard": 1,
+    "label": "Performance Center",
+    "links": [],
+    "modified": "2024-05-22 10:00:00.000000",
+    "modified_by": "Administrator",
+    "module": "Performance Scorecard",
+    "name": "Performance Center",
+    "owner": "Administrator",
+    "public": 1,
+    "roles": [],
+    "shortcuts": [],
+    "title": "Performance Center"
+}
