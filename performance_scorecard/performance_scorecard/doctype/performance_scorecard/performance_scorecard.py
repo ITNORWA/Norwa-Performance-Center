@@ -1,4 +1,5 @@
 import frappe
+from frappe.model.document import Document
 from performance_scorecard.performance_scorecard.scoring_engine import ScoringEngine
 
 class PerformanceScorecard(Document):
