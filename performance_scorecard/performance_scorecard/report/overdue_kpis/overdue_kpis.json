@@ -1,0 +1,36 @@
+{
+    "add_total_row": 0,
+    "columns": [],
+    "creation": "2024-05-22 10:00:00.000000",
+    "disabled": 0,
+    "docstatus": 0,
+    "doctype": "Report",
+    "filters": [],
+    "idx": 0,
+    "is_standard": "Yes",
+    "letter_head": "Standard",
+    "modified": "2024-05-22 10:00:00.000000",
+    "modified_by": "Administrator",
+    "module": "Performance Scorecard",
+    "name": "Overdue KPIs",
+    "owner": "Administrator",
+    "prepared_report": 0,
+    "query": "SELECT t.kpi AS \"KPI:Link/KPI Master:200\", t.period_start AS \"Period Start:Date:120\", t.period_end AS \"Period End:Date:120\", t.target_value AS \"Target:Float:120\" FROM `tabTarget` t WHERE t.period_end < DATE_SUB(CURDATE(), INTERVAL 7 DAY) ORDER BY t.period_end ASC",
+    "ref_doctype": "Target",
+    "report_name": "Overdue KPIs",
+    "report_type": "Query Report",
+    "roles": [
+        {
+            "role": "System Manager"
+        },
+        {
+            "role": "HR Manager"
+        },
+        {
+            "role": "Department Manager"
+        },
+        {
+            "role": "Employee"
+        }
+    ]
+}

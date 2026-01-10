@@ -8,6 +8,12 @@
     "field_order": [
         "kra_name",
         "goal",
+<<<<<<< HEAD
+=======
+        "owner_type",
+        "department",
+        "employee",
+>>>>>>> origin/newton-manyisa
         "parent_kra",
         "weightage",
         "priority",
@@ -30,6 +36,31 @@
             "reqd": 1
         },
         {
+<<<<<<< HEAD
+=======
+            "fieldname": "owner_type",
+            "fieldtype": "Select",
+            "label": "Owner Type",
+            "options": "Department\nEmployee",
+            "reqd": 1,
+            "default": "Employee"
+        },
+        {
+            "fieldname": "department",
+            "fieldtype": "Link",
+            "label": "Department",
+            "options": "Department",
+            "depends_on": "eval:doc.owner_type=='Department'"
+        },
+        {
+            "fieldname": "employee",
+            "fieldtype": "Link",
+            "label": "Employee",
+            "options": "Employee",
+            "depends_on": "eval:doc.owner_type=='Employee'"
+        },
+        {
+>>>>>>> origin/newton-manyisa
             "fieldname": "parent_kra",
             "fieldtype": "Link",
             "label": "Parent KRA",

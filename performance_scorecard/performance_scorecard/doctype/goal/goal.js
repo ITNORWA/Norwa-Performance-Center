@@ -4,6 +4,8 @@ frappe.ui.form.on('Goal', {
             frm.set_value('employee', '');
             frm.set_value('department', '');
         }
+        update_owner_fields(frm);
+        set_department_from_user(frm);
         set_parent_goal_filters(frm);
         set_kpa_from_parent(frm);
     },
@@ -20,9 +22,33 @@ frappe.ui.form.on('Goal', {
         }
     },
     onload: function (frm) {
+        update_owner_fields(frm);
+        set_department_from_user(frm);
         set_parent_goal_filters(frm);
+    },
+    refresh: function (frm) {
+        update_owner_fields(frm);
+        set_department_from_user(frm);
     }
 });
+
+function update_owner_fields(frm) {
+    const owner_type = frm.doc.owner_type;
+    const show_parent_goal = owner_type !== 'Company';
+    const show_parent_kra = owner_type === 'Employee';
+
+    frm.set_df_property('parent_goal', 'hidden', !show_parent_goal);
+    frm.set_df_property('parent_kra', 'hidden', !show_parent_kra);
+    frm.refresh_field('parent_goal');
+    frm.refresh_field('parent_kra');
+
+    if (!show_parent_goal && frm.doc.parent_goal) {
+        frm.set_value('parent_goal', '');
+    }
+    if (!show_parent_kra && frm.doc.parent_kra) {
+        frm.set_value('parent_kra', '');
+    }
+}
 
 function set_parent_goal_filters(frm) {
     if (!frm.fields_dict.parent_goal) {
@@ -47,6 +73,22 @@ function set_kpa_from_parent(frm) {
     frappe.db.get_value('Goal', frm.doc.parent_goal, 'kpa').then(r => {
         if (r && r.message && r.message.kpa) {
             frm.set_value('kpa', r.message.kpa);
+        }
+    });
+}
+
+function set_department_from_user(frm) {
+    if (frm.doc.owner_type !== 'Department' || !frm.fields_dict.department) {
+        return;
+    }
+    if (frm.doc.department) {
+        return;
+    }
+
+    frappe.db.get_value('Employee', { user_id: frappe.session.user }, 'department').then(r => {
+        const dept = r && r.message && r.message.department;
+        if (dept) {
+            frm.set_value('department', dept);
         }
     });
 }

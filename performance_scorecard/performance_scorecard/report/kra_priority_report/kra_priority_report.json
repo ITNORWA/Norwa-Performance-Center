@@ -1,0 +1,51 @@
+{
+    "add_total_row": 0,
+    "columns": [],
+    "creation": "2024-05-22 10:00:00.000000",
+    "disabled": 0,
+    "docstatus": 0,
+    "doctype": "Report",
+    "filters": [
+        {
+            "fieldname": "department",
+            "fieldtype": "Link",
+            "label": "Department",
+            "options": "Department",
+            "default": ""
+        },
+        {
+            "fieldname": "employee",
+            "fieldtype": "Link",
+            "label": "Employee",
+            "options": "Employee",
+            "default": ""
+        }
+    ],
+    "idx": 0,
+    "is_standard": "Yes",
+    "letter_head": "Standard",
+    "modified": "2024-05-22 10:00:00.000000",
+    "modified_by": "Administrator",
+    "module": "Performance Scorecard",
+    "name": "KRA Priority Report",
+    "owner": "Administrator",
+    "prepared_report": 0,
+    "query": "",
+    "ref_doctype": "KRA",
+    "report_name": "KRA Priority Report",
+    "report_type": "Script Report",
+    "roles": [
+        {
+            "role": "System Manager"
+        },
+        {
+            "role": "HR Manager"
+        },
+        {
+            "role": "Department Manager"
+        },
+        {
+            "role": "Employee"
+        }
+    ]
+}
