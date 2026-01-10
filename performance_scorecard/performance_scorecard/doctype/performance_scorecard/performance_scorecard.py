@@ -3,14 +3,6 @@ from frappe.model.document import Document
 from performance_scorecard.performance_scorecard.scoring_engine import ScoringEngine
 
 class PerformanceScorecard(Document):
-<<<<<<< HEAD
-    def validate(self):
-        self.calculate_score()
-
-    def calculate_score(self):
-        # Use the central Scoring Engine
-        self.overall_score = ScoringEngine.calculate_scorecard_score(self)
-=======
 	def validate(self):
 		self.set_department()
 		self.populate_items_from_kpis()
@@ -69,4 +61,3 @@ class PerformanceScorecard(Document):
 					"weightage": 0,
 				},
 			)
->>>>>>> origin/newton-manyisa

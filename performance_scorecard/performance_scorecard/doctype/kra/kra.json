@@ -8,12 +8,9 @@
     "field_order": [
         "kra_name",
         "goal",
-<<<<<<< HEAD
-=======
         "owner_type",
         "department",
         "employee",
->>>>>>> origin/newton-manyisa
         "parent_kra",
         "weightage",
         "priority",
@@ -36,8 +33,6 @@
             "reqd": 1
         },
         {
-<<<<<<< HEAD
-=======
             "fieldname": "owner_type",
             "fieldtype": "Select",
             "label": "Owner Type",
@@ -60,7 +55,6 @@
             "depends_on": "eval:doc.owner_type=='Employee'"
         },
         {
->>>>>>> origin/newton-manyisa
             "fieldname": "parent_kra",
             "fieldtype": "Link",
             "label": "Parent KRA",

@@ -1,10 +1,7 @@
 frappe.ui.form.on('Performance Scorecard', {
-<<<<<<< HEAD
-=======
     refresh: function (frm) {
         set_item_queries(frm);
     },
->>>>>>> origin/newton-manyisa
     employee: function (frm) {
         if (frm.doc.employee) {
             frappe.call({
@@ -21,10 +18,6 @@ frappe.ui.form.on('Performance Scorecard', {
                 }
             });
         }
-<<<<<<< HEAD
-    }
-});
-=======
         set_item_queries(frm);
     }
 });
@@ -53,4 +46,3 @@ function set_item_queries(frm) {
         return { filters: { employee: employee } };
     });
 }
->>>>>>> origin/newton-manyisa

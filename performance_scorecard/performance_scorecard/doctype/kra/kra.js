@@ -1,30 +1,20 @@
 frappe.ui.form.on('KRA', {
     refresh: function (frm) {
-<<<<<<< HEAD
-        set_owner_type_from_goal(frm);
-        set_parent_kra_query(frm);
-=======
         set_goal_query(frm);
         set_owner_type_from_goal(frm);
         set_parent_kra_query(frm);
         set_department_from_user(frm);
         set_employee_from_user(frm);
->>>>>>> origin/newton-manyisa
     },
     goal: function (frm) {
         set_owner_type_from_goal(frm);
         set_parent_kra_query(frm);
-    },
-    owner_type: function (frm) {
-        toggle_parent_kra(frm);
-<<<<<<< HEAD
-    }
-});
-
-=======
         set_department_from_user(frm);
         set_employee_from_user(frm);
         set_goal_query(frm);
+    },
+    owner_type: function (frm) {
+        toggle_parent_kra(frm);
     },
     employee: function (frm) {
         if (frm.doc.owner_type === 'Employee') {
@@ -62,7 +52,6 @@ function set_goal_query(frm) {
     });
 }
 
->>>>>>> origin/newton-manyisa
 function set_owner_type_from_goal(frm) {
     if (!frm.doc.goal) {
         return;
@@ -103,8 +92,6 @@ function set_parent_kra_query(frm) {
         }));
     });
 }
-<<<<<<< HEAD
-=======
 
 function set_department_from_user(frm) {
     if (frm.doc.owner_type !== 'Department' || !frm.fields_dict.department) {
@@ -137,4 +124,3 @@ function set_employee_from_user(frm) {
         }
     });
 }
->>>>>>> origin/newton-manyisa

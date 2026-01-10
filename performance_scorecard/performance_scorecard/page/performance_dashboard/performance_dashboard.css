@@ -1,10 +1,3 @@
-<<<<<<< HEAD
-.dashboard-container {
-    display: flex;
-    height: calc(100vh - 60px);
-    background-color: #f4f5f7;
-    font-family: 'Inter', sans-serif;
-=======
 :root {
     --npc-blue: #2f5aa8;
     --npc-blue-soft: #6f8fcf;
@@ -22,35 +15,22 @@
     background: linear-gradient(140deg, #eef3f8 0%, #e7eef6 45%, #eaf2f9 100%);
     font-family: var(--font-stack);
     color: var(--text-color, var(--npc-ink));
->>>>>>> origin/newton-manyisa
 }
 
 /* Sidebar */
 .dashboard-sidebar {
     width: 250px;
-<<<<<<< HEAD
-    background-color: #1a233a; /* Dark blue from image */
-    color: #fff;
-    display: flex;
-    flex-direction: column;
-    padding: 20px 0;
-=======
     background: linear-gradient(180deg, #0f2f4c 0%, #1c4a6a 55%, #123552 100%);
     color: #eaf2f8;
     display: flex;
     flex-direction: column;
     padding: 20px 0;
     border-right: 1px solid var(--npc-border);
->>>>>>> origin/newton-manyisa
 }
 
 .sidebar-header {
     padding: 0 20px 20px;
-<<<<<<< HEAD
-    border-bottom: 1px solid rgba(255,255,255,0.1);
-=======
     border-bottom: 1px solid rgba(255, 255, 255, 0.12);
->>>>>>> origin/newton-manyisa
 }
 
 .sidebar-menu {
@@ -66,24 +46,15 @@
     display: flex;
     align-items: center;
     gap: 10px;
-<<<<<<< HEAD
-    color: #a0aec0;
-}
-
-.sidebar-menu li:hover, .sidebar-menu li.active {
-    background-color: rgba(255,255,255,0.1);
-    color: #fff;
-    border-left: 3px solid #e53e3e; /* Red accent */
-=======
     color: rgba(234, 242, 248, 0.82);
     font-weight: 500;
 }
 
-.sidebar-menu li:hover, .sidebar-menu li.active {
+.sidebar-menu li:hover,
+.sidebar-menu li.active {
     background-color: rgba(255, 255, 255, 0.12);
     color: #ffffff;
     border-left: 3px solid #4f8bd6;
->>>>>>> origin/newton-manyisa
 }
 
 .user-profile {
@@ -92,22 +63,14 @@
     display: flex;
     align-items: center;
     gap: 10px;
-<<<<<<< HEAD
-    border-top: 1px solid rgba(255,255,255,0.1);
-=======
     border-top: 1px solid var(--npc-border);
->>>>>>> origin/newton-manyisa
 }
 
 .user-avatar {
     width: 40px;
     height: 40px;
     border-radius: 50%;
-<<<<<<< HEAD
-    background-color: #e53e3e;
-=======
     background: linear-gradient(135deg, var(--npc-blue-soft), var(--npc-green));
->>>>>>> origin/newton-manyisa
 }
 
 /* Main Content */
@@ -122,23 +85,16 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 30px;
-<<<<<<< HEAD
-=======
     background: #ffffff;
     padding: 12px 16px;
     border-radius: 12px;
     border: 1px solid var(--npc-border);
->>>>>>> origin/newton-manyisa
 }
 
 .page-title {
     font-size: 24px;
     font-weight: 600;
-<<<<<<< HEAD
-    color: #2d3748;
-=======
     color: var(--npc-ink);
->>>>>>> origin/newton-manyisa
 }
 
 .grid-container {
@@ -147,16 +103,6 @@
     gap: 20px;
 }
 
-<<<<<<< HEAD
-.dashboard-card {
-    background: #fff;
-    border-radius: 8px;
-    padding: 20px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    min-height: 200px;
-    display: flex;
-    flex-direction: column;
-=======
 .home-charts-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -229,8 +175,8 @@
     width: 100%;
 }
 
-.chart-shell .chart-container > svg,
-.chart-shell .chart-container > canvas {
+.chart-shell .chart-container>svg,
+.chart-shell .chart-container>canvas {
     order: 1;
     flex: 0 0 auto;
 }
@@ -411,7 +357,6 @@
     display: flex;
     flex-direction: column;
     border: 1px solid var(--npc-border);
->>>>>>> origin/newton-manyisa
 }
 
 .card-header {
@@ -422,27 +367,29 @@
     margin-bottom: 15px;
 }
 
-<<<<<<< HEAD
-.card-header.blue { color: #4299e1; }
-.card-header.light-blue { color: #63b3ed; }
-.card-header.red { color: #f56565; }
-.card-header.cyan { color: #38b2ac; }
-.card-header.yellow { color: #ecc94b; }
+.card-header.blue {
+    color: var(--npc-blue);
+}
 
-.card-content {
-    flex: 1;
-    color: #718096;
-=======
-.card-header.blue { color: var(--npc-blue); }
-.card-header.light-blue { color: var(--npc-blue-soft); }
-.card-header.red { color: var(--npc-orange); }
-.card-header.cyan { color: var(--npc-green); }
-.card-header.yellow { color: #c9893d; }
+.card-header.light-blue {
+    color: var(--npc-blue-soft);
+}
+
+.card-header.red {
+    color: var(--npc-orange);
+}
+
+.card-header.cyan {
+    color: var(--npc-green);
+}
+
+.card-header.yellow {
+    color: #c9893d;
+}
 
 .card-content {
     flex: 1;
     color: var(--npc-muted);
->>>>>>> origin/newton-manyisa
     font-size: 14px;
 }
 
@@ -455,14 +402,11 @@
     min-height: 400px;
 }
 
-<<<<<<< HEAD
-=======
 .dashboard-content-area.strategy-map-only {
     padding: 0;
     background: #f5f7fb;
 }
 
->>>>>>> origin/newton-manyisa
 .personal-actions {
     display: flex;
     flex-wrap: wrap;
@@ -495,8 +439,6 @@
     color: #3182ce;
 }
 
-<<<<<<< HEAD
-=======
 .strategy-actions {
     display: flex;
     flex-wrap: wrap;
@@ -549,8 +491,6 @@
     padding: 4px 8px;
 }
 
-
->>>>>>> origin/newton-manyisa
 .kra-item:last-child {
     border-bottom: none !important;
 }
@@ -678,7 +618,7 @@
     padding-top: 0;
 }
 
-.node-wrapper:only-child > .node::before {
+.node-wrapper:only-child>.node::before {
     content: '';
     position: absolute;
     top: -20px;
@@ -707,14 +647,20 @@
     font-weight: bold;
 }
 
-<<<<<<< HEAD
-.badge-green { background: #c6f6d5; color: #22543d; }
-.badge-red { background: #fed7d7; color: #822727; }
-.badge-yellow { background: #fefcbf; color: #744210; }
-=======
-.badge-green { background: #e1f3ea; color: #2b6b52; }
-.badge-red { background: #fbe7e0; color: #8a4b22; }
-.badge-yellow { background: #fbf2dd; color: #7b5a27; }
+.badge-green {
+    background: #e1f3ea;
+    color: #2b6b52;
+}
+
+.badge-red {
+    background: #fbe7e0;
+    color: #8a4b22;
+}
+
+.badge-yellow {
+    background: #fbf2dd;
+    color: #7b5a27;
+}
 
 .dashboards-shell {
     display: grid;
@@ -877,7 +823,6 @@
     height: 100%;
     background: linear-gradient(90deg, #1aa6a4, #0b2740);
 }
->>>>>>> origin/newton-manyisa
 
 .inline-edit {
     padding: 0 4px;
@@ -939,8 +884,6 @@
 .kpa-goals-table tbody td {
     vertical-align: middle;
 }
-<<<<<<< HEAD
-=======
 
 .reports-shell {
     display: grid;
@@ -1169,4 +1112,3 @@
 .report-list-actions .btn {
     padding: 4px 10px;
 }
->>>>>>> origin/newton-manyisa

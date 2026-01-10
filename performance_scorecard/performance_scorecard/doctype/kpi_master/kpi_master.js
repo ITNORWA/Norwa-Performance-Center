@@ -1,44 +1,22 @@
 frappe.ui.form.on('KPI Master', {
     refresh: function (frm) {
-<<<<<<< HEAD
-=======
         set_employee_from_user(frm);
         set_kra_query(frm);
->>>>>>> origin/newton-manyisa
         set_employee_from_kra(frm);
     },
     kra: function (frm) {
         set_employee_from_kra(frm);
-<<<<<<< HEAD
-=======
     },
     employee: function (frm) {
         if (frm.doc.kra) {
             frm.set_value('kra', null);
         }
         set_kra_query(frm);
->>>>>>> origin/newton-manyisa
     }
 });
 
 function set_employee_from_kra(frm) {
     if (!frm.doc.kra) {
-<<<<<<< HEAD
-        frm.set_value('employee', null);
-        return;
-    }
-
-    frappe.db.get_value('KRA', frm.doc.kra, 'goal').then(r => {
-        const goal = r && r.message && r.message.goal;
-        if (!goal) {
-            frm.set_value('employee', null);
-            return;
-        }
-        frappe.db.get_value('Goal', goal, 'employee').then(g => {
-            const employee = g && g.message && g.message.employee;
-            frm.set_value('employee', employee || null);
-        });
-=======
         return;
     }
 
@@ -81,6 +59,5 @@ function set_employee_from_user(frm) {
         if (employee) {
             frm.set_value('employee', employee);
         }
->>>>>>> origin/newton-manyisa
     });
 }
