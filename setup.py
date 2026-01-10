@@ -15,7 +15,6 @@ setup(
 	name="performance_scorecard",
 	version=read_version(),
 	description="Performance Management App for ERPNext",
-	package_dir={"": "performance_scorecard"},
-	packages=find_packages("performance_scorecard"),
+	packages=find_packages(),
 	include_package_data=True,
 )
