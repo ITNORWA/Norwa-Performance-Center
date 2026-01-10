@@ -725,6 +725,48 @@
     background: linear-gradient(90deg, var(--npc-blue-soft), var(--npc-blue));
 }
 
+.status-value {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--npc-ink);
+    margin-bottom: 4px;
+}
+
+.status-bar {
+    height: 6px;
+    border-radius: 999px;
+    background: #e7edf4;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+
+.status-bar .progress-bar {
+    height: 100%;
+}
+
+.kpi-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px dashed #edf2f7;
+}
+
+.kpi-item:last-child {
+    border-bottom: none;
+}
+
+.kpi-title {
+    font-weight: 600;
+    color: var(--npc-ink);
+    font-size: 12px;
+}
+
+.goal-name {
+    font-weight: 600;
+    color: var(--npc-ink);
+}
+
 .inline-edit {
     padding: 0 4px;
     font-size: 12px;
@@ -970,6 +1012,12 @@
 .report-meta {
     font-size: 12px;
     color: var(--npc-muted);
+}
+
+.report-summary {
+    font-size: 12px;
+    color: #6b7b8c;
+    line-height: 1.4;
 }
 
 .report-actions {

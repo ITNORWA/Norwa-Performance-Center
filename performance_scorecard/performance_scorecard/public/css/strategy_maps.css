@@ -181,24 +181,11 @@
 }
 
 #strategy-tree > .tree-node > .tree-content .tree-pill {
-    background-color: #1e40af;
-    color: white;
-    border: none;
     min-width: 220px;
-    border-left: none;
 }
 
 #strategy-tree > .tree-node > .tree-content .tree-title {
-    color: white;
     font-size: 14px;
-}
-
-#strategy-tree > .tree-node > .tree-content .tree-type {
-    color: #bfdbfe;
-}
-
-#strategy-tree > .tree-node > .tree-content .tree-meta {
-    color: #dbeafe;
 }
 
 .tree-node.node-green .tree-pill { border-left: 4px solid #22c55e; }
@@ -213,3 +200,8 @@
 .tree-node.type-goal .tree-pill { border-left: 4px solid #0284c7; }
 .tree-node.type-kra .tree-pill { border-left: 4px solid #b45309; }
 .tree-node.type-kpi .tree-pill { border-left: 4px solid #be185d; }
+
+.tree-node.column-1 .tree-pill { border-left-color: var(--column-color-1); }
+.tree-node.column-2 .tree-pill { border-left-color: var(--column-color-2); }
+.tree-node.column-3 .tree-pill { border-left-color: var(--column-color-3); }
+.tree-node.column-4 .tree-pill { border-left-color: var(--column-color-4); }

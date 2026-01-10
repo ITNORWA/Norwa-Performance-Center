@@ -626,6 +626,48 @@ body.npc-locked .layout-main-section {
     background: linear-gradient(90deg, #1aa6a4, #0b2740);
 }
 
+.status-value {
+    font-size: 12px;
+    font-weight: 600;
+    color: #1b2a33;
+    margin-bottom: 4px;
+}
+
+.status-bar {
+    height: 6px;
+    border-radius: 999px;
+    background: #e7edf4;
+    overflow: hidden;
+    margin-bottom: 6px;
+}
+
+.status-bar .progress-bar {
+    height: 100%;
+}
+
+.kpi-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px dashed #edf2f7;
+}
+
+.kpi-item:last-child {
+    border-bottom: none;
+}
+
+.kpi-title {
+    font-weight: 600;
+    color: #1b2a33;
+    font-size: 12px;
+}
+
+.goal-name {
+    font-weight: 600;
+    color: #1b2a33;
+}
+
 .section-header {
     margin-bottom: 16px;
 }
