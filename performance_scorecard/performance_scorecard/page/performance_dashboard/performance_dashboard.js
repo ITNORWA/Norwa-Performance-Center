@@ -45,6 +45,7 @@ function render_dashboard(page, data) {
 					<li data-section="risk-management"><i class="fa fa-exclamation-triangle"></i> Risk Management</li>
 					<li data-section="dashboards"><i class="fa fa-tachometer"></i> Dashboards</li>
 					<li data-section="reports"><i class="fa fa-file-text"></i> Reports</li>
+					<li data-section="documentation"><i class="fa fa-book"></i> Documentation</li>
 					<li data-section="administration"><i class="fa fa-cog"></i> Administration</li>
 				</ul>
 			<div class="user-profile">
@@ -155,6 +156,7 @@ function bind_sidebar(page, data, home_html, initial_section) {
 		"risk-management": "Risk Management",
 		dashboards: "Dashboards",
 		reports: "Reports",
+		documentation: "Documentation",
 		administration: "Administration"
 	};
 
@@ -195,6 +197,11 @@ function bind_sidebar(page, data, home_html, initial_section) {
 			return;
 		}
 
+		if (section === "documentation") {
+			frappe.set_route("performance-documentation");
+			return;
+		}
+
 		render_placeholder($content, "This section is coming soon.");
 	}
 
@@ -208,9 +215,9 @@ function bind_sidebar(page, data, home_html, initial_section) {
 function render_home_charts($body, data) {
 	const progress = data.kra_progress || {};
 	const palette = data.kpa_palette || [];
-	render_chart("#home-kpa-company", progress.company, "pie", { colors: palette });
-	render_chart("#home-kpa-department", progress.department, "pie", { colors: palette });
-	render_chart("#home-kpa-individual", progress.individual, "pie", { colors: palette });
+	render_chart("#home-kpa-company", progress.company, "pie", { colors: palette, normalize: true });
+	render_chart("#home-kpa-department", progress.department, "pie", { colors: palette, normalize: true });
+	render_chart("#home-kpa-individual", progress.individual, "pie", { colors: palette, normalize: true });
 }
 
 function render_home_list(items, empty_text, options) {
@@ -2285,13 +2292,14 @@ function render_ranked_list(items, empty_text) {
 	`).join("");
 }
 
-function render_chart(target, items, type) {
+function render_chart(target, items, type, options) {
 	const $target = $(target);
 	if (!$target.length) {
 		return;
 	}
 
 	$target.empty();
+	$target.removeClass("psc-pie-chart");
 
 	if (!items || !items.length) {
 		$target.html('<div class="empty-state">No data available.</div>');
@@ -2323,6 +2331,54 @@ function render_chart(target, items, type) {
 	const labels = cleaned.map(item => item.label);
 	const values = cleaned.map(item => item.value);
 
+	const opts = options || {};
+	const defaultPalette = ["#1AA6A4", "#F46B2A", "#0B2740", "#F4A261"];
+	const palette = (opts.colors && opts.colors.length) ? opts.colors : defaultPalette;
+
+	if (type === "pie") {
+		const total = values.reduce((sum, val) => sum + val, 0);
+		if (!Number.isFinite(total) || total <= 0) {
+			$target.html('<div class="empty-state">No data available.</div>');
+			return;
+		}
+
+		const pie_values = opts.normalize
+			? values.map(value => (value / total) * 100)
+			: values;
+
+		$target.addClass("psc-pie-chart");
+		const $wrap = $('<div class="psc-chart-flex"></div>');
+		const $chart = $('<div class="psc-chart-canvas"></div>');
+		const $legend = $('<div class="psc-chart-legend" aria-label="Chart legend"></div>');
+		$wrap.append($chart, $legend);
+		$target.append($wrap);
+
+		new frappe.Chart($chart.get(0), {
+			data: {
+				labels: labels,
+				datasets: [{ values: pie_values }]
+			},
+			type: "pie",
+			height: 220,
+			colors: palette
+		});
+
+		labels.forEach((label, index) => {
+			const color = palette[index % palette.length];
+			const value = pie_values[index];
+			const value_label = opts.normalize ? `${format_score(value)}%` : format_score(value);
+			const $row = $(`
+				<div class="psc-legend-item">
+					<span class="psc-legend-swatch" style="background:${color}"></span>
+					<span class="psc-legend-label">${frappe.utils.escape_html(label)}</span>
+					<span class="psc-legend-value">${value_label}</span>
+				</div>
+			`);
+			$legend.append($row);
+		});
+		return;
+	}
+
 	new frappe.Chart(target, {
 		data: {
 			labels: labels,
@@ -2330,7 +2386,7 @@ function render_chart(target, items, type) {
 		},
 		type: type,
 		height: 220,
-		colors: ["#1AA6A4", "#F46B2A", "#0B2740", "#F4A261"]
+		colors: palette
 	});
 }
 
