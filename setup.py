@@ -4,7 +4,7 @@ from setuptools import find_packages, setup
 
 
 def read_version():
-	version_file = Path(__file__).parent / "performance_scorecard" / "__init__.py"
+	version_file = Path(__file__).parent / "performance_scorecard" / "app" / "__init__.py"
 	for line in version_file.read_text(encoding="utf-8").splitlines():
 		if line.startswith("__version__"):
 			return line.split("=", 1)[1].strip().strip("'\"")
