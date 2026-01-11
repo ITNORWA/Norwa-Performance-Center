@@ -1,0 +1,175 @@
+{
+    "actions": [],
+    "allow_rename": 1,
+    "creation": "2024-05-22 10:00:00.000000",
+    "doctype": "DocType",
+    "editable_grid": 1,
+    "engine": "InnoDB",
+    "field_order": [
+        "scoring_section",
+        "critical_threshold",
+        "warning_threshold",
+        "success_threshold",
+        "column_break_1",
+        "calculation_method",
+        "strategy_map_section",
+        "enable_individual_level",
+        "default_map_view",
+        "risk_section",
+        "global_risk_appetite",
+        "risk_review_frequency",
+        "column_break_2",
+        "enable_appetite_breaches",
+        "notification_section",
+        "enable_performance_reminders",
+        "reminder_frequency",
+        "column_break_3",
+        "escalation_manager",
+        "period_section",
+        "current_performance_period"
+    ],
+    "fields": [
+        {
+            "fieldname": "scoring_section",
+            "fieldtype": "Section Break",
+            "label": "Performance Scoring & Thresholds"
+        },
+        {
+            "default": "50",
+            "fieldname": "critical_threshold",
+            "fieldtype": "Percent",
+            "label": "Critical Threshold (Red) <"
+        },
+        {
+            "default": "75",
+            "fieldname": "warning_threshold",
+            "fieldtype": "Percent",
+            "label": "Warning Threshold (Yellow) <"
+        },
+        {
+            "default": "76",
+            "fieldname": "success_threshold",
+            "fieldtype": "Percent",
+            "label": "Success Threshold (Green) >="
+        },
+        {
+            "fieldname": "column_break_1",
+            "fieldtype": "Column Break"
+        },
+        {
+            "default": "Weighted Average",
+            "fieldname": "calculation_method",
+            "fieldtype": "Select",
+            "label": "Calculation Method",
+            "options": "Weighted Average\nSimple Average"
+        },
+        {
+            "fieldname": "strategy_map_section",
+            "fieldtype": "Section Break",
+            "label": "Strategy Map Configuration"
+        },
+        {
+            "default": "1",
+            "fieldname": "enable_individual_level",
+            "fieldtype": "Check",
+            "label": "Enable Individual Level"
+        },
+        {
+            "default": "Collapsed",
+            "fieldname": "default_map_view",
+            "fieldtype": "Select",
+            "label": "Default Map View",
+            "options": "Collapsed\nExpanded"
+        },
+        {
+            "fieldname": "risk_section",
+            "fieldtype": "Section Break",
+            "label": "Risk Management Settings"
+        },
+        {
+            "default": "Medium",
+            "fieldname": "global_risk_appetite",
+            "fieldtype": "Select",
+            "label": "Global Risk Appetite",
+            "options": "Low\nMedium\nHigh"
+        },
+        {
+            "default": "90",
+            "fieldname": "risk_review_frequency",
+            "fieldtype": "Int",
+            "label": "Risk Review Frequency (Days)"
+        },
+        {
+            "fieldname": "column_break_2",
+            "fieldtype": "Column Break"
+        },
+        {
+            "default": "1",
+            "fieldname": "enable_appetite_breaches",
+            "fieldtype": "Check",
+            "label": "Enable Appetite Breaches"
+        },
+        {
+            "fieldname": "notification_section",
+            "fieldtype": "Section Break",
+            "label": "Notifications & Alerts"
+        },
+        {
+            "default": "0",
+            "fieldname": "enable_performance_reminders",
+            "fieldtype": "Check",
+            "label": "Enable Performance Reminders"
+        },
+        {
+            "default": "7",
+            "fieldname": "reminder_frequency",
+            "fieldtype": "Int",
+            "label": "Reminder Frequency (Days)"
+        },
+        {
+            "fieldname": "column_break_3",
+            "fieldtype": "Column Break"
+        },
+        {
+            "fieldname": "escalation_manager",
+            "fieldtype": "Link",
+            "label": "Escalation Manager",
+            "options": "User"
+        },
+        {
+            "fieldname": "period_section",
+            "fieldtype": "Section Break",
+            "label": "Period Management"
+        },
+        {
+            "fieldname": "current_performance_period",
+            "fieldtype": "Data",
+            "label": "Current Performance Period"
+        }
+    ],
+    "issingle": 1,
+    "links": [],
+    "modified": "2024-05-22 10:00:00.000000",
+    "modified_by": "Administrator",
+    "module": "Performance Scorecard",
+    "name": "Performance Settings",
+    "owner": "Administrator",
+    "permissions": [
+        {
+            "create": 1,
+            "delete": 1,
+            "email": 1,
+            "export": 1,
+            "print": 1,
+            "read": 1,
+            "report": 1,
+            "role": "System Manager",
+            "share": 1,
+            "write": 1
+        }
+    ],
+    "sort_field": "modified",
+    "sort_order": "DESC",
+    "states": [],
+    "track_changes": 1
+}

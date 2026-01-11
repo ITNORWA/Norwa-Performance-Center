@@ -12,6 +12,7 @@
         "weightage",
         "target",
         "actual",
+        "base_actual",
         "score"
     ],
     "fields": [
@@ -64,6 +65,12 @@
             "fieldtype": "Float",
             "in_list_view": 1,
             "label": "Actual"
+        },
+        {
+            "fieldname": "base_actual",
+            "fieldtype": "Float",
+            "label": "Base Actual",
+            "hidden": 1
         },
         {
             "fieldname": "score",

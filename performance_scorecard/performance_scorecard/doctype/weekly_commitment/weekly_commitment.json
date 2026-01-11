@@ -12,6 +12,8 @@
         "week_start",
         "week_end",
         "kpi",
+        "kpi_unit",
+        "actual_value",
         "status"
     ],
     "fields": [
@@ -56,12 +58,24 @@
             "options": "KPI Master"
         },
         {
+            "fieldname": "kpi_unit",
+            "fieldtype": "Data",
+            "label": "KPI Unit",
+            "read_only": 1
+        },
+        {
+            "fieldname": "actual_value",
+            "fieldtype": "Float",
+            "label": "Actual Value"
+        },
+        {
             "fieldname": "status",
             "fieldtype": "Select",
             "in_list_view": 1,
             "label": "Progress",
             "options": "0%\n25%\n50%\n75%\n100%",
-            "default": "0%"
+            "default": "0%",
+            "hidden": 1
         }
     ],
     "index_web_pages_for_search": 1,

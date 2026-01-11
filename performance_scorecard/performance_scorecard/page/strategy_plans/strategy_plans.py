@@ -256,6 +256,7 @@ def get_strategy_data(level, period=None, department=None, employee=None):
                         "weightage": item.weightage,
                         "target": item.target,
                         "actual": item.actual,
+                        "base_actual": getattr(item, "base_actual", None),
                         "score": score,
                         "rating": rating,
                     }

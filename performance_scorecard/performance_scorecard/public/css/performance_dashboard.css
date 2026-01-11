@@ -634,3 +634,42 @@
     border: 1px solid rgba(15, 41, 64, 0.12);
     box-shadow: 0 8px 16px rgba(15, 23, 42, 0.06);
 }
+.weekly-progress-cell {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.weekly-progress-cell .weekly-unit {
+    font-size: 11px;
+    color: var(--npc-muted);
+    white-space: nowrap;
+    background: #f1f5f9;
+    border-radius: 999px;
+    padding: 3px 8px;
+}
+
+.weekly-commitments-card .table {
+    table-layout: fixed;
+}
+
+.weekly-commitments-card .table td {
+    vertical-align: middle;
+    padding: 8px;
+}
+
+.weekly-commitments-card .form-control.input-xs {
+    height: 32px;
+    font-size: 12px;
+    padding: 4px 8px;
+}
+
+.weekly-commitments-card .weekly-progress-cell .form-control.input-xs {
+    width: 90px;
+}
+
+.weekly-commitments-card .weekly-unit-btn {
+    width: 100%;
+    text-align: center;
+}

@@ -1138,23 +1138,38 @@ function render_personal_tables($container, payload, $page_container) {
 				{ fieldname: "kpi", fieldtype: "Link", options: "KPI Master", label: "KPI", reqd: 1, default: row.kpi },
 				{ fieldname: "weightage", fieldtype: "Percent", label: "Weightage", default: row.weightage },
 				{ fieldname: "target", fieldtype: "Float", label: "Target", default: row.target },
-				{ fieldname: "actual", fieldtype: "Float", label: "Actual", default: row.actual }
+				{ fieldname: "actual", fieldtype: "Float", label: "Actual", default: (row.base_actual ?? row.actual) }
 			],
 			primary_action_label: "Save",
 			primary_action: (values) => {
+				const baseActual = values.actual;
+				const fields = {
+					kpa: values.kpa,
+					goal: values.goal,
+					kra: values.kra,
+					kpi: values.kpi,
+					weightage: values.weightage,
+					target: values.target
+				};
 				frappe.call({
 					method: "frappe.client.set_value",
 					args: {
 						doctype: "Scorecard Item",
 						name: row.item_name,
-						fieldname: values
+						fieldname: fields
 					},
 					callback: () => {
-						dialog.hide();
-						if ($page_container && $page_container.length) {
-							const filters = $page_container.data("strategy-filters") || {};
-							load_strategy_data($page_container, "Individual", filters.department, filters.employee);
-						}
+						frappe.call({
+							method: "performance_scorecard.performance_scorecard.doctype.scorecard_item.scorecard_item.update_scorecard_item_actual",
+							args: { item_name: row.item_name, base_actual: baseActual },
+							callback: () => {
+								dialog.hide();
+								if ($page_container && $page_container.length) {
+									const filters = $page_container.data("strategy-filters") || {};
+									load_strategy_data($page_container, "Individual", filters.department, filters.employee);
+								}
+							}
+						});
 					}
 				});
 			}
@@ -1179,7 +1194,7 @@ function load_weekly_commitments($container, employee) {
 		method: "frappe.client.get_list",
 		args: {
 			doctype: "Weekly Commitment",
-			fields: ["name", "title", "description", "week_start", "week_end", "kpi", "status"],
+			fields: ["name", "title", "description", "week_start", "week_end", "kpi", "kpi_unit", "actual_value", "status"],
 			filters: { employee: employee },
 			order_by: "week_start desc"
 		},
@@ -1198,11 +1213,11 @@ function load_weekly_commitments($container, employee) {
 		frappe.call({
 			method: "frappe.client.get_list",
 			args: {
-				doctype: "Weekly Commitment",
-				fields: ["name", "title", "description", "week_start", "week_end", "kpi", "status"],
-				filters: { owner: frappe.session.user },
-				order_by: "week_start desc"
-			},
+			doctype: "Weekly Commitment",
+			fields: ["name", "title", "description", "week_start", "week_end", "kpi", "kpi_unit", "actual_value", "status"],
+			filters: { owner: frappe.session.user },
+			order_by: "week_start desc"
+		},
 			callback: function (r) {
 				const items = r.message || [];
 				if (!items.length) {
@@ -1224,14 +1239,32 @@ function load_weekly_commitments($container, employee) {
 			return;
 		}
 		frappe.call({
-			method: "frappe.client.set_value",
-			args: {
-				doctype: "Weekly Commitment",
-				name: name,
-				fieldname: field,
-				value: value
+			method: "performance_scorecard.performance_scorecard.doctype.weekly_commitment.weekly_commitment.update_commitment",
+			args: { name: name, field: field, value: value },
+			callback: function (r) {
+				if (!r.message) {
+					return;
+				}
+				const $unitBtn = $row.find(".weekly-unit-btn");
+				if ($unitBtn.length) {
+					$unitBtn.text(r.message.kpi_unit || "Unit");
+					$unitBtn.data("kpi", r.message.kpi || "");
+				}
+				const $page = $container.closest(".dashboard-content-area");
+				const filters = $page.data("strategy-filters") || {};
+				if ($page.length) {
+					load_strategy_data($page, "Individual", filters.department, filters.employee);
+				}
 			}
 		});
+	});
+
+	$list.off("click", ".weekly-unit-btn").on("click", ".weekly-unit-btn", function (e) {
+		e.preventDefault();
+		const kpi = $(this).data("kpi");
+		if (kpi) {
+			open_doctype_modal("KPI Master", kpi);
+		}
 	});
 }
 
@@ -1243,13 +1276,14 @@ function render_weekly_commitments_table(items) {
 	const rows = items.map(item => `
 		<tr data-name="${item.name}">
 			<td><input class="form-control input-xs" data-field="title" value="${frappe.utils.escape_html(item.title || "")}" /></td>
-			<td><input class="form-control input-xs" data-field="week_start" type="date" value="${item.week_start || ""}" /></td>
-			<td><input class="form-control input-xs" data-field="week_end" type="date" value="${item.week_end || ""}" /></td>
 			<td><input class="form-control input-xs" data-field="kpi" value="${frappe.utils.escape_html(item.kpi || "")}" /></td>
 			<td>
-				<select class="form-control input-xs" data-field="status">
-					${render_weekly_commitment_options(item.status)}
-				</select>
+				<input class="form-control input-xs" data-field="actual_value" type="number" step="0.01" value="${item.actual_value ?? ""}" />
+			</td>
+			<td>
+				<button class="btn btn-xs btn-default weekly-unit-btn" type="button" data-kpi="${frappe.utils.escape_html(item.kpi || "")}">
+					${item.kpi_unit || "Unit"}
+				</button>
 			</td>
 		</tr>
 	`).join("");
@@ -1259,11 +1293,10 @@ function render_weekly_commitments_table(items) {
 			<table class="table table-bordered table-hover">
 				<thead class="thead-light">
 					<tr>
-						<th style="width: 40%">Title</th>
-						<th style="width: 20%">Week Start</th>
-						<th style="width: 18%">Week End</th>
-						<th style="width: 22%">KPI</th>
-						<th style="width: 20%">Progress</th>
+						<th style="width: 40%">Commitment</th>
+						<th style="width: 30%">KPI</th>
+						<th style="width: 15%">Actual</th>
+						<th style="width: 15%">Unit</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -1467,7 +1500,6 @@ function render_strategy_maps($container) {
 
 function render_reports($container) {
 	const state = {
-		scope: "All",
 		reports: [],
 		search: "",
 		filters: {
@@ -1495,14 +1527,7 @@ function render_reports($container) {
 				</div>
 			</div>
 
-			<div class="reports-tabs">
-				<button class="reports-tab is-active" data-scope="All">All</button>
-				<button class="reports-tab" data-scope="Company">Company</button>
-				<button class="reports-tab" data-scope="Department">Department</button>
-				<button class="reports-tab" data-scope="Individual">Individual</button>
-			</div>
-
-			<div class="reports-filters scope-all">
+			<div class="reports-filters">
 				<div class="reports-filters-grid">
 					<div class="reports-filter" data-filter="start-date">
 						<label>Period Start</label>
@@ -1525,14 +1550,6 @@ function render_reports($container) {
 
 			<div class="reports-section">
 				<div class="section-header">
-					<div class="section-title">Featured</div>
-					<div class="section-subtitle">Pinned for quick access</div>
-				</div>
-				<div class="reports-grid featured-reports"></div>
-			</div>
-
-			<div class="reports-section">
-				<div class="section-header">
 					<div class="section-title">All Reports</div>
 					<div class="section-subtitle">Browse the full report catalog</div>
 				</div>
@@ -1543,10 +1560,7 @@ function render_reports($container) {
 
 	const $shell = $container.find(".reports-shell");
 	const $search = $shell.find(".reports-search-input");
-	const $tabs = $shell.find(".reports-tab");
-	const $featured = $shell.find(".featured-reports");
 	const $list = $shell.find(".reports-list");
-	const $filters = $shell.find(".reports-filters");
 	const $refresh = $shell.find(".reports-refresh");
 
 	const controls = {
@@ -1586,32 +1600,6 @@ function render_reports($container) {
 
 	Object.values(controls).forEach(control => control.refresh());
 
-	const featured_names = [
-		"Performance Analytics",
-		"Scorecards by Department",
-		"Scorecards by Status",
-		"Overdue KPIs"
-	];
-
-	function set_scope(scope) {
-		state.scope = scope;
-		$tabs.removeClass("is-active");
-		$tabs.filter(`[data-scope='${scope}']`).addClass("is-active");
-		$filters.removeClass("scope-all scope-company scope-department scope-individual")
-			.addClass(`scope-${scope.toLowerCase()}`);
-
-		if (scope === "All") {
-			controls.department.set_value("");
-			controls.employee.set_value("");
-		}
-
-		if (scope === "Company") {
-			controls.employee.set_value("");
-		}
-
-		render_reports_list();
-	}
-
 	function update_filters() {
 		state.filters.start_date = controls.start_date.get_value();
 		state.filters.end_date = controls.end_date.get_value();
@@ -1639,19 +1627,6 @@ function render_reports($container) {
 		return label.includes(state.search.toLowerCase());
 	}
 
-	function render_card(report, is_featured) {
-		const name = report.report_name || report.name;
-		return `
-			<div class="report-card ${is_featured ? "report-card--featured" : ""}" data-report="${name}">
-				<div class="report-card-title">${name}</div>
-				<div class="report-meta">${report.report_type || "Report"} | ${report.ref_doctype || "Performance Scorecard"}</div>
-				<div class="report-actions">
-					<button class="btn btn-sm btn-primary report-open" data-report="${name}">Open</button>
-				</div>
-			</div>
-		`;
-	}
-
 	function render_list_row(report) {
 		const name = report.report_name || report.name;
 		return `
@@ -1670,29 +1645,12 @@ function render_reports($container) {
 	function render_reports_list() {
 		update_filters();
 		const reports = state.reports.filter(matches_search);
-		const featured = [];
-		const others = [];
-
-		reports.forEach(report => {
-			const name = report.report_name || report.name;
-			if (featured_names.includes(name)) {
-				featured.push(report);
-			} else {
-				others.push(report);
-			}
-		});
-
-		$featured.html(featured.length
-			? featured.map(r => render_card(r, true)).join("")
-			: '<div class="empty-state">No featured reports found.</div>');
-
-		$list.html(others.length
-			? others.map(render_list_row).join("")
+		$list.html(reports.length
+			? reports.map(render_list_row).join("")
 			: '<div class="empty-state">No reports match your filters.</div>');
 	}
 
 	function fetch_reports() {
-		$featured.html('<div class="text-muted">Loading...</div>');
 		$list.html("");
 
 		frappe.call({
@@ -1712,10 +1670,6 @@ function render_reports($container) {
 			}
 		});
 	}
-
-	$tabs.on("click", function () {
-		set_scope($(this).data("scope"));
-	});
 
 	$search.on("input", function () {
 		state.search = $(this).val() || "";
@@ -1748,35 +1702,30 @@ function render_reports($container) {
 	controls.start_date.$input.on("change", render_reports_list);
 	controls.end_date.$input.on("change", render_reports_list);
 	controls.department.$input.on("change", function () {
-		if (state.scope === "Department" || state.scope === "Individual") {
-			controls.employee.set_value("");
-		}
+		controls.employee.set_value("");
 		render_reports_list();
 	});
 	controls.employee.$input.on("change", function () {
-		if (state.scope === "Individual") {
-			const employee = controls.employee.get_value();
-			if (employee) {
-				frappe.call({
-					method: "frappe.client.get_value",
-					args: {
-						doctype: "Employee",
-						filters: { name: employee },
-						fieldname: "department"
-					},
-					callback: function (r) {
-						const dept = r.message ? r.message.department : "";
-						if (dept) {
-							controls.department.set_value(dept);
-						}
+		const employee = controls.employee.get_value();
+		if (employee) {
+			frappe.call({
+				method: "frappe.client.get_value",
+				args: {
+					doctype: "Employee",
+					filters: { name: employee },
+					fieldname: "department"
+				},
+				callback: function (r) {
+					const dept = r.message ? r.message.department : "";
+					if (dept) {
+						controls.department.set_value(dept);
 					}
-				});
-			}
+				}
+			});
 		}
 		render_reports_list();
 	});
 
-	set_scope("All");
 	fetch_reports();
 }
 

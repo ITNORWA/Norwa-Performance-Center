@@ -456,6 +456,46 @@
     padding: 4px 8px;
 }
 
+.weekly-progress-cell {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.weekly-progress-cell .weekly-unit {
+    font-size: 11px;
+    color: var(--npc-muted);
+    white-space: nowrap;
+    background: #f1f5f9;
+    border-radius: 999px;
+    padding: 3px 8px;
+}
+
+.weekly-commitments-card .table {
+    table-layout: fixed;
+}
+
+.weekly-commitments-card .table td {
+    vertical-align: middle;
+    padding: 8px;
+}
+
+.weekly-commitments-card .form-control.input-xs {
+    height: 32px;
+    font-size: 12px;
+    padding: 4px 8px;
+}
+
+.weekly-commitments-card .weekly-progress-cell .form-control.input-xs {
+    width: 90px;
+}
+
+.weekly-commitments-card .weekly-unit-btn {
+    width: 100%;
+    text-align: center;
+}
+
 .dashboards-filters {
     display: inline-flex;
     align-items: flex-end;
@@ -1046,6 +1086,12 @@
     color: var(--npc-muted);
 }
 
+.report-summary {
+    font-size: 12px;
+    color: #6b7b8c;
+    line-height: 1.4;
+}
+
 .report-actions {
     margin-top: auto;
 }
@@ -1085,5 +1131,7 @@
 }
 
 .report-list-actions .btn {
+
+
     padding: 4px 10px;
 }
