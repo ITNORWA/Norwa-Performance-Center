@@ -121,6 +121,7 @@ function build_node(node, context) {
     const typeClass = get_type_class(node.type);
     const colorClass = get_color_class(node.progress, node.end_date);
     const showProgress = node.type !== "Employee";
+    const showType = !(node.type === "Goal" && (node.meta || "").startsWith("Company Goal"));
     const $node = $(`
         <div class="tree-node ${colorClass} ${typeClass} ${node.expandable ? 'has-children' : ''}" data-id="${node.id}" data-type="${node.type}" data-expandable="${node.expandable}">
             <div class="tree-connector"></div>
@@ -128,7 +129,7 @@ function build_node(node, context) {
                 <div class="tree-circle"></div>
                 <div class="tree-pill">
                     <div class="tree-title">${node.label}</div>
-                    <div class="tree-type">${node.type}</div>
+                    ${showType ? `<div class="tree-type">${node.type}</div>` : ""}
                     ${node.meta ? `<div class="tree-meta">${node.meta}</div>` : ''}
                     ${showProgress ? `<div class="tree-progress">
                         <div class="progress">

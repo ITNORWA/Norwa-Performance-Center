@@ -133,3 +133,76 @@
 .kra-status-bar .progress-bar {
     background: #f0ad4e;
 }
+
+.strategy-import {
+    margin-bottom: 18px;
+}
+
+.import-card {
+    background: #ffffff;
+    border-radius: 14px;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+    border: 1px solid #e2e8f0;
+    padding: 16px 18px;
+}
+
+.import-card-header {
+    font-weight: 600;
+    font-size: 14px;
+    color: #1e293b;
+    margin-bottom: 12px;
+}
+
+.import-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.import-section {
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 12px 14px;
+    background: #f8fafc;
+}
+
+.import-section-title {
+    font-weight: 600;
+    font-size: 13px;
+    color: #1e3a8a;
+    margin-bottom: 8px;
+}
+
+.import-controls {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.import-file-name {
+    font-size: 12px;
+}
+
+.import-preview {
+    margin-top: 6px;
+}
+
+.import-summary {
+    margin-bottom: 8px;
+}
+
+.import-table th,
+.import-table td {
+    font-size: 12px;
+    vertical-align: middle;
+}
+
+.import-table .row-invalid {
+    background: #fff1f2;
+}
+
+.import-table .row-valid {
+    background: #f0fdf4;
+}

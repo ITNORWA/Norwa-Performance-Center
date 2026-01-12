@@ -14,7 +14,7 @@ def get_root_nodes():
             "type": "Company",
             "expandable": True,
             "progress": get_company_progress(company.name),
-            "meta": "Company"
+            "meta": ""
         })
     return nodes
 
@@ -58,7 +58,7 @@ def get_children(node_type, node_id, context=None):
                 "type": "KPA",
                 "expandable": True,
                 "progress": get_kpa_progress(kpa.name, "Company", node_id),
-                "meta": f"{company_label} Company KPA · Weight: {flt(kpa.weightage) or 0}%"
+                "meta": f"Weight: {flt(kpa.weightage) or 0}%"
             })
 
     elif node_type == "KPA":
@@ -79,7 +79,7 @@ def get_children(node_type, node_id, context=None):
             fields=["name", "goal_name", "progress", "end_date", "weightage"],
         )
         if level == "Company":
-            context_label = f"{_get_company_label(context.get('company') or frappe.db.get_single_value('Global Defaults', 'default_company') or '')} Company Goal"
+            context_label = "Company Goal"
         elif level == "Department":
             context_label = f"{_get_department_label(context.get('department'))} Department Goal"
         else:
@@ -98,7 +98,7 @@ def get_children(node_type, node_id, context=None):
                 "expandable": True,
                 "progress": goal_progress,
                 "end_date": goal.end_date,
-                "meta": f"{context_label} · Contribution: {flt(goal.weightage) or 0}%"
+                "meta": f"{context_label} · Weight: {flt(goal.weightage) or 0}%"
             })
 
     elif node_type == "Goal":

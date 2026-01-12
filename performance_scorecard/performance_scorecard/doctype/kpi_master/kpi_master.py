@@ -1,6 +1,10 @@
 import frappe
 from frappe.model.document import Document
 
+from performance_scorecard.performance_scorecard.doctype.performance_scorecard.performance_scorecard import (
+	add_kpi_to_active_scorecard,
+)
+
 class KPIMaster(Document):
 	def validate(self):
 		self.validate_kra()
@@ -32,3 +36,6 @@ class KPIMaster(Document):
 			frappe.throw("KPI goal must be linked to an employee.")
 
 		self.employee = goal_row.employee
+
+	def after_insert(self):
+		add_kpi_to_active_scorecard(self.employee, self.name)

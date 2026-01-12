@@ -631,28 +631,31 @@ def _get_kpa_palette():
 
 
 def _get_kra_attention(owner_type, department=None, employee=None, limit=5):
-	conditions = ["g.owner_type = %s"]
-	values = [owner_type]
+	conditions = {"owner_type": owner_type}
 	if department:
-		conditions.append("g.department = %s")
-		values.append(department)
+		conditions["department"] = department
 	if employee:
-		conditions.append("g.employee = %s")
-		values.append(employee)
+		conditions["employee"] = employee
 
-	query = f"""
-		SELECT k.name,
-			k.kra_name as label,
-			IFNULL(k.progress, 0) as value
-		FROM `tabKRA` k
-		INNER JOIN `tabGoal` g ON g.name = k.goal
-		WHERE {' AND '.join(conditions)}
-			AND IFNULL(k.progress, 0) < 60
-		ORDER BY k.progress ASC
-		LIMIT %s
-	"""
-	values.append(limit)
-	return frappe.db.sql(query, values, as_dict=True)
+	kras = frappe.db.get_all(
+		"KRA",
+		filters=conditions,
+		fields=["name", "kra_name"]
+	)
+
+	results = []
+	for kra in kras:
+		score = _avg_score_for_kra(
+			kra.name,
+			department=department if owner_type == "Department" else None,
+			employee=employee if owner_type == "Employee" else None,
+		)
+		score = score or 0
+		if score < 60:
+			results.append({"name": kra.name, "label": kra.kra_name, "value": score})
+
+	results.sort(key=lambda r: r.get("value", 0))
+	return results[:limit]
 
 
 def _get_top_goals_by_period(employee, days=None, months=None, limit=5):

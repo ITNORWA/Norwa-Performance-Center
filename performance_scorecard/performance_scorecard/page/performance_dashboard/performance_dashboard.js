@@ -1,12 +1,8 @@
 frappe.pages['performance-dashboard'].on_page_load = function (wrapper) {
 	var page = frappe.ui.make_app_page({
 		parent: wrapper,
-		title: 'Performance Dashboard',
+		title: '',
 		single_column: true
-	});
-
-	page.set_primary_action('Refresh', function () {
-		load_dashboard(page);
 	});
 
 	load_dashboard(page);
@@ -49,7 +45,9 @@ function render_dashboard(page, data) {
 					<li data-section="administration"><i class="fa fa-cog"></i> Administration</li>
 				</ul>
 			<div class="user-profile">
-				<div class="user-avatar"></div>
+				<div class="user-avatar">
+					<i class="fa fa-user"></i>
+				</div>
 				<div>
 					<div style="font-weight:bold; font-size:12px;">${data.fullname}</div>
 					<div style="font-size:10px; color:#a0aec0;">${data.designation}</div>
@@ -107,22 +105,24 @@ function build_home_html(data) {
 		</div>
 		<div class="home-summary-grid">
 			<div class="dashboard-card">
-				<div class="card-header red">At-Risk Summary</div>
-				<div class="card-content summary-split">
-					<div>
-						<div class="summary-subtitle">Company Goals (${(data.attention_company || []).length})</div>
-						${render_home_list(data.attention_company, "No company goals flagged.", { doctype: "Goal" })}
-					</div>
-					<div>
-						<div class="summary-subtitle">Department (${(data.attention_department || []).length})</div>
-						${render_home_list(data.attention_department, "No department KRAs flagged.", { doctype: "KRA" })}
-					</div>
-					<div>
-						<div class="summary-subtitle">Individual (${(data.attention_individual || []).length})</div>
-						${render_home_list(data.attention_individual, "No individual KRAs flagged.", { doctype: "KRA" })}
-					</div>
+				<div class="card-header red">Company At-Risk (${(data.attention_company || []).length})</div>
+				<div class="card-content">
+					${render_home_list(data.attention_company, "No company goals flagged.", { doctype: "Goal" })}
 				</div>
 			</div>
+			<div class="dashboard-card">
+				<div class="card-header yellow">Department At-Risk (${(data.attention_department || []).length})</div>
+				<div class="card-content">
+					${render_home_list(data.attention_department, "No department KRAs flagged.", { doctype: "KRA" })}
+				</div>
+			</div>
+			<div class="dashboard-card">
+				<div class="card-header cyan">Individual At-Risk (${(data.attention_individual || []).length})</div>
+				<div class="card-content">
+					${render_home_list(data.attention_individual, "No individual KRAs flagged.", { doctype: "KRA" })}
+				</div>
+			</div>
+		</div>
 			<div class="dashboard-card">
 				<div class="card-header blue">Weekly Achievements</div>
 				<div class="card-content">
@@ -198,7 +198,7 @@ function bind_sidebar(page, data, home_html, initial_section) {
 		}
 
 		if (section === "documentation") {
-			frappe.set_route("performance-documentation");
+			render_documentation($content);
 			return;
 		}
 
@@ -293,6 +293,9 @@ function render_strategy_plans($container) {
 					<i class="fa fa-refresh"></i>
 				</button>
 			</span>
+			<span class="strategy-actions-right">
+				<button class="btn btn-default btn-sm" data-action="import-company">Import</button>
+			</span>
 		</div>
 		<div class="strategy-content"></div>
 	`);
@@ -347,6 +350,21 @@ function render_strategy_plans($container) {
 		});
 		$actions.find("[data-action='add-kpa']").on("click", function () {
 			open_doctype_modal("KPA Master");
+		});
+		$actions.find("[data-action='import-company']").on("click", function () {
+			const level = $container.find(".nav-link.active").data("level");
+			const filters = $container.data("strategy-filters") || {};
+			const department = filters.department || "";
+			const employee = filters.employee || "";
+			if (level === "Department" && !department) {
+				frappe.msgprint("Select a department before importing.");
+				return;
+			}
+			if (level === "Individual" && !employee) {
+				frappe.msgprint("Select an employee before importing.");
+				return;
+			}
+			open_strategy_import_dialog($container, level, department, employee);
 		});
 	deptControl.$input.on("change", function () {
 		const level = $container.find(".nav-link.active").data("level");
@@ -486,6 +504,7 @@ function update_strategy_actions($actions, level) {
 			$actions.find(".dept-filter").hide();
 			$actions.find(".employee-filter").hide();
 			$actions.find(".strategy-filters").hide();
+			$actions.find("[data-action='import-company']").show();
 		} else {
 			$actions.find("[data-action='add-goal']").text("Add Department Goal").show();
 			$actions.find("[data-action='add-kra']").show();
@@ -493,6 +512,7 @@ function update_strategy_actions($actions, level) {
 			$actions.find(".dept-filter").show();
 			$actions.find(".employee-filter").hide();
 			$actions.find(".strategy-filters").show();
+			$actions.find("[data-action='import-company']").show();
 		}
 	} else {
 		$actions.show();
@@ -502,7 +522,354 @@ function update_strategy_actions($actions, level) {
 		$actions.find(".dept-filter").show();
 		$actions.find(".employee-filter").show();
 		$actions.find(".strategy-filters").show();
+		$actions.find("[data-action='import-company']").show();
 	}
+}
+
+function open_strategy_import_dialog($container, level, department, employee) {
+	const title = level === "Department" ? "Department Data Import" : "Company Data Import";
+	const dialog_title = level === "Individual" ? "Employee Data Import" : title;
+	const dialog = new frappe.ui.Dialog({
+		title: dialog_title,
+		size: "large",
+		fields: [{ fieldname: "import_html", fieldtype: "HTML" }]
+	});
+	const $wrapper = dialog.get_field("import_html").$wrapper;
+	$wrapper.html(build_strategy_import_html(level));
+	setup_strategy_import_scope($wrapper, $container, level, department, employee);
+	dialog.show();
+}
+
+function build_strategy_import_html(level) {
+	if (level === "Department") {
+		return `
+			<div class="strategy-import">
+				<div class="import-card">
+					<div class="import-card-header">Department Data Import</div>
+					<div class="import-card-body">
+						<div class="import-section" data-section="goal">
+							<div class="import-section-title">Department Goals</div>
+							<div class="import-controls">
+								<button class="btn btn-default btn-sm btn-upload" data-type="goal">Upload CSV/XLSX</button>
+								<button class="btn btn-default btn-sm btn-template" data-type="goal">Download Template</button>
+								<button class="btn btn-default btn-sm btn-export" data-type="goal">Export</button>
+								<span class="import-file-name text-muted">No file selected</span>
+								<button class="btn btn-primary btn-sm btn-preview" data-type="goal" disabled>Preview</button>
+								<button class="btn btn-success btn-sm btn-import" data-type="goal" disabled>Import</button>
+							</div>
+							<div class="import-preview"></div>
+						</div>
+						<div class="import-section" data-section="kra">
+							<div class="import-section-title">Department KRAs</div>
+							<div class="import-controls">
+								<button class="btn btn-default btn-sm btn-upload" data-type="kra">Upload CSV/XLSX</button>
+								<button class="btn btn-default btn-sm btn-template" data-type="kra">Download Template</button>
+								<button class="btn btn-default btn-sm btn-export" data-type="kra">Export</button>
+								<span class="import-file-name text-muted">No file selected</span>
+								<button class="btn btn-primary btn-sm btn-preview" data-type="kra" disabled>Preview</button>
+								<button class="btn btn-success btn-sm btn-import" data-type="kra" disabled>Import</button>
+							</div>
+							<div class="import-preview"></div>
+						</div>
+					</div>
+				</div>
+			</div>
+		`;
+	}
+
+	if (level === "Individual") {
+		return `
+			<div class="strategy-import">
+				<div class="import-card">
+					<div class="import-card-header">Employee Data Import</div>
+					<div class="import-card-body">
+						<div class="import-section" data-section="goal">
+							<div class="import-section-title">Employee Goals</div>
+							<div class="import-controls">
+								<button class="btn btn-default btn-sm btn-upload" data-type="goal">Upload CSV/XLSX</button>
+								<button class="btn btn-default btn-sm btn-template" data-type="goal">Download Template</button>
+								<button class="btn btn-default btn-sm btn-export" data-type="goal">Export</button>
+								<span class="import-file-name text-muted">No file selected</span>
+								<button class="btn btn-primary btn-sm btn-preview" data-type="goal" disabled>Preview</button>
+								<button class="btn btn-success btn-sm btn-import" data-type="goal" disabled>Import</button>
+							</div>
+							<div class="import-preview"></div>
+						</div>
+						<div class="import-section" data-section="kra">
+							<div class="import-section-title">Employee KRAs</div>
+							<div class="import-controls">
+								<button class="btn btn-default btn-sm btn-upload" data-type="kra">Upload CSV/XLSX</button>
+								<button class="btn btn-default btn-sm btn-template" data-type="kra">Download Template</button>
+								<button class="btn btn-default btn-sm btn-export" data-type="kra">Export</button>
+								<span class="import-file-name text-muted">No file selected</span>
+								<button class="btn btn-primary btn-sm btn-preview" data-type="kra" disabled>Preview</button>
+								<button class="btn btn-success btn-sm btn-import" data-type="kra" disabled>Import</button>
+							</div>
+							<div class="import-preview"></div>
+						</div>
+						<div class="import-section" data-section="kpi">
+							<div class="import-section-title">Employee KPIs</div>
+							<div class="import-controls">
+								<button class="btn btn-default btn-sm btn-upload" data-type="kpi">Upload CSV/XLSX</button>
+								<button class="btn btn-default btn-sm btn-template" data-type="kpi">Download Template</button>
+								<button class="btn btn-default btn-sm btn-export" data-type="kpi">Export</button>
+								<span class="import-file-name text-muted">No file selected</span>
+								<button class="btn btn-primary btn-sm btn-preview" data-type="kpi" disabled>Preview</button>
+								<button class="btn btn-success btn-sm btn-import" data-type="kpi" disabled>Import</button>
+							</div>
+							<div class="import-preview"></div>
+						</div>
+					</div>
+				</div>
+			</div>
+		`;
+	}
+
+	return `
+		<div class="strategy-import">
+			<div class="import-card">
+				<div class="import-card-header">Company Data Import</div>
+				<div class="import-card-body">
+					<div class="import-section" data-section="kpa">
+							<div class="import-section-title">KPA Master</div>
+							<div class="import-controls">
+								<button class="btn btn-default btn-sm btn-upload" data-type="kpa">Upload CSV/XLSX</button>
+								<button class="btn btn-default btn-sm btn-template" data-type="kpa">Download Template</button>
+								<button class="btn btn-default btn-sm btn-export" data-type="kpa">Export</button>
+								<span class="import-file-name text-muted">No file selected</span>
+								<button class="btn btn-primary btn-sm btn-preview" data-type="kpa" disabled>Preview</button>
+								<button class="btn btn-success btn-sm btn-import" data-type="kpa" disabled>Import</button>
+						</div>
+						<div class="import-preview"></div>
+					</div>
+					<div class="import-section" data-section="goal">
+							<div class="import-section-title">Company Goals</div>
+							<div class="import-controls">
+								<button class="btn btn-default btn-sm btn-upload" data-type="goal">Upload CSV/XLSX</button>
+								<button class="btn btn-default btn-sm btn-template" data-type="goal">Download Template</button>
+								<button class="btn btn-default btn-sm btn-export" data-type="goal">Export</button>
+								<span class="import-file-name text-muted">No file selected</span>
+								<button class="btn btn-primary btn-sm btn-preview" data-type="goal" disabled>Preview</button>
+								<button class="btn btn-success btn-sm btn-import" data-type="goal" disabled>Import</button>
+						</div>
+						<div class="import-preview"></div>
+					</div>
+				</div>
+			</div>
+		</div>
+	`;
+}
+
+function setup_strategy_import_scope($scope, $container, level, department, employee) {
+	const import_state = {};
+	const $import = $scope.find(".strategy-import");
+	const method_map = get_import_method_map(level);
+
+	$import.on("click", ".btn-upload", function () {
+		const type = $(this).data("type");
+		new frappe.ui.FileUploader({
+			allow_multiple: false,
+			restrictions: { allowed_file_types: [".csv", ".xlsx", ".xls"] },
+			on_success(file_doc) {
+				const file_url = file_doc.file_url;
+				import_state[type] = { file_url: file_url, preview: null };
+				const $section = $import.find(`.import-section[data-section="${type}"]`);
+				$section.find(".import-file-name").text(file_doc.file_name || file_url);
+				$section.find(".btn-preview").prop("disabled", !file_url);
+				$section.find(".btn-import").prop("disabled", true);
+				$section.find(".import-preview").empty();
+			}
+		});
+	});
+
+	$import.on("click", ".btn-template", function () {
+		const type = $(this).data("type");
+		const method = method_map[type].template;
+		const url = `/api/method/${method}?format=xlsx`;
+		window.open(url, "_blank");
+	});
+
+	$import.on("click", ".btn-export", function () {
+		const type = $(this).data("type");
+		const method = method_map[type].exporter;
+		if (!method) {
+			return;
+		}
+		if (level === "Department" && !department) {
+			frappe.msgprint("Select a department before exporting.");
+			return;
+		}
+		if (level === "Individual" && !employee) {
+			frappe.msgprint("Select an employee before exporting.");
+			return;
+		}
+		let url = `/api/method/${method}?format=xlsx`;
+		if (level === "Department" && department) {
+			url += `&department=${encodeURIComponent(department)}`;
+		}
+		if (level === "Individual" && employee) {
+			url += `&employee=${encodeURIComponent(employee)}`;
+		}
+		window.open(url, "_blank");
+	});
+
+	$import.on("click", ".btn-preview", function () {
+		const type = $(this).data("type");
+		const state = import_state[type] || {};
+		const file_url = state.file_url;
+		if (!file_url) {
+			frappe.msgprint("Upload a file first.");
+			return;
+		}
+		const $section = $import.find(`.import-section[data-section="${type}"]`);
+		$section.find(".import-preview").html('<div class="text-muted small">Generating preview...</div>');
+		const args = { file_url: file_url };
+		if (level === "Department") {
+			args.department = department;
+		}
+		if (level === "Individual") {
+			args.employee = employee;
+		}
+		frappe.call({
+			method: method_map[type].preview,
+			args: args,
+			callback: function (r) {
+				if (r.message) {
+					state.preview = r.message;
+					render_import_preview($section.find(".import-preview"), r.message);
+					const has_valid = r.message.summary && r.message.summary.valid > 0;
+					$section.find(".btn-import").prop("disabled", !has_valid);
+				} else {
+					$section.find(".import-preview").empty();
+					$section.find(".btn-import").prop("disabled", true);
+				}
+			}
+		});
+	});
+
+	$import.on("click", ".btn-import", function () {
+		const type = $(this).data("type");
+		const state = import_state[type] || {};
+		const file_url = state.file_url;
+		if (!file_url) {
+			frappe.msgprint("Upload a file first.");
+			return;
+		}
+		const args = { file_url: file_url };
+		if (level === "Department") {
+			args.department = department;
+		}
+		if (level === "Individual") {
+			args.employee = employee;
+		}
+		frappe.call({
+			method: method_map[type].importer,
+			args: args,
+			callback: function (r) {
+				if (r.message) {
+					const summary = r.message;
+					frappe.show_alert({
+						message: `Import complete. Created: ${summary.created || 0}, Updated: ${summary.updated || 0}, Skipped: ${summary.skipped || 0}`,
+						indicator: "green"
+					});
+					if (level === "Individual") {
+						load_strategy_data($container, "Individual", department, employee);
+					} else {
+						load_strategy_data($container, level === "Department" ? "Department" : "Company", department);
+					}
+				}
+			}
+		});
+	});
+}
+
+function get_import_method_map(level) {
+	if (level === "Department") {
+		return {
+			goal: {
+				preview: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.preview_department_goal_import",
+				importer: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.import_department_goals",
+				template: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.download_department_goal_template",
+				exporter: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.export_department_goals"
+			},
+			kra: {
+				preview: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.preview_department_kra_import",
+				importer: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.import_department_kra",
+				template: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.download_department_kra_template",
+				exporter: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.export_department_kra"
+			}
+		};
+	}
+	if (level === "Individual") {
+		return {
+			goal: {
+				preview: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.preview_employee_goal_import",
+				importer: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.import_employee_goals",
+				template: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.download_employee_goal_template",
+				exporter: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.export_employee_goals"
+			},
+			kra: {
+				preview: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.preview_employee_kra_import",
+				importer: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.import_employee_kra",
+				template: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.download_employee_kra_template",
+				exporter: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.export_employee_kra"
+			},
+			kpi: {
+				preview: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.preview_employee_kpi_import",
+				importer: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.import_employee_kpi",
+				template: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.download_employee_kpi_template",
+				exporter: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.export_employee_kpi"
+			}
+		};
+	}
+	return {
+		kpa: {
+			preview: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.preview_company_kpa_import",
+			importer: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.import_company_kpa",
+			template: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.download_company_kpa_template",
+			exporter: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.export_company_kpa"
+		},
+		goal: {
+			preview: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.preview_company_goal_import",
+			importer: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.import_company_goals",
+			template: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.download_company_goal_template",
+			exporter: "performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.export_company_goals"
+		}
+	};
+}
+
+function render_import_preview($container, preview) {
+	const headers = preview.headers || [];
+	const rows = preview.rows || [];
+	const summary = preview.summary || {};
+
+	if (!rows.length) {
+		$container.html('<div class="text-muted small">No rows found in file.</div>');
+		return;
+	}
+
+	let html = `
+		<div class="import-summary text-muted small">
+			Total: ${summary.total || 0} | Valid: ${summary.valid || 0} | Invalid: ${summary.invalid || 0}
+		</div>
+		<div class="table-responsive">
+			<table class="table table-bordered table-sm import-table">
+				<thead>
+					<tr>
+						${headers.map(h => `<th>${frappe.utils.escape_html(h)}</th>`).join("")}
+					</tr>
+				</thead>
+				<tbody>
+					${rows.map(row => `
+						<tr class="${row.Status === "Invalid" ? "row-invalid" : "row-valid"}">
+							${headers.map(h => `<td>${frappe.utils.escape_html(row[h] ?? "")}</td>`).join("")}
+						</tr>
+					`).join("")}
+				</tbody>
+			</table>
+		</div>
+	`;
+	$container.html(html);
 }
 
 function render_company_strategy($container, company) {
@@ -512,7 +879,6 @@ function render_company_strategy($container, company) {
 		return;
 	}
 
-	const edit_icon = frappe.utils.icon("edit", "sm");
 	let html = `
 		<div class="table-responsive">
 			<table class="table table-bordered table-hover">
@@ -537,11 +903,9 @@ function render_company_strategy($container, company) {
 				<tr>
 					<td class="editable-cell" data-goal-id="${goal.goal_id}" data-field="kpa" data-value="${kpa.kpa || ''}">
 						<span class="cell-value">${kpa.kpa}</span>
-						<span class="edit-icon">${edit_icon}</span>
 					</td>
 					<td class="editable-cell" data-goal-id="${goal.goal_id}" data-field="goal_name" data-value="${goal.goal || ''}">
 						<span class="cell-value">${goal.goal}</span>
-						<span class="edit-icon">${edit_icon}</span>
 					</td>
 					<td>${goal.weightage || 0}%</td>
 					<td>${(goal.avg_dept_weightage || 0).toFixed(1)}%</td>
@@ -598,66 +962,6 @@ function render_company_strategy($container, company) {
 	</div>`;
 
 	$container.html(html);
-
-	$container.find(".editable-cell").on("click", function () {
-		const $cell = $(this);
-		if ($cell.hasClass("editing")) {
-			return;
-		}
-		const goal_id = $cell.data("goal-id");
-		const field = $cell.data("field");
-		const current = $cell.data("value") || "";
-		if (!goal_id || !field) {
-			return;
-		}
-
-		$cell.addClass("editing");
-		const $wrapper = $("<div class='inline-editor'></div>");
-		$cell.find(".cell-value").hide();
-		$cell.append($wrapper);
-
-		const control = frappe.ui.form.make_control({
-			df: {
-				fieldtype: field === "kpa" ? "Link" : "Data",
-				fieldname: field,
-				options: field === "kpa" ? "KPA Master" : undefined
-			},
-			parent: $wrapper,
-			render_input: true
-		});
-		control.set_value(current);
-		control.refresh();
-		control.$input.focus();
-
-		const save_value = () => {
-			const value = control.get_value();
-			frappe.call({
-				method: "frappe.client.set_value",
-				args: {
-					doctype: "Goal",
-					name: goal_id,
-					fieldname: field,
-					value: value
-				},
-				callback: () => {
-					$cell.removeClass("editing");
-					$wrapper.remove();
-					$cell.find(".cell-value").text(value || "-").show();
-					$cell.data("value", value);
-					const $page = $container.closest(".dashboard-content-area");
-					load_strategy_data($page, "Company");
-				}
-			});
-		};
-
-		control.$input.on("blur", save_value);
-		control.$input.on("keydown", function (e) {
-			if (e.key === "Enter") {
-				e.preventDefault();
-				save_value();
-			}
-		});
-	});
 
 	$container.find(".dept-link").on("click", function () {
 		const dept = $(this).data("dept");
@@ -986,6 +1290,19 @@ function render_personal_panel($container, personal, rollups, goals) {
 	$container.find(".personal-actions").remove();
 	$container.find(".personal-summaries").remove();
 
+	const today = frappe.datetime.get_today();
+	const activeScorecard = (personal.scorecards || []).find(scorecard => {
+		const start = scorecard.start_date || "";
+		const end = scorecard.end_date || "";
+		const start_ok = !start || start <= today;
+		const end_ok = !end || end >= today;
+		return start_ok && end_ok;
+	});
+	const add_scorecard_class = activeScorecard ? "btn btn-primary btn-sm disabled" : "btn btn-primary btn-sm";
+	const add_scorecard_title = activeScorecard
+		? "Update the existing scorecard for the current period."
+		: "Add Scorecard";
+
 	const kpa_rows = (rollups.kpas || []).map(k => {
 		const avg = (k.average_score || 0).toFixed(1);
 		const badge = avg >= 80 ? "badge-green" : (avg >= 60 ? "badge-yellow" : "badge-red");
@@ -996,7 +1313,7 @@ function render_personal_panel($container, personal, rollups, goals) {
 
 	let html = `
 		<div class="personal-actions">
-			<button class="btn btn-primary btn-sm" data-action="new-scorecard">Add Scorecard</button>
+			<button class="${add_scorecard_class}" data-action="new-scorecard" aria-disabled="${activeScorecard ? "true" : "false"}" title="${add_scorecard_title}">Add Scorecard</button>
 			<button class="btn btn-primary btn-sm" data-action="new-goal">Add Goal</button>
 			<button class="btn btn-default btn-sm" data-action="new-kra">Add KRA</button>
 			<button class="btn btn-default btn-sm" data-action="new-kpi">Add KPI</button>
@@ -1036,6 +1353,11 @@ function render_personal_panel($container, personal, rollups, goals) {
 	$container.find(".personal-actions .btn").on("click", function () {
 		const action = $(this).data("action");
 		if (action === "new-scorecard") {
+			if (activeScorecard) {
+				const name = activeScorecard.name ? ` (${activeScorecard.name})` : "";
+				frappe.msgprint(`You already have an active scorecard for the current period${name}. Please update it instead.`);
+				return;
+			}
 			open_doctype_modal("Performance Scorecard");
 		} else if (action === "new-goal") {
 			open_doctype_modal("Goal");
@@ -1496,6 +1818,242 @@ function render_strategy_maps($container) {
 			});
 		});
 	}
+}
+
+function render_documentation($container) {
+	const sections = [
+		{
+			id: "quick-start",
+			label: "Quick Start",
+			color: "blue",
+			content: `
+				<ul>
+					<li>Open Performance Dashboard from the sidebar and review the latest insights.</li>
+					<li>Create or review goals under Strategy Plans (Company, Department, then Employee).</li>
+					<li>Confirm KPIs and targets for your KRAs before creating a scorecard.</li>
+					<li>Create a Performance Scorecard for the selected employee and period.</li>
+					<li>Record Performance Updates weekly to keep actuals current.</li>
+					<li>Use Weekly Commitments to track short-term delivery against KPIs.</li>
+					<li>Review charts, scorecards, and risk dashboards regularly.</li>
+				</ul>
+			`
+		},
+		{
+			id: "core-model",
+			label: "Core Data Model",
+			color: "light-blue",
+			content: `
+				<ul>
+					<li>KPA Master: top-level performance area with weightage.</li>
+					<li>Goal: strategic objective (Company, Department, or Employee).</li>
+					<li>KRA: key result area tied to a Goal.</li>
+					<li>KPI Master: measurable KPI tied to a KRA.</li>
+					<li>Target: period targets for KPIs.</li>
+					<li>Performance Scorecard: overall score and KPI items.</li>
+					<li>Performance Update: actual KPI values for a period.</li>
+					<li>Weekly Commitment: short-term commitments linked to KPIs.</li>
+				</ul>
+			`
+		},
+		{
+			id: "calculations",
+			label: "How Calculations Work",
+			color: "cyan",
+			content: `
+				<div class="doc-subtitle">Item score</div>
+				<pre class="doc-formula">score = (actual / target) * 100</pre>
+				<div class="doc-subtitle">Weighted rollups</div>
+				<pre class="doc-formula">weighted score = sum(score * weight) / sum(weight)</pre>
+				<ul>
+					<li>KPI scores roll up to KRA using KPI weightage.</li>
+					<li>KRA scores roll up to Goal using KRA weightage.</li>
+					<li>Goal scores roll up to KPA using Goal weightage.</li>
+					<li>KPA scores roll up to the Scorecard overall score.</li>
+				</ul>
+				<div class="doc-note">Weights are percentages. If a weight is missing, that level contributes 0.</div>
+			`
+		},
+		{
+			id: "hierarchy",
+			label: "Goal Hierarchy Rules",
+			color: "red",
+			content: `
+				<ul>
+					<li>Company Goals must link to a KPA and cannot have a parent.</li>
+					<li>Department Goals must link to a parent Company Goal.</li>
+					<li>Employee Goals must link to a parent Department Goal.</li>
+					<li>KPA must match from parent to child goals.</li>
+					<li>KRAs can only be created for Department or Employee goals.</li>
+					<li>KPIs can only be created for Employee goals.</li>
+				</ul>
+			`
+		},
+		{
+			id: "dashboard-home",
+			label: "Performance Dashboard (Home)",
+			color: "blue",
+			content: `
+				<ul>
+					<li>My Key Objectives: goals assigned to you.</li>
+					<li>My Key Results: KRAs tied to your goals.</li>
+					<li>Needs Attention: low-scoring KPIs from the latest scorecard.</li>
+					<li>My Tasks: pending performance updates.</li>
+					<li>KPIs Needing Update: KPIs that require fresh data.</li>
+					<li>Recent KPI Updates: your latest submitted values.</li>
+				</ul>
+			`
+		},
+		{
+			id: "strategy-plans",
+			label: "Strategy Plans",
+			color: "light-blue",
+			content: `
+				<ul>
+					<li>Company Strategy: high-level goals and KPAs.</li>
+					<li>Department Strategy: goals that roll up to company goals.</li>
+					<li>My Performance: employee goals, KRAs, and KPIs.</li>
+					<li>Use Add Goal and Add KRA to build the hierarchy.</li>
+					<li>Use the Department filter for Department Strategy.</li>
+					<li>Use the Employee filter only when you have permission.</li>
+				</ul>
+			`
+		},
+		{
+			id: "strategy-maps",
+			label: "Strategy Maps",
+			color: "cyan",
+			content: `
+				<ul>
+					<li>Tree view of strategy by level.</li>
+					<li>Click nodes to expand and explore relationships.</li>
+					<li>Use maps to validate rollups and owner type paths.</li>
+				</ul>
+			`
+		},
+		{
+			id: "risk-management",
+			label: "Risk Management",
+			color: "red",
+			content: `
+				<ul>
+					<li>Risk Register: create, score, and track risks.</li>
+					<li>Risk Context: define appetite and thresholds.</li>
+					<li>Risk Treatment: record mitigations and residual risk.</li>
+					<li>Risk Decision: approvals and sign-off for risks.</li>
+					<li>Risk Heat Map: 5x5 grid of likelihood vs impact.</li>
+				</ul>
+			`
+		},
+		{
+			id: "workflows",
+			label: "Workflows: How To Update",
+			color: "yellow",
+			content: `
+				<div class="doc-subtitle">Create Scorecard</div>
+				<ul>
+					<li>Open Performance Scorecard and click New.</li>
+					<li>Select employee and period (start and end dates).</li>
+					<li>Items auto-populate from KPIs linked to the employee.</li>
+					<li>Set targets and weightages, then Save.</li>
+					<li>Use Submit when ready for review.</li>
+				</ul>
+				<div class="doc-subtitle">Submit Updates</div>
+				<ul>
+					<li>Create a Performance Update for a KPI.</li>
+					<li>Enter the actual value for the period and add comments.</li>
+					<li>Save or Submit to update the scorecard.</li>
+					<li>The scorecard recalculates automatically.</li>
+				</ul>
+				<div class="doc-subtitle">Weekly Commitments</div>
+				<ul>
+					<li>Add weekly commitments for KPIs you own.</li>
+					<li>Update actual values as work completes.</li>
+					<li>Commitments roll up into KPI actuals.</li>
+				</ul>
+			`
+		},
+		{
+			id: "charts",
+			label: "Charts and Indicators",
+			color: "blue",
+			content: `
+				<ul>
+					<li>Number Cards show counts for key scorecard states.</li>
+					<li>Scorecards by Status: distribution across Draft, Submitted, Approved.</li>
+					<li>Scorecards by Department: volume by department.</li>
+					<li>Total Score by Department: average performance by department.</li>
+					<li>Progress bars show percent completion for KPAs and goals.</li>
+					<li>Green is strong, yellow is moderate, red is weak.</li>
+				</ul>
+			`
+		},
+		{
+			id: "risk-calculations",
+			label: "Risk Calculations",
+			color: "light-blue",
+			content: `
+				<pre class="doc-formula">risk score = likelihood * impact</pre>
+				<ul>
+					<li>Likelihood and Impact are selected as numbered values.</li>
+					<li>Risk Level: High (>=15), Medium (>=6), Low (below 6).</li>
+					<li>Residual risk uses treatment rows to update the final score.</li>
+					<li>Appetite breach is calculated from Performance Settings and Context.</li>
+				</ul>
+			`
+		},
+		{
+			id: "admin",
+			label: "Administration and Settings",
+			color: "red",
+			content: `
+				<ul>
+					<li>Scorecard Settings: rating scale and update frequency.</li>
+					<li>Performance Settings: calculation method and risk appetite.</li>
+					<li>Ensure roles have access to Goals, KRAs, KPIs, and Scorecards.</li>
+					<li>Use Workspaces and Shortcuts for faster navigation.</li>
+				</ul>
+			`
+		}
+	];
+
+	const cards = sections.map(section => `
+		<div class="dashboard-card doc-card is-collapsed" data-doc="${section.id}">
+			<button class="doc-toggle" type="button">
+				<span class="doc-title">${section.label}</span>
+				<span class="doc-toggle-meta">
+					<span class="doc-toggle-icon">+</span>
+					<span class="doc-toggle-text">Show details</span>
+				</span>
+			</button>
+			<div class="card-content">${section.content}</div>
+		</div>
+	`).join("");
+
+	$container.removeClass("strategy-map-only");
+	$container.html(`
+		<div class="doc-page">
+			<div class="doc-hero">
+				<h2>Performance Center User Guide</h2>
+				<p>Use this page to understand how the app works, how calculations are done, and how to complete your daily work in Strategy, Scorecards, and Risk Management.</p>
+			</div>
+			<div class="doc-grid">
+				${cards}
+			</div>
+		</div>
+	`);
+
+	$container.off("click", ".doc-toggle").on("click", ".doc-toggle", function () {
+		const $card = $(this).closest(".doc-card");
+		const was_collapsed = $card.hasClass("is-collapsed");
+		$container.find(".doc-card").addClass("is-collapsed");
+		$container.find(".doc-toggle-icon").text("+");
+		$container.find(".doc-toggle-text").text("Show details");
+		if (was_collapsed) {
+			$card.removeClass("is-collapsed");
+			$card.find(".doc-toggle-icon").text("-");
+			$card.find(".doc-toggle-text").text("Hide details");
+		}
+	});
 }
 
 function render_reports($container) {

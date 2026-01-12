@@ -30,6 +30,35 @@ frappe.pages['strategy-plans'].on_page_load = function (wrapper) {
              <button class="btn btn-default btn-sm" id="btn-add-kra">Add KRA</button>
              <button class="btn btn-default btn-sm" id="btn-add-kpi">Add KPI</button>
         </div>
+        <div class="strategy-import" style="display: none;">
+            <div class="import-card">
+                <div class="import-card-header">Company Data Import</div>
+                <div class="import-card-body">
+                    <div class="import-section" data-section="kpa">
+                        <div class="import-section-title">KPA Master</div>
+                        <div class="import-controls">
+                            <button class="btn btn-default btn-sm btn-upload" data-type="kpa">Upload CSV/XLSX</button>
+                            <button class="btn btn-default btn-sm btn-template" data-type="kpa">Download Template</button>
+                            <span class="import-file-name text-muted">No file selected</span>
+                            <button class="btn btn-primary btn-sm btn-preview" data-type="kpa" disabled>Preview</button>
+                            <button class="btn btn-success btn-sm btn-import" data-type="kpa" disabled>Import</button>
+                        </div>
+                        <div class="import-preview"></div>
+                    </div>
+                    <div class="import-section" data-section="goal">
+                        <div class="import-section-title">Company Goals</div>
+                        <div class="import-controls">
+                            <button class="btn btn-default btn-sm btn-upload" data-type="goal">Upload CSV/XLSX</button>
+                            <button class="btn btn-default btn-sm btn-template" data-type="goal">Download Template</button>
+                            <span class="import-file-name text-muted">No file selected</span>
+                            <button class="btn btn-primary btn-sm btn-preview" data-type="goal" disabled>Preview</button>
+                            <button class="btn btn-success btn-sm btn-import" data-type="goal" disabled>Import</button>
+                        </div>
+                        <div class="import-preview"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
         <div class="strategy-content">
             <!-- Content will be loaded here -->
         </div>
@@ -62,6 +91,8 @@ frappe.pages['strategy-plans'].on_page_load = function (wrapper) {
 
     register_realtime_refresh(wrapper);
 
+    setup_company_import(page, wrapper);
+
     update_actions(page, 'Company');
     load_strategy_data(page, 'Company');
 };
@@ -79,6 +110,7 @@ function get_level_config(level) {
 function update_actions(page, level) {
     const config = get_level_config(level);
     let $actions = page.main.find('.strategy-actions');
+    let $import = page.main.find('.strategy-import');
 
     if (config.allow_goal || config.allow_kra || config.allow_kpi) {
         $actions.show();
@@ -87,6 +119,12 @@ function update_actions(page, level) {
         $actions.find('#btn-add-kpi').toggle(!!config.allow_kpi);
     } else {
         $actions.hide();
+    }
+
+    if (level === 'Company') {
+        $import.show();
+    } else {
+        $import.hide();
     }
 }
 
@@ -572,4 +610,129 @@ function edit_kra_dialog(kra_name, callback) {
         });
         d.show();
     });
+}
+
+function setup_company_import(page, wrapper) {
+    wrapper.strategy_plans.import_state = {
+        kpa: { file_url: null, preview: null },
+        goal: { file_url: null, preview: null }
+    };
+
+    const $import = page.main.find('.strategy-import');
+
+    $import.on('click', '.btn-upload', function () {
+        const type = $(this).data('type');
+        new frappe.ui.FileUploader({
+            allow_multiple: false,
+            restrictions: { allowed_file_types: ['.csv', '.xlsx', '.xls'] },
+            on_success(file_doc) {
+                const file_url = file_doc.file_url;
+                wrapper.strategy_plans.import_state[type].file_url = file_url;
+                wrapper.strategy_plans.import_state[type].preview = null;
+                const $section = $import.find(`.import-section[data-section="${type}"]`);
+                $section.find('.import-file-name').text(file_doc.file_name || file_url);
+                $section.find('.btn-preview').prop('disabled', !file_url);
+                $section.find('.btn-import').prop('disabled', true);
+                $section.find('.import-preview').empty();
+            }
+        });
+    });
+
+    $import.on('click', '.btn-template', function () {
+        const type = $(this).data('type');
+        const method = type === 'kpa'
+            ? 'performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.download_company_kpa_template'
+            : 'performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.download_company_goal_template';
+        const url = `/api/method/${method}?format=xlsx`;
+        window.open(url, '_blank');
+    });
+
+    $import.on('click', '.btn-preview', function () {
+        const type = $(this).data('type');
+        const file_url = wrapper.strategy_plans.import_state[type].file_url;
+        if (!file_url) {
+            frappe.msgprint('Upload a file first.');
+            return;
+        }
+        const method = type === 'kpa'
+            ? 'performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.preview_company_kpa_import'
+            : 'performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.preview_company_goal_import';
+        const $section = $import.find(`.import-section[data-section="${type}"]`);
+        $section.find('.import-preview').html('<div class="text-muted small">Generating preview...</div>');
+        frappe.call({
+            method: method,
+            args: { file_url: file_url },
+            callback: function (r) {
+                if (r.message) {
+                    wrapper.strategy_plans.import_state[type].preview = r.message;
+                    render_import_preview($section.find('.import-preview'), r.message);
+                    const has_valid = r.message.summary && r.message.summary.valid > 0;
+                    $section.find('.btn-import').prop('disabled', !has_valid);
+                } else {
+                    $section.find('.import-preview').empty();
+                    $section.find('.btn-import').prop('disabled', true);
+                }
+            }
+        });
+    });
+
+    $import.on('click', '.btn-import', function () {
+        const type = $(this).data('type');
+        const file_url = wrapper.strategy_plans.import_state[type].file_url;
+        if (!file_url) {
+            frappe.msgprint('Upload a file first.');
+            return;
+        }
+        const method = type === 'kpa'
+            ? 'performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.import_company_kpa'
+            : 'performance_scorecard.performance_scorecard.page.strategy_plans.strategy_plans.import_company_goals';
+        frappe.call({
+            method: method,
+            args: { file_url: file_url },
+            callback: function (r) {
+                if (r.message) {
+                    const summary = r.message;
+                    frappe.show_alert({
+                        message: `Import complete. Created: ${summary.created || 0}, Updated: ${summary.updated || 0}, Skipped: ${summary.skipped || 0}`,
+                        indicator: 'green'
+                    });
+                    load_strategy_data(page, 'Company');
+                }
+            }
+        });
+    });
+}
+
+function render_import_preview($container, preview) {
+    const headers = preview.headers || [];
+    const rows = preview.rows || [];
+    const summary = preview.summary || {};
+
+    if (!rows.length) {
+        $container.html('<div class="text-muted small">No rows found in file.</div>');
+        return;
+    }
+
+    let html = `
+        <div class="import-summary text-muted small">
+            Total: ${summary.total || 0} | Valid: ${summary.valid || 0} | Invalid: ${summary.invalid || 0}
+        </div>
+        <div class="table-responsive">
+            <table class="table table-bordered table-sm import-table">
+                <thead>
+                    <tr>
+                        ${headers.map(h => `<th>${frappe.utils.escape_html(h)}</th>`).join('')}
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rows.map(row => `
+                        <tr class="${row.Status === 'Invalid' ? 'row-invalid' : 'row-valid'}">
+                            ${headers.map(h => `<td>${frappe.utils.escape_html(row[h] ?? '')}</td>`).join('')}
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+    $container.html(html);
 }

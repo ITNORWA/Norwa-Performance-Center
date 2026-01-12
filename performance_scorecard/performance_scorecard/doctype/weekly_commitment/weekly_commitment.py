@@ -6,6 +6,11 @@ from performance_scorecard.performance_scorecard.scoring_engine import ScoringEn
 
 
 class WeeklyCommitment(Document):
+	def autoname(self):
+		self._ensure_employee()
+		if self.employee and self.week_start:
+			self.name = f"WC-{self.employee}-{self.week_start}"
+
 	def before_insert(self):
 		if self.employee:
 			return

@@ -1,5 +1,10 @@
+import datetime
 import frappe
-from frappe.utils import flt
+from frappe.utils import cstr, flt, getdate
+from frappe.utils.csvutils import read_csv_content
+from frappe.utils.xlsxutils import build_xlsx_response, read_xlsx_file_from_attached_file
+
+ALLOWED_GOAL_STATUS = {"Draft", "Active", "Completed", "Archived"}
 
 @frappe.whitelist()
 def get_strategy_data(level, period=None, department=None, employee=None):
@@ -9,6 +14,10 @@ def get_strategy_data(level, period=None, department=None, employee=None):
     filters = {"status": ["!=", "Archived"]}
     session_user = frappe.session.user
     session_employee = frappe.db.get_value("Employee", {"user_id": session_user}, "name")
+    roles = frappe.get_roles(session_user)
+    is_privileged = any(role in roles for role in ("System Manager", "HR Manager", "Department Manager"))
+    if level == "Individual" and not is_privileged:
+        employee = session_employee
     selected_employee = employee or session_employee
     selected_department = department
     dept_employees = []
@@ -268,6 +277,646 @@ def get_strategy_data(level, period=None, department=None, employee=None):
     return response
 
 
+@frappe.whitelist()
+def preview_company_kpa_import(file_url=None):
+    rows = _parse_company_kpa_file(file_url)
+    return _build_preview_response(
+        rows,
+        headers=["Row", "Action", "Status", "Message", "KPA Name", "Weightage"],
+        field_map={
+            "Row": "row",
+            "Action": "action",
+            "Status": "status",
+            "Message": "message",
+            "KPA Name": "kpa_name",
+            "Weightage": "weightage",
+        },
+    )
+
+
+@frappe.whitelist()
+def preview_company_goal_import(file_url=None):
+    rows = _parse_company_goal_file(file_url)
+    return _build_preview_response(
+        rows,
+        headers=["Row", "Action", "Status", "Message", "Goal Name", "KPA", "Weightage", "Start Date", "End Date", "Status Label"],
+        field_map={
+            "Row": "row",
+            "Action": "action",
+            "Status": "status",
+            "Message": "message",
+            "Goal Name": "goal_name",
+            "KPA": "kpa",
+            "Weightage": "weightage",
+            "Start Date": "start_date",
+            "End Date": "end_date",
+            "Status Label": "status_label",
+        },
+    )
+
+
+@frappe.whitelist()
+def preview_department_goal_import(file_url=None, department=None):
+    rows = _parse_department_goal_file(file_url, department)
+    return _build_preview_response(
+        rows,
+        headers=["Row", "Action", "Status", "Message", "Goal Name", "Owner Type", "Department", "Parent Goal", "Weightage", "Start Date", "End Date", "Status Label"],
+        field_map={
+            "Row": "row",
+            "Action": "action",
+            "Status": "status",
+            "Message": "message",
+            "Goal Name": "goal_name",
+            "Owner Type": "owner_type",
+            "Department": "department",
+            "Parent Goal": "parent_goal",
+            "Weightage": "weightage",
+            "Start Date": "start_date",
+            "End Date": "end_date",
+            "Status Label": "status_label",
+        },
+    )
+
+
+@frappe.whitelist()
+def preview_department_kra_import(file_url=None, department=None):
+    rows = _parse_department_kra_file(file_url, department)
+    return _build_preview_response(
+        rows,
+        headers=["Row", "Action", "Status", "Message", "KRA Name", "Goal", "Owner Type", "Department", "Weightage", "Priority"],
+        field_map={
+            "Row": "row",
+            "Action": "action",
+            "Status": "status",
+            "Message": "message",
+            "KRA Name": "kra_name",
+            "Goal": "goal",
+            "Owner Type": "owner_type",
+            "Department": "department",
+            "Weightage": "weightage",
+            "Priority": "priority",
+        },
+    )
+
+
+@frappe.whitelist()
+def preview_employee_goal_import(file_url=None, employee=None):
+    rows = _parse_employee_goal_file(file_url, employee)
+    return _build_preview_response(
+        rows,
+        headers=["Row", "Action", "Status", "Message", "Goal Name", "Owner Type", "Employee", "Parent Goal", "Parent KRA", "Weightage", "Start Date", "End Date", "Status Label"],
+        field_map={
+            "Row": "row",
+            "Action": "action",
+            "Status": "status",
+            "Message": "message",
+            "Goal Name": "goal_name",
+            "Owner Type": "owner_type",
+            "Employee": "employee",
+            "Parent Goal": "parent_goal",
+            "Parent KRA": "parent_kra",
+            "Weightage": "weightage",
+            "Start Date": "start_date",
+            "End Date": "end_date",
+            "Status Label": "status_label",
+        },
+    )
+
+
+@frappe.whitelist()
+def preview_employee_kra_import(file_url=None, employee=None):
+    rows = _parse_employee_kra_file(file_url, employee)
+    return _build_preview_response(
+        rows,
+        headers=["Row", "Action", "Status", "Message", "KRA Name", "Goal", "Owner Type", "Employee", "Parent KRA", "Weightage", "Priority"],
+        field_map={
+            "Row": "row",
+            "Action": "action",
+            "Status": "status",
+            "Message": "message",
+            "KRA Name": "kra_name",
+            "Goal": "goal",
+            "Owner Type": "owner_type",
+            "Employee": "employee",
+            "Parent KRA": "parent_kra",
+            "Weightage": "weightage",
+            "Priority": "priority",
+        },
+    )
+
+
+@frappe.whitelist()
+def preview_employee_kpi_import(file_url=None, employee=None):
+    rows = _parse_employee_kpi_file(file_url, employee)
+    return _build_preview_response(
+        rows,
+        headers=["Row", "Action", "Status", "Message", "KPI Name", "KRA", "Employee", "Unit", "Calculation Method", "Default Green Threshold", "Default Yellow Threshold", "Description"],
+        field_map={
+            "Row": "row",
+            "Action": "action",
+            "Status": "status",
+            "Message": "message",
+            "KPI Name": "kpi_name",
+            "KRA": "kra",
+            "Employee": "employee",
+            "Unit": "unit",
+            "Calculation Method": "calculation_method",
+            "Default Green Threshold": "default_threshold_green",
+            "Default Yellow Threshold": "default_threshold_yellow",
+            "Description": "description",
+        },
+    )
+
+@frappe.whitelist()
+def import_company_kpa(file_url=None):
+    rows = _parse_company_kpa_file(file_url)
+    created = updated = skipped = 0
+
+    for row in rows:
+        if row.get("errors"):
+            skipped += 1
+            continue
+
+        values = {
+            "doctype": "KPA Master",
+            "kpa_name": row["kpa_name"],
+            "weightage": row.get("weightage"),
+        }
+        if row.get("exists"):
+            doc = frappe.get_doc("KPA Master", row["name"])
+            doc.update(values)
+            doc.save(ignore_permissions=True)
+            updated += 1
+        else:
+            doc = frappe.get_doc(values)
+            doc.insert(ignore_permissions=True)
+            created += 1
+
+    return {"created": created, "updated": updated, "skipped": skipped}
+
+
+@frappe.whitelist()
+def import_company_goals(file_url=None):
+    rows = _parse_company_goal_file(file_url)
+    created = updated = skipped = 0
+
+    for row in rows:
+        if row.get("errors"):
+            skipped += 1
+            continue
+
+        values = {
+            "doctype": "Goal",
+            "goal_name": row["goal_name"],
+            "owner_type": "Company",
+            "kpa": row["kpa"],
+            "weightage": row.get("weightage"),
+            "start_date": row.get("start_date"),
+            "end_date": row.get("end_date"),
+            "status": row.get("status_label") or "Draft",
+        }
+
+        if row.get("exists"):
+            doc = frappe.get_doc("Goal", row["name"])
+            doc.update(values)
+            doc.save(ignore_permissions=True)
+            updated += 1
+        else:
+            doc = frappe.get_doc(values)
+            doc.insert(ignore_permissions=True)
+            created += 1
+
+    return {"created": created, "updated": updated, "skipped": skipped}
+
+
+@frappe.whitelist()
+def import_department_goals(file_url=None, department=None):
+    rows = _parse_department_goal_file(file_url, department)
+    created = updated = skipped = 0
+
+    for row in rows:
+        if row.get("errors"):
+            skipped += 1
+            continue
+
+        values = {
+            "doctype": "Goal",
+            "goal_name": row["goal_name"],
+            "owner_type": "Department",
+            "department": row.get("department"),
+            "parent_goal": row.get("parent_goal"),
+            "weightage": row.get("weightage"),
+            "start_date": row.get("start_date"),
+            "end_date": row.get("end_date"),
+            "status": row.get("status_label") or "Draft",
+        }
+
+        if row.get("exists"):
+            doc = frappe.get_doc("Goal", row["name"])
+            doc.update(values)
+            doc.save(ignore_permissions=True)
+            updated += 1
+        else:
+            doc = frappe.get_doc(values)
+            doc.insert(ignore_permissions=True)
+            created += 1
+
+    return {"created": created, "updated": updated, "skipped": skipped}
+
+
+@frappe.whitelist()
+def import_department_kra(file_url=None, department=None):
+    rows = _parse_department_kra_file(file_url, department)
+    created = updated = skipped = 0
+
+    for row in rows:
+        if row.get("errors"):
+            skipped += 1
+            continue
+
+        values = {
+            "doctype": "KRA",
+            "kra_name": row["kra_name"],
+            "goal": row.get("goal"),
+            "owner_type": "Department",
+            "department": row.get("department"),
+            "weightage": row.get("weightage"),
+            "priority": row.get("priority"),
+        }
+
+        if row.get("exists"):
+            doc = frappe.get_doc("KRA", row["name"])
+            doc.update(values)
+            doc.save(ignore_permissions=True)
+            updated += 1
+        else:
+            doc = frappe.get_doc(values)
+            doc.insert(ignore_permissions=True)
+            created += 1
+
+    return {"created": created, "updated": updated, "skipped": skipped}
+
+
+@frappe.whitelist()
+def import_employee_goals(file_url=None, employee=None):
+    rows = _parse_employee_goal_file(file_url, employee)
+    created = updated = skipped = 0
+
+    for row in rows:
+        if row.get("errors"):
+            skipped += 1
+            continue
+
+        values = {
+            "doctype": "Goal",
+            "goal_name": row["goal_name"],
+            "owner_type": "Employee",
+            "employee": row.get("employee"),
+            "department": row.get("department") or frappe.db.get_value("Employee", row.get("employee"), "department"),
+            "parent_goal": row.get("parent_goal"),
+            "parent_kra": row.get("parent_kra"),
+            "weightage": row.get("weightage"),
+            "start_date": row.get("start_date"),
+            "end_date": row.get("end_date"),
+            "status": row.get("status_label") or "Draft",
+        }
+
+        if row.get("exists"):
+            doc = frappe.get_doc("Goal", row["name"])
+            doc.update(values)
+            doc.save(ignore_permissions=True)
+            updated += 1
+        else:
+            doc = frappe.get_doc(values)
+            doc.insert(ignore_permissions=True)
+            created += 1
+
+    return {"created": created, "updated": updated, "skipped": skipped}
+
+
+@frappe.whitelist()
+def import_employee_kra(file_url=None, employee=None):
+    rows = _parse_employee_kra_file(file_url, employee)
+    created = updated = skipped = 0
+
+    for row in rows:
+        if row.get("errors"):
+            skipped += 1
+            continue
+
+        values = {
+            "doctype": "KRA",
+            "kra_name": row["kra_name"],
+            "goal": row.get("goal"),
+            "owner_type": "Employee",
+            "employee": row.get("employee"),
+            "department": row.get("department") or frappe.db.get_value("Employee", row.get("employee"), "department"),
+            "parent_kra": row.get("parent_kra"),
+            "weightage": row.get("weightage"),
+            "priority": row.get("priority"),
+        }
+
+        if row.get("exists"):
+            doc = frappe.get_doc("KRA", row["name"])
+            doc.update(values)
+            doc.save(ignore_permissions=True)
+            updated += 1
+        else:
+            doc = frappe.get_doc(values)
+            doc.insert(ignore_permissions=True)
+            created += 1
+
+    return {"created": created, "updated": updated, "skipped": skipped}
+
+
+@frappe.whitelist()
+def import_employee_kpi(file_url=None, employee=None):
+    rows = _parse_employee_kpi_file(file_url, employee)
+    created = updated = skipped = 0
+
+    for row in rows:
+        if row.get("errors"):
+            skipped += 1
+            continue
+
+        values = {
+            "doctype": "KPI Master",
+            "kpi_name": row["kpi_name"],
+            "kra": row.get("kra"),
+            "employee": row.get("employee"),
+            "unit": row.get("unit"),
+            "calculation_method": row.get("calculation_method"),
+            "default_threshold_green": row.get("default_threshold_green"),
+            "default_threshold_yellow": row.get("default_threshold_yellow"),
+            "description": row.get("description"),
+        }
+
+        if row.get("exists"):
+            doc = frappe.get_doc("KPI Master", row["name"])
+            doc.update(values)
+            doc.save(ignore_permissions=True)
+            updated += 1
+        else:
+            doc = frappe.get_doc(values)
+            doc.insert(ignore_permissions=True)
+            created += 1
+
+    return {"created": created, "updated": updated, "skipped": skipped}
+
+@frappe.whitelist()
+def download_company_kpa_template(format="xlsx"):
+    headers = ["kpa_name", "weightage"]
+    data = [headers, ["Customer", 25]]
+    filename = "company_kpa_template"
+    if format == "xlsx":
+        build_xlsx_response(data, filename)
+    else:
+        frappe.throw("Only xlsx format is supported.")
+
+
+@frappe.whitelist()
+def download_company_goal_template(format="xlsx"):
+    headers = ["goal_name", "kpa", "weightage", "start_date", "end_date", "status", "owner_type"]
+    data = [headers, ["Increase customer retention", "Customer", 50, "2025-01-01", "2025-12-31", "Active", "Company"]]
+    filename = "company_goal_template"
+    if format == "xlsx":
+        build_xlsx_response(data, filename)
+    else:
+        frappe.throw("Only xlsx format is supported.")
+
+
+@frappe.whitelist()
+def download_department_goal_template(format="xlsx"):
+    headers = ["goal_name", "owner_type", "department", "parent_goal", "weightage", "start_date", "end_date", "status"]
+    data = [headers, ["Improve support response time", "Department", "Support", "Increase customer retention", 40, "2025-01-01", "2025-12-31", "Active"]]
+    filename = "department_goal_template"
+    if format == "xlsx":
+        build_xlsx_response(data, filename)
+    else:
+        frappe.throw("Only xlsx format is supported.")
+
+
+@frappe.whitelist()
+def download_department_kra_template(format="xlsx"):
+    headers = ["kra_name", "goal", "owner_type", "department", "weightage", "priority"]
+    data = [headers, ["Reduce ticket backlog", "Improve support response time", "Department", "Support", 50, "Medium"]]
+    filename = "department_kra_template"
+    if format == "xlsx":
+        build_xlsx_response(data, filename)
+    else:
+        frappe.throw("Only xlsx format is supported.")
+
+
+@frappe.whitelist()
+def download_employee_goal_template(format="xlsx"):
+    headers = ["goal_name", "owner_type", "employee", "parent_goal", "parent_kra", "weightage", "start_date", "end_date", "status"]
+    data = [headers, ["Improve onboarding quality", "Employee", "EMP-0001", "Increase customer retention", "", 30, "2025-01-01", "2025-12-31", "Active"]]
+    filename = "employee_goal_template"
+    if format == "xlsx":
+        build_xlsx_response(data, filename)
+    else:
+        frappe.throw("Only xlsx format is supported.")
+
+
+@frappe.whitelist()
+def download_employee_kra_template(format="xlsx"):
+    headers = ["kra_name", "goal", "owner_type", "employee", "parent_kra", "weightage", "priority"]
+    data = [headers, ["Reduce onboarding time", "Improve onboarding quality", "Employee", "EMP-0001", "", 50, "Medium"]]
+    filename = "employee_kra_template"
+    if format == "xlsx":
+        build_xlsx_response(data, filename)
+    else:
+        frappe.throw("Only xlsx format is supported.")
+
+
+@frappe.whitelist()
+def download_employee_kpi_template(format="xlsx"):
+    headers = ["kpi_name", "kra", "employee", "unit", "calculation_method", "default_threshold_green", "default_threshold_yellow", "description"]
+    data = [headers, ["Onboarding satisfaction score", "Reduce onboarding time", "EMP-0001", "Rating", "Manual", 80, 60, "Monthly survey rating"]]
+    filename = "employee_kpi_template"
+    if format == "xlsx":
+        build_xlsx_response(data, filename)
+    else:
+        frappe.throw("Only xlsx format is supported.")
+
+
+@frappe.whitelist()
+def export_company_kpa(format="xlsx"):
+    rows = frappe.get_all("KPA Master", fields=["name", "kpa_name", "weightage"], order_by="kpa_name asc")
+    data = [["kpa_name", "weightage"]]
+    for row in rows:
+        data.append([row.kpa_name, row.weightage])
+    _build_export_response(data, "company_kpa_export", format)
+
+
+@frappe.whitelist()
+def export_company_goals(format="xlsx"):
+    goals = frappe.get_all(
+        "Goal",
+        filters={"owner_type": "Company"},
+        fields=["name", "goal_name", "kpa", "weightage", "start_date", "end_date", "status", "owner_type"],
+        order_by="goal_name asc",
+    )
+    kpa_map = _get_kpa_name_map([g.kpa for g in goals if g.kpa])
+    data = [["goal_name", "kpa", "weightage", "start_date", "end_date", "status", "owner_type"]]
+    for goal in goals:
+        data.append(
+            [
+                goal.goal_name,
+                kpa_map.get(goal.kpa, goal.kpa),
+                goal.weightage,
+                goal.start_date,
+                goal.end_date,
+                goal.status,
+                goal.owner_type,
+            ]
+        )
+    _build_export_response(data, "company_goal_export", format)
+
+
+@frappe.whitelist()
+def export_department_goals(format="xlsx", department=None):
+    if not department:
+        frappe.throw("Department is required.")
+    goals = frappe.get_all(
+        "Goal",
+        filters={"owner_type": "Department", "department": department},
+        fields=["name", "goal_name", "parent_goal", "weightage", "start_date", "end_date", "status", "owner_type", "department"],
+        order_by="goal_name asc",
+    )
+    data = [["goal_name", "owner_type", "department", "parent_goal", "weightage", "start_date", "end_date", "status"]]
+    for goal in goals:
+        data.append(
+            [
+                goal.goal_name,
+                goal.owner_type,
+                goal.department,
+                goal.parent_goal,
+                goal.weightage,
+                goal.start_date,
+                goal.end_date,
+                goal.status,
+            ]
+        )
+    _build_export_response(data, f"department_goal_export_{department}", format)
+
+
+@frappe.whitelist()
+def export_department_kra(format="xlsx", department=None):
+    if not department:
+        frappe.throw("Department is required.")
+    kras = frappe.get_all(
+        "KRA",
+        filters={"owner_type": "Department", "department": department},
+        fields=["name", "kra_name", "goal", "owner_type", "department", "weightage", "priority"],
+        order_by="kra_name asc",
+    )
+    data = [["kra_name", "goal", "owner_type", "department", "weightage", "priority"]]
+    for kra in kras:
+        data.append(
+            [
+                kra.kra_name,
+                kra.goal,
+                kra.owner_type,
+                kra.department,
+                kra.weightage,
+                kra.priority,
+            ]
+        )
+    _build_export_response(data, f"department_kra_export_{department}", format)
+
+
+@frappe.whitelist()
+def export_employee_goals(format="xlsx", employee=None):
+    if not employee:
+        frappe.throw("Employee is required.")
+    goals = frappe.get_all(
+        "Goal",
+        filters={"owner_type": "Employee", "employee": employee},
+        fields=["name", "goal_name", "parent_goal", "parent_kra", "weightage", "start_date", "end_date", "status", "owner_type", "employee"],
+        order_by="goal_name asc",
+    )
+    data = [["goal_name", "owner_type", "employee", "parent_goal", "parent_kra", "weightage", "start_date", "end_date", "status"]]
+    for goal in goals:
+        data.append(
+            [
+                goal.goal_name,
+                goal.owner_type,
+                goal.employee,
+                goal.parent_goal,
+                goal.parent_kra,
+                goal.weightage,
+                goal.start_date,
+                goal.end_date,
+                goal.status,
+            ]
+        )
+    _build_export_response(data, f"employee_goal_export_{employee}", format)
+
+
+@frappe.whitelist()
+def export_employee_kra(format="xlsx", employee=None):
+    if not employee:
+        frappe.throw("Employee is required.")
+    kras = frappe.get_all(
+        "KRA",
+        filters={"owner_type": "Employee", "employee": employee},
+        fields=["name", "kra_name", "goal", "owner_type", "employee", "parent_kra", "weightage", "priority"],
+        order_by="kra_name asc",
+    )
+    data = [["kra_name", "goal", "owner_type", "employee", "parent_kra", "weightage", "priority"]]
+    for kra in kras:
+        data.append(
+            [
+                kra.kra_name,
+                kra.goal,
+                kra.owner_type,
+                kra.employee,
+                kra.parent_kra,
+                kra.weightage,
+                kra.priority,
+            ]
+        )
+    _build_export_response(data, f"employee_kra_export_{employee}", format)
+
+
+@frappe.whitelist()
+def export_employee_kpi(format="xlsx", employee=None):
+    if not employee:
+        frappe.throw("Employee is required.")
+    kpis = frappe.get_all(
+        "KPI Master",
+        filters={"employee": employee},
+        fields=[
+            "name",
+            "kpi_name",
+            "kra",
+            "employee",
+            "unit",
+            "calculation_method",
+            "default_threshold_green",
+            "default_threshold_yellow",
+            "description",
+        ],
+        order_by="kpi_name asc",
+    )
+    data = [["kpi_name", "kra", "employee", "unit", "calculation_method", "default_threshold_green", "default_threshold_yellow", "description"]]
+    for kpi in kpis:
+        data.append(
+            [
+                kpi.kpi_name,
+                kpi.kra,
+                kpi.employee,
+                kpi.unit,
+                kpi.calculation_method,
+                kpi.default_threshold_green,
+                kpi.default_threshold_yellow,
+                kpi.description,
+            ]
+        )
+    _build_export_response(data, f"employee_kpi_export_{employee}", format)
+
+
 def _enrich_updates(updates):
     if not updates:
         return
@@ -352,7 +1001,14 @@ def _get_kpis_for_kra(kra_name, scorecard_filters=None, employee_filter=None):
                 fields=["kpi", "target", "actual", "score"]
             )
             for item in items:
-                item_map[item.kpi] = item
+                score = item.score
+                if score is None and item.target not in (None, 0):
+                    score = (item.actual or 0) / item.target * 100
+                item_map[item.kpi] = {
+                    "target": item.target,
+                    "actual": item.actual,
+                    "score": score,
+                }
 
     kpis = []
     for row in kpi_rows:
@@ -705,6 +1361,424 @@ def _build_company_rollups():
 
     overall_score = overall_sum / (overall_weight or 1)
     return {"kpas": kpa_rows, "overall_score": overall_score}
+
+
+def _parse_company_kpa_file(file_url):
+    rows = _read_import_file(file_url)
+    header_map = {
+        "kpa_name": {"kpa", "kpa_name", "kpa master", "kpa master name", "kpa name", "name"},
+        "weightage": {"weightage", "weight", "weightage_percent", "weightage_pct"},
+    }
+    required = {"kpa_name"}
+    return _parse_import_rows(rows, header_map, required, doctype="KPA Master")
+
+
+def _parse_company_goal_file(file_url):
+    rows = _read_import_file(file_url)
+    header_map = {
+        "goal_name": {"goal", "goal_name", "goal name", "name"},
+        "kpa": {"kpa", "kpa_name", "kpa master", "kpa master name", "kpa name"},
+        "weightage": {"weightage", "weight", "weightage_percent", "weightage_pct"},
+        "start_date": {"start_date", "start date"},
+        "end_date": {"end_date", "end date"},
+        "status_label": {"status", "status_label"},
+        "owner_type": {"owner_type", "owner type"},
+    }
+    required = {"goal_name", "kpa"}
+    return _parse_import_rows(
+        rows,
+        header_map,
+        required,
+        doctype="Goal",
+        context={"expected_owner_type": "Company", "default_owner_type": "Company"},
+    )
+
+
+def _parse_department_goal_file(file_url, department=None):
+    rows = _read_import_file(file_url)
+    header_map = {
+        "goal_name": {"goal", "goal_name", "goal name", "name"},
+        "owner_type": {"owner_type", "owner type"},
+        "department": {"department"},
+        "parent_goal": {"parent_goal", "parent goal"},
+        "weightage": {"weightage", "weight", "weightage_percent", "weightage_pct"},
+        "start_date": {"start_date", "start date"},
+        "end_date": {"end_date", "end date"},
+        "status_label": {"status", "status_label"},
+    }
+    required = {"goal_name", "owner_type", "parent_goal"}
+    return _parse_import_rows(
+        rows,
+        header_map,
+        required,
+        doctype="Goal",
+        context={"expected_owner_type": "Department", "default_department": department},
+    )
+
+
+def _parse_department_kra_file(file_url, department=None):
+    rows = _read_import_file(file_url)
+    header_map = {
+        "kra_name": {"kra", "kra_name", "kra name", "name"},
+        "goal": {"goal", "goal_name", "goal name"},
+        "owner_type": {"owner_type", "owner type"},
+        "department": {"department"},
+        "weightage": {"weightage", "weight", "weightage_percent", "weightage_pct"},
+        "priority": {"priority"},
+    }
+    required = {"kra_name", "goal", "owner_type"}
+    return _parse_import_rows(
+        rows,
+        header_map,
+        required,
+        doctype="KRA",
+        context={"expected_owner_type": "Department", "default_department": department},
+    )
+
+
+def _parse_employee_goal_file(file_url, employee=None):
+    rows = _read_import_file(file_url)
+    header_map = {
+        "goal_name": {"goal", "goal_name", "goal name", "name"},
+        "owner_type": {"owner_type", "owner type"},
+        "employee": {"employee", "owner", "owner_employee"},
+        "parent_goal": {"parent_goal", "parent goal"},
+        "parent_kra": {"parent_kra", "parent kra"},
+        "weightage": {"weightage", "weight", "weightage_percent", "weightage_pct"},
+        "start_date": {"start_date", "start date"},
+        "end_date": {"end_date", "end date"},
+        "status_label": {"status", "status_label"},
+    }
+    required = {"goal_name", "owner_type"}
+    return _parse_import_rows(
+        rows,
+        header_map,
+        required,
+        doctype="Goal",
+        context={
+            "expected_owner_type": "Employee",
+            "default_owner_type": "Employee",
+            "default_employee": employee,
+        },
+    )
+
+
+def _parse_employee_kra_file(file_url, employee=None):
+    rows = _read_import_file(file_url)
+    header_map = {
+        "kra_name": {"kra", "kra_name", "kra name", "name"},
+        "goal": {"goal", "goal_name", "goal name"},
+        "owner_type": {"owner_type", "owner type"},
+        "employee": {"employee", "owner", "owner_employee"},
+        "parent_kra": {"parent_kra", "parent kra"},
+        "weightage": {"weightage", "weight", "weightage_percent", "weightage_pct"},
+        "priority": {"priority"},
+    }
+    required = {"kra_name", "goal", "owner_type"}
+    return _parse_import_rows(
+        rows,
+        header_map,
+        required,
+        doctype="KRA",
+        context={
+            "expected_owner_type": "Employee",
+            "default_owner_type": "Employee",
+            "default_employee": employee,
+        },
+    )
+
+
+def _parse_employee_kpi_file(file_url, employee=None):
+    rows = _read_import_file(file_url)
+    header_map = {
+        "kpi_name": {"kpi", "kpi_name", "kpi name", "name"},
+        "kra": {"kra", "kra_name", "kra name"},
+        "employee": {"employee", "owner", "owner_employee"},
+        "unit": {"unit"},
+        "calculation_method": {"calculation_method", "calculation method"},
+        "default_threshold_green": {"default_threshold_green", "green_threshold", "green threshold"},
+        "default_threshold_yellow": {"default_threshold_yellow", "yellow_threshold", "yellow threshold"},
+        "description": {"description"},
+    }
+    required = {"kpi_name"}
+    return _parse_import_rows(
+        rows,
+        header_map,
+        required,
+        doctype="KPI Master",
+        context={"default_employee": employee},
+    )
+
+
+def _read_import_file(file_url):
+    if not file_url:
+        frappe.throw("File is required.")
+
+    extension = cstr(file_url).split(".")[-1].lower()
+    if extension in {"xlsx", "xls"}:
+        return read_xlsx_file_from_attached_file(file_url=file_url) or []
+    if extension == "csv":
+        file_doc = frappe.get_doc("File", {"file_url": file_url})
+        content = file_doc.get_content()
+        return read_csv_content(content) or []
+
+    frappe.throw("Unsupported file type. Upload CSV or XLSX.")
+
+
+def _parse_import_rows(rows, header_map, required_fields, doctype, context=None):
+    if not rows:
+        return []
+
+    header_row = rows[0] or []
+    headers = [_normalize_header(h) for h in header_row]
+    index_to_field = _map_header_fields(headers, header_map)
+
+    parsed_rows = []
+    for idx, row in enumerate(rows[1:], start=2):
+        if not row or not any([cstr(v).strip() for v in row]):
+            continue
+
+        values = {field: _coerce_value(field, row[i]) for i, field in index_to_field.items()}
+        errors = _validate_import_row(values, required_fields, doctype, context=context)
+
+        if doctype == "KPA Master":
+            kpa_name = values.get("kpa_name")
+            exists = bool(kpa_name and frappe.db.exists("KPA Master", kpa_name))
+            name = kpa_name if exists else None
+        elif doctype == "Goal":
+            goal_name = values.get("goal_name")
+            exists = bool(goal_name and frappe.db.exists("Goal", goal_name))
+            name = goal_name if exists else None
+        elif doctype == "KPI Master":
+            kpi_name = values.get("kpi_name")
+            exists = bool(kpi_name and frappe.db.exists("KPI Master", kpi_name))
+            name = kpi_name if exists else None
+        else:
+            kra_name = values.get("kra_name")
+            exists = bool(kra_name and frappe.db.exists("KRA", kra_name))
+            name = kra_name if exists else None
+
+        parsed_rows.append(
+            {
+                "row": idx,
+                "action": "Update" if exists else "Create",
+                "status": "Invalid" if errors else "Valid",
+                "message": "; ".join(errors) if errors else "",
+                "errors": errors,
+                "exists": exists,
+                "name": name,
+                **values,
+            }
+        )
+
+    return parsed_rows
+
+
+def _normalize_header(value):
+    return frappe.scrub(cstr(value or "")).replace("__", "_")
+
+
+def _map_header_fields(headers, header_map):
+    field_by_index = {}
+    for idx, header in enumerate(headers):
+        for field, aliases in header_map.items():
+            if header in {frappe.scrub(a).replace("__", "_") for a in aliases}:
+                field_by_index[idx] = field
+                break
+    return field_by_index
+
+
+def _coerce_value(field, value):
+    if value is None:
+        return None
+    if isinstance(value, str) and not value.strip():
+        return None
+    if field in {"start_date", "end_date"}:
+        if isinstance(value, (datetime.datetime, datetime.date)):
+            return value
+        return getdate(value)
+    if field == "weightage":
+        return flt(value)
+    return cstr(value).strip()
+
+
+def _validate_import_row(values, required_fields, doctype, context=None):
+    errors = []
+    context = context or {}
+    expected_owner_type = context.get("expected_owner_type")
+    default_department = context.get("default_department")
+    default_owner_type = context.get("default_owner_type")
+    default_employee = context.get("default_employee")
+
+    if default_department and not values.get("department"):
+        values["department"] = default_department
+    if default_department and values.get("department") and values.get("department") != default_department:
+        errors.append("Department does not match selected filter")
+    if default_employee and not values.get("employee"):
+        values["employee"] = default_employee
+    if default_employee and values.get("employee") and values.get("employee") != default_employee:
+        errors.append("Employee does not match selected filter")
+
+    for field in required_fields:
+        if not values.get(field):
+            errors.append(f"{field.replace('_', ' ').title()} is required")
+
+    owner_type = values.get("owner_type")
+    if expected_owner_type:
+        if not owner_type and default_owner_type:
+            values["owner_type"] = default_owner_type
+            owner_type = default_owner_type
+        if not owner_type:
+            errors.append("Owner Type is required")
+        elif owner_type.strip().lower() != expected_owner_type.lower():
+            errors.append(f"Owner Type must be {expected_owner_type}")
+
+    status_label = values.get("status_label")
+    if status_label:
+        cleaned = status_label.strip().title()
+        if cleaned not in ALLOWED_GOAL_STATUS:
+            errors.append("Status must be Draft, Active, Completed, or Archived")
+        values["status_label"] = cleaned
+
+    if doctype == "Goal":
+        kpa_value = values.get("kpa")
+        if kpa_value:
+            kpa_name = frappe.db.get_value("KPA Master", {"kpa_name": kpa_value}, "name")
+            if not kpa_name and not frappe.db.exists("KPA Master", kpa_value):
+                errors.append("KPA not found")
+            else:
+                values["kpa"] = kpa_name or kpa_value
+
+        if expected_owner_type == "Department":
+            if not values.get("department"):
+                errors.append("Department is required")
+            parent_goal = values.get("parent_goal")
+            if not parent_goal:
+                errors.append("Parent Goal is required")
+            elif not frappe.db.exists("Goal", parent_goal):
+                errors.append("Parent Goal not found")
+            else:
+                parent_owner = frappe.db.get_value("Goal", parent_goal, "owner_type")
+                if parent_owner != "Company":
+                    errors.append("Parent Goal must be a Company goal")
+
+        if expected_owner_type == "Employee":
+            if not values.get("employee"):
+                errors.append("Employee is required")
+            parent_goal = values.get("parent_goal")
+            if not parent_goal:
+                errors.append("Parent Goal is required")
+            elif not frappe.db.exists("Goal", parent_goal):
+                errors.append("Parent Goal not found")
+            else:
+                parent_owner = frappe.db.get_value("Goal", parent_goal, "owner_type")
+                if parent_owner != "Department":
+                    errors.append("Parent Goal must be a Department goal")
+                parent_dept = frappe.db.get_value("Goal", parent_goal, "department")
+                if parent_dept and values.get("department") and parent_dept != values.get("department"):
+                    errors.append("Parent Goal Department does not match")
+                if parent_dept and not values.get("department"):
+                    values["department"] = parent_dept
+
+    if doctype == "KRA" and expected_owner_type == "Department":
+        goal = values.get("goal")
+        if not goal:
+            errors.append("Goal is required")
+        elif not frappe.db.exists("Goal", goal):
+            errors.append("Goal not found")
+        else:
+            goal_owner = frappe.db.get_value("Goal", goal, "owner_type")
+            if goal_owner != "Department":
+                errors.append("Goal must be a Department goal")
+            goal_department = frappe.db.get_value("Goal", goal, "department")
+            if goal_department and not values.get("department"):
+                values["department"] = goal_department
+            if goal_department and values.get("department") and goal_department != values.get("department"):
+                errors.append("Goal Department does not match")
+        if not values.get("department"):
+            errors.append("Department is required")
+
+    if doctype == "KRA" and expected_owner_type == "Employee":
+        goal = values.get("goal")
+        if not goal:
+            errors.append("Goal is required")
+        elif not frappe.db.exists("Goal", goal):
+            errors.append("Goal not found")
+        else:
+            goal_owner = frappe.db.get_value("Goal", goal, "owner_type")
+            if goal_owner != "Employee":
+                errors.append("Goal must be an Employee goal")
+            goal_employee = frappe.db.get_value("Goal", goal, "employee")
+            if goal_employee and not values.get("employee"):
+                values["employee"] = goal_employee
+            if goal_employee and values.get("employee") and goal_employee != values.get("employee"):
+                errors.append("Goal Employee does not match")
+            goal_department = frappe.db.get_value("Goal", goal, "department")
+            if goal_department and not values.get("department"):
+                values["department"] = goal_department
+        if not values.get("employee"):
+            errors.append("Employee is required")
+
+    if doctype == "KPI Master":
+        employee = values.get("employee")
+        if employee and not frappe.db.exists("Employee", employee):
+            errors.append("Employee not found")
+        kra = values.get("kra")
+        if kra:
+            if not frappe.db.exists("KRA", kra):
+                errors.append("KRA not found")
+            else:
+                kra_owner = frappe.db.get_value("KRA", kra, "owner_type")
+                if kra_owner == "Employee":
+                    kra_employee = frappe.db.get_value("KRA", kra, "employee")
+                    if kra_employee and not employee:
+                        values["employee"] = kra_employee
+                        employee = kra_employee
+                    if kra_employee and employee and kra_employee != employee:
+                        errors.append("KRA Employee does not match")
+
+    return errors
+
+
+def _build_preview_response(rows, headers, field_map):
+    total = len(rows)
+    valid = len([r for r in rows if r.get("status") == "Valid"])
+    invalid = total - valid
+
+    preview_rows = []
+    for row in rows[:200]:
+        formatted = {}
+        for header in headers:
+            key = field_map.get(header)
+            value = row.get(key)
+            if isinstance(value, (datetime.datetime, datetime.date)):
+                value = value.strftime("%Y-%m-%d")
+            formatted[header] = value
+        preview_rows.append(formatted)
+
+    return {
+        "headers": headers,
+        "rows": preview_rows,
+        "summary": {"total": total, "valid": valid, "invalid": invalid},
+    }
+
+
+def _build_export_response(data, filename, format):
+    if format == "xlsx":
+        build_xlsx_response(data, filename)
+    else:
+        frappe.throw("Only xlsx format is supported.")
+
+
+def _get_kpa_name_map(kpa_names):
+    if not kpa_names:
+        return {}
+    rows = frappe.get_all(
+        "KPA Master",
+        filters={"name": ["in", list(set(kpa_names))]},
+        fields=["name", "kpa_name"],
+    )
+    return {row.name: row.kpa_name for row in rows}
 
 
 def _apply_department_progress(goals, department):

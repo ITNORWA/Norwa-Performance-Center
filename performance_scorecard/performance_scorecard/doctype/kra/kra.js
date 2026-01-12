@@ -5,6 +5,7 @@ frappe.ui.form.on('KRA', {
         set_parent_kra_query(frm);
         set_department_from_user(frm);
         set_employee_from_user(frm);
+        set_department_requirements(frm);
     },
     goal: function (frm) {
         set_owner_type_from_goal(frm);
@@ -14,7 +15,14 @@ frappe.ui.form.on('KRA', {
         toggle_parent_kra(frm);
         set_department_from_user(frm);
         set_employee_from_user(frm);
+        set_department_requirements(frm);
         set_goal_query(frm);
+    },
+    department: function (frm) {
+        if (frm.doc.owner_type === 'Department') {
+            frm.set_value('goal', null);
+            set_goal_query(frm);
+        }
     },
     employee: function (frm) {
         if (frm.doc.owner_type === 'Employee') {
@@ -40,16 +48,14 @@ function set_goal_query(frm) {
         return;
     }
 
-    frappe.db.get_value('Employee', { user_id: frappe.session.user }, 'department').then(r => {
-        const dept = (r && r.message && r.message.department) || frappe.defaults.get_user_default('Department');
-        if (!dept) {
-            frm.set_query('goal', () => ({ filters: { owner_type: 'Department' } }));
-            return;
-        }
-        frm.set_query('goal', () => ({
-            filters: { owner_type: 'Department', department: dept }
-        }));
-    });
+    const dept = frm.doc.department;
+    if (!dept) {
+        frm.set_query('goal', () => ({ filters: { owner_type: 'Department', name: '' } }));
+        return;
+    }
+    frm.set_query('goal', () => ({
+        filters: { owner_type: 'Department', department: dept }
+    }));
 }
 
 function set_owner_type_from_goal(frm) {
@@ -107,6 +113,14 @@ function set_department_from_user(frm) {
             frm.set_value('department', dept);
         }
     });
+}
+
+function set_department_requirements(frm) {
+    if (!frm.fields_dict.department) {
+        return;
+    }
+    const required = frm.doc.owner_type === 'Department';
+    frm.set_df_property('department', 'reqd', required);
 }
 
 function set_employee_from_user(frm) {

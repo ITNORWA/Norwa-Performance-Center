@@ -1,12 +1,8 @@
 frappe.pages['risk-dashboard'].on_page_load = function (wrapper) {
     var page = frappe.ui.make_app_page({
         parent: wrapper,
-        title: 'Risk Strategy Dashboard',
+        title: '',
         single_column: true
-    });
-
-    page.set_primary_action('Refresh', function () {
-        load_dashboard(page);
     });
 
     // Add CSS
@@ -35,15 +31,11 @@ function render_dashboard(page, data) {
     // Fetch user info for sidebar
     const user = frappe.session.user;
     const fullname = frappe.session.user_fullname;
-    const company = data.company || "Norwa Performance Center";
 
     let html = `
         <div class="dashboard-container">
             <!-- Sidebar -->
             <div class="dashboard-sidebar">
-                <div class="sidebar-header">
-                    <h3 style="color:white; margin:0;">${company}</h3>
-                </div>
                 <ul class="sidebar-menu">
                     <li data-section="home"><i class="fa fa-home"></i> Home</li>
                     <li data-section="strategy-plans"><i class="fa fa-list"></i> Strategy Plans</li>
@@ -51,10 +43,13 @@ function render_dashboard(page, data) {
                     <li class="active" data-section="risk-management"><i class="fa fa-exclamation-triangle"></i> Risk Management</li>
                     <li data-section="dashboards"><i class="fa fa-tachometer"></i> Dashboards</li>
                     <li data-section="reports"><i class="fa fa-file-text"></i> Reports</li>
+                    <li data-section="documentation"><i class="fa fa-book"></i> Documentation</li>
                     <li data-section="administration"><i class="fa fa-cog"></i> Administration</li>
                 </ul>
                 <div class="user-profile">
-                    <div class="user-avatar"></div>
+                    <div class="user-avatar">
+                        <i class="fa fa-user"></i>
+                    </div>
                     <div>
                         <div style="font-weight:bold; font-size:12px;">${fullname}</div>
                         <div style="font-size:10px; color:#a0aec0;">User</div>
@@ -66,10 +61,6 @@ function render_dashboard(page, data) {
             <div class="dashboard-main">
                 <div class="dashboard-header">
                     <div class="page-title">Risk Strategy Dashboard</div>
-                    <div>
-                        <i class="fa fa-bell" style="font-size:18px; color:#718096; margin-right:15px;"></i>
-                        <i class="fa fa-user-circle" style="font-size:24px; color:#e53e3e;"></i>
-                    </div>
                 </div>
 
                 <div class="dashboard-content-area">
@@ -174,12 +165,22 @@ function bind_sidebar(page) {
         const section = $(this).data("section");
         if (section === "home") {
             frappe.set_route("performance-dashboard");
+        } else if (section === "strategy-plans") {
+            frappe.set_route("performance-dashboard", { section: "strategy-plans" });
+        } else if (section === "strategy-maps") {
+            frappe.set_route("strategy-maps");
         } else if (section === "risk-management") {
             load_dashboard(page);
+        } else if (section === "dashboards") {
+            frappe.set_route("performance-dashboard", { section: "dashboards" });
+        } else if (section === "reports") {
+            frappe.set_route("performance-dashboard", { section: "reports" });
+        } else if (section === "documentation") {
+            frappe.set_route("performance-dashboard", { section: "documentation" });
         } else if (section === "administration") {
-            frappe.set_route("Form", "Performance Settings");
+            frappe.set_route("performance-dashboard", { section: "administration" });
         } else {
-            frappe.set_route("performance-dashboard"); // Default for now
+            frappe.set_route("performance-dashboard");
         }
     });
 }
