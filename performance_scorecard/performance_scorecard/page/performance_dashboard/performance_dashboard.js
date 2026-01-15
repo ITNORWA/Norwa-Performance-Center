@@ -884,12 +884,10 @@ function render_company_strategy($container, company) {
 			<table class="table table-bordered table-hover">
 				<thead class="thead-light">
 					<tr>
-						<th style="width: 16%">KPA</th>
-						<th style="width: 22%">Goal</th>
-						<th style="width: 10%">Goal Weight</th>
-						<th style="width: 12%">Avg Dept Weight</th>
-						<th style="width: 20%">Top Dept</th>
-						<th style="width: 20%">Bottom Dept</th>
+						<th style="width: 20%">KPA</th>
+						<th style="width: 30%">Goal</th>
+						<th style="width: 25%">Top Dept</th>
+						<th style="width: 25%">Bottom Dept</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -899,16 +897,17 @@ function render_company_strategy($container, company) {
 		(kpa.goals || []).forEach(goal => {
 			const best = (goal.department_contributions || [])[0];
 			const worst = goal.worst_department;
+			const kpa_score = flt(kpa.average_score || 0);
 			html += `
 				<tr>
 					<td class="editable-cell" data-goal-id="${goal.goal_id}" data-field="kpa" data-value="${kpa.kpa || ''}">
 						<span class="cell-value">${kpa.kpa}</span>
+						<div class="status-value">${kpa_score.toFixed(1)}%</div>
+						${render_status_bar(kpa_score)}
 					</td>
 					<td class="editable-cell" data-goal-id="${goal.goal_id}" data-field="goal_name" data-value="${goal.goal || ''}">
 						<span class="cell-value">${goal.goal}</span>
 					</td>
-					<td>${goal.weightage || 0}%</td>
-					<td>${(goal.avg_dept_weightage || 0).toFixed(1)}%</td>
 					<td>
 						${best ? `<span class="dept-link" data-dept="${best.department}">${best.department}</span>
 						<span class="badge badge-green">${(best.average_score || 0).toFixed(1)}%</span>` : "-"}
@@ -933,8 +932,7 @@ function render_company_strategy($container, company) {
 						<tr>
 							<th style="width: 30%">KPA</th>
 							<th>Goal</th>
-							<th style="width: 16%">Contribution</th>
-							<th style="width: 16%">KPA Progress</th>
+							<th style="width: 20%">KPA Progress</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -943,15 +941,19 @@ function render_company_strategy($container, company) {
 								<tr>
 									<td><strong>${kpa.kpa}</strong></td>
 									<td>${g.goal}</td>
-									<td>${(g.weightage || 0).toFixed(1)}%</td>
-									<td><span class="badge badge-green">${(kpa.average_score || 0).toFixed(1)}%</span></td>
+									<td>
+										<div class="status-value">${(kpa.average_score || 0).toFixed(1)}%</div>
+										${render_status_bar(kpa.average_score || 0)}
+									</td>
 								</tr>
 							`).join("") : `
 								<tr>
 									<td><strong>${kpa.kpa}</strong></td>
 									<td class="text-muted">No goals</td>
-									<td>0%</td>
-									<td><span class="badge badge-green">${(kpa.average_score || 0).toFixed(1)}%</span></td>
+									<td>
+										<div class="status-value">${(kpa.average_score || 0).toFixed(1)}%</div>
+										${render_status_bar(kpa.average_score || 0)}
+									</td>
 								</tr>
 							`}
 						`).join("")}
@@ -960,6 +962,7 @@ function render_company_strategy($container, company) {
 			</div>
 		</div>
 	</div>`;
+
 
 	$container.html(html);
 
@@ -2290,6 +2293,29 @@ function render_reports($container) {
 function render_dashboards($container) {
 	$container.html(`
 		<div class="dashboards-shell">
+			<div class="dashboards-hero">
+				<div class="dashboards-hero-left">
+					<div class="dashboards-hero-title">Performance Center</div>
+					<div class="dashboards-hero-subtitle">
+						Live performance snapshot
+						<span class="dashboards-updated" data-updated>Updated --</span>
+					</div>
+				</div>
+				<div class="dashboards-hero-actions">
+					<button class="btn btn-default btn-sm dashboards-action" data-action="refresh">
+						<i class="fa fa-refresh"></i> Refresh
+					</button>
+					<button class="btn btn-default btn-sm dashboards-action" data-action="export">
+						<i class="fa fa-download"></i> Export
+					</button>
+					<button class="btn btn-default btn-sm dashboards-action" data-action="print">
+						<i class="fa fa-print"></i> Print
+					</button>
+					<button class="btn btn-default btn-sm dashboards-live" data-action="live">
+						<span class="live-dot"></span> Live
+					</button>
+				</div>
+			</div>
 			<div class="dashboards-tabs">
 				<button class="dashboards-tab is-active" data-tab="company">Company</button>
 				<button class="dashboards-tab" data-tab="department">Department</button>
@@ -2324,6 +2350,14 @@ function render_dashboards($container) {
 	const $panels = $container.find(".dashboards-panel");
 	const $filters = $container.find(".dashboards-filters");
 	const $refresh = $container.find(".dashboards-refresh");
+	const $updated = $container.find("[data-updated]");
+	const $live = $container.find(".dashboards-live");
+
+	const dashboards_state = {
+		live: false,
+		timer: null,
+		payload: null
+	};
 
 	const controls = {
 		department: frappe.ui.form.make_control({
@@ -2380,6 +2414,8 @@ function render_dashboards($container) {
 			args: { department: department, employee: employee },
 			callback: function (r) {
 				const insights = r.message || {};
+				dashboards_state.payload = insights;
+				$updated.text(`Updated ${frappe.datetime.now_time()}`);
 				const resolved_department = department || (insights.meta || {}).department || "";
 				const resolved_employee = employee || (insights.meta || {}).employee || "";
 				if (!department && resolved_department) {
@@ -2423,6 +2459,38 @@ function render_dashboards($container) {
 		fetch_dashboards();
 	});
 
+	$container.on("click", ".dashboards-action", function () {
+		const action = $(this).data("action");
+		if (action === "refresh") {
+			fetch_dashboards();
+			return;
+		}
+		if (action === "export") {
+			if (!dashboards_state.payload) {
+				frappe.msgprint("No dashboard data to export yet.");
+				return;
+			}
+			download_dashboard_payload(dashboards_state.payload);
+			return;
+		}
+		if (action === "print") {
+			window.print();
+		}
+	});
+
+	$live.on("click", function () {
+		dashboards_state.live = !dashboards_state.live;
+		$(this).toggleClass("is-live", dashboards_state.live);
+		if (dashboards_state.timer) {
+			clearInterval(dashboards_state.timer);
+			dashboards_state.timer = null;
+		}
+		if (dashboards_state.live) {
+			fetch_dashboards();
+			dashboards_state.timer = setInterval(fetch_dashboards, 60000);
+		}
+	});
+
 	controls.department.$input.on("change", function () {
 		const tab = $tabs.filter(".is-active").data("tab");
 		if (tab === "department" || tab === "employee") {
@@ -2436,6 +2504,19 @@ function render_dashboards($container) {
 		if (tab === "employee") {
 			fetch_dashboards();
 		}
+	});
+
+	$container.on("click", ".metric-card[data-route]", function () {
+		const route = $(this).data("route");
+		const department = $(this).data("department");
+		if (!route) {
+			return;
+		}
+		const filters = {};
+		if (department) {
+			filters.department = department;
+		}
+		frappe.set_route("List", route, filters);
 	});
 
 	$filters.hide();
@@ -2457,20 +2538,23 @@ function render_company_dashboard($container, data, strategy) {
 
 	const html = `
 		<div class="dashboards-grid dashboards-grid-4">
-			<div class="dashboard-card metric-card">
+			<div class="dashboard-card metric-card metric-ring-card" data-route="Performance Scorecard" title="Open scorecards">
+				<div class="metric-ring" style="--value:${Math.min(Math.max(avg_score, 0), 100)}"></div>
+				<div class="metric-body">
 				<div class="metric-label">Overall Company Score</div>
 				<div class="metric-value">${format_score(avg_score)}</div>
-				${render_light(avg_score)}
+				<div class="metric-sub">Company health ${render_indicator_chip(avg_score)}</div>
+				</div>
 			</div>
-			<div class="dashboard-card metric-card">
+			<div class="dashboard-card metric-card" data-route="Performance Scorecard" data-department="${dept_top ? dept_top.label : ""}" title="View best department scorecards">
 				<div class="metric-label">Best Department</div>
 				<div class="metric-value">${dept_top ? dept_top.label : "N/A"}</div>
-				<div class="metric-sub">${dept_top ? format_score(dept_top.value) : "--"}</div>
+				<div class="metric-sub">${dept_top ? `${format_score(dept_top.value)}% ${render_indicator_chip(dept_top.value)}` : "--"}</div>
 			</div>
-			<div class="dashboard-card metric-card">
+			<div class="dashboard-card metric-card" data-route="Performance Scorecard" data-department="${dept_bottom ? dept_bottom.label : ""}" title="View bottom department scorecards">
 				<div class="metric-label">Bottom Department</div>
 				<div class="metric-value">${dept_bottom ? dept_bottom.label : "N/A"}</div>
-				<div class="metric-sub">${dept_bottom ? format_score(dept_bottom.value) : "--"}</div>
+				<div class="metric-sub">${dept_bottom ? `${format_score(dept_bottom.value)}% ${render_indicator_chip(dept_bottom.value)}` : "--"}</div>
 			</div>
 			<div class="dashboard-card metric-card">
 				<div class="metric-label">Departments Tracked</div>
@@ -2535,8 +2619,12 @@ function render_department_dashboard($container, data, meta, strategy) {
 		label: kpa.kpa,
 		value: flt(kpa.average_score || 0)
 	}));
-	const goal_items = build_goal_chart_items(goals);
-	const kra_items = build_kra_chart_items(goals);
+	const rollup_goal_items = build_goal_items_from_rollups(rollups);
+	const rollup_kra_items = build_kra_items_from_rollups(rollups);
+	const goal_items = rollup_goal_items.length ? rollup_goal_items : build_goal_chart_items(goals);
+	const kra_items = rollup_kra_items.length ? rollup_kra_items : build_kra_chart_items(goals);
+	const goal_chart_items = rollup_goal_items.length ? build_goal_items_from_rollups(rollups, 6) : build_goal_chart_items(goals);
+	const kra_chart_items = rollup_kra_items.length ? build_kra_items_from_rollups(rollups, 6) : build_kra_chart_items(goals);
 	const top_goals = slice_ranked(goal_items, 5, "desc");
 	const risk_goals = slice_ranked(goal_items, 5, "asc");
 	const top_kras = slice_ranked(kra_items, 5, "desc");
@@ -2631,8 +2719,8 @@ function render_department_dashboard($container, data, meta, strategy) {
 
 	panel.html(html);
 	render_chart("#dept-kpa-chart", kpa_items.length ? kpa_items : data.kpa_scores, "pie");
-	render_chart("#dept-goal-chart", goal_items, "bar");
-	render_chart("#dept-kra-chart", kra_items, "bar");
+	render_chart("#dept-goal-chart", goal_chart_items, "bar");
+	render_chart("#dept-kra-chart", kra_chart_items, "bar");
 	render_chart("#dept-trend-chart", data.trend, "line");
 }
 
@@ -2672,11 +2760,6 @@ function render_employee_dashboard($container, data, meta, strategy) {
 				<div class="metric-label">Goal Progress</div>
 				<div class="metric-value">${format_score(goal_progress.average)}%</div>
 				<div class="progress-line"><div class="progress-line-fill" style="width:${Math.min(goal_progress.average || 0, 100)}%"></div></div>
-			</div>
-			<div class="dashboard-card metric-card">
-				<div class="metric-label">Team Average</div>
-				<div class="metric-value">${format_score(data.department_average)}</div>
-				${render_light(data.department_average)}
 			</div>
 			<div class="dashboard-card metric-card">
 				<div class="metric-label">At-Risk KPIs</div>
@@ -2760,6 +2843,50 @@ function build_kra_chart_items(goals) {
 	return items.slice(0, 6);
 }
 
+function build_goal_items_from_rollups(rollups, limit) {
+	const items = [];
+	(rollups.kpas || []).forEach(kpa => {
+		(kpa.goals || []).forEach(goal => {
+			items.push({
+				label: goal.goal || goal.goal_name || goal.goal_id || "Goal",
+				value: flt(goal.average_score || 0)
+			});
+		});
+	});
+
+	items.sort((a, b) => b.value - a.value);
+	if (limit) {
+		return items.slice(0, limit);
+	}
+	return items;
+}
+
+function build_kra_items_from_rollups(rollups, limit) {
+	const kra_map = new Map();
+	(rollups.kpas || []).forEach(kpa => {
+		(kpa.goals || []).forEach(goal => {
+			(goal.kras || []).forEach(kra => {
+				const label = kra.kra || kra.kra_name || "KRA";
+				if (!kra_map.has(label)) {
+					kra_map.set(label, []);
+				}
+				kra_map.get(label).push(flt(kra.average_score || 0));
+			});
+		});
+	});
+
+	const items = Array.from(kra_map.entries()).map(([label, values]) => {
+		const avg = values.length ? values.reduce((sum, v) => sum + v, 0) / values.length : 0;
+		return { label, value: avg };
+	});
+
+	items.sort((a, b) => b.value - a.value);
+	if (limit) {
+		return items.slice(0, limit);
+	}
+	return items;
+}
+
 function build_company_goal_items(company_rollups) {
 	const kpas = (company_rollups || {}).kpas || [];
 	const goals = [];
@@ -2774,6 +2901,23 @@ function build_company_goal_items(company_rollups) {
 
 	goals.sort((a, b) => b.value - a.value);
 	return goals.slice(0, 8);
+}
+
+function build_company_goal_list(company_rollups) {
+	const kpas = (company_rollups || {}).kpas || [];
+	const goals = [];
+	kpas.forEach(kpa => {
+		(kpa.goals || []).forEach(goal => {
+			goals.push({
+				goal: goal.goal || goal.goal_name || "Goal",
+				kpa: kpa.kpa,
+				value: flt(goal.average_score || 0)
+			});
+		});
+	});
+
+	goals.sort((a, b) => b.value - a.value);
+	return goals;
 }
 
 function slice_ranked(items, count, order) {
@@ -3019,4 +3163,24 @@ function score_class(value) {
 function render_light(value) {
 	const cls = score_class(value);
 	return `<span class="status-light ${cls}"></span>`;
+}
+
+function render_indicator_chip(value) {
+	if (value >= 80) {
+		return '<span class="indicator-chip is-up"><i class="fa fa-arrow-up"></i> Strong</span>';
+	}
+	if (value >= 60) {
+		return '<span class="indicator-chip is-flat"><i class="fa fa-minus"></i> Stable</span>';
+	}
+	return '<span class="indicator-chip is-down"><i class="fa fa-arrow-down"></i> Needs attention</span>';
+}
+
+function download_dashboard_payload(payload) {
+	const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+	const url = URL.createObjectURL(blob);
+	const link = document.createElement("a");
+	link.href = url;
+	link.download = `performance-dashboard-${frappe.datetime.now_date()}.json`;
+	link.click();
+	URL.revokeObjectURL(url);
 }

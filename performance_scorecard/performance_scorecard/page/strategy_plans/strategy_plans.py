@@ -129,10 +129,11 @@ def get_strategy_data(level, period=None, department=None, employee=None):
             "status": goal.status,
             "start_date": goal.start_date,
             "end_date": goal.end_date,
-            "progress": goal.progress or 0,
+            "progress": 0,
             "kras": []
         }
         
+        kra_progresses = []
         for kra in kras:
             # Fetch KPIs for this KRA (assuming link exists or via Scorecard)
             # For now, let's fetch KPIs that link to this KRA (we need to ensure KPI Master has parent_kra or similar, or use a mapping)
@@ -143,7 +144,8 @@ def get_strategy_data(level, period=None, department=None, employee=None):
             
             kpis = _get_kpis_for_kra(kra.name, kpi_scorecard_filters, kpi_employee_filter)
             kpi_scores = [flt(k.get("score")) for k in kpis if k.get("score") is not None]
-            kra_progress = sum(kpi_scores) / len(kpi_scores) if kpi_scores else (kra.progress or 0)
+            kra_progress = sum(kpi_scores) / len(kpi_scores) if kpi_scores else 0
+            kra_progresses.append(kra_progress)
 
             kra_data = {
                 "name": kra.name,
@@ -155,12 +157,12 @@ def get_strategy_data(level, period=None, department=None, employee=None):
                 "kpis": kpis
             }
             goal_data["kras"].append(kra_data)
-            
+
+        if kra_progresses:
+            goal_data["progress"] = sum(kra_progresses) / len(kra_progresses)
+
         data.append(goal_data)
 
-    if level == "Department":
-        _apply_department_progress(data, filters.get("department"))
-        
     response = {
         "goals": data,
         "meta": {
@@ -1027,27 +1029,11 @@ def _get_kpis_for_kra(kra_name, scorecard_filters=None, employee_filter=None):
 
 
 def _build_rollups(level, employee, department, session_user):
-    filters = {}
     if level == "Department" and department:
-        dept_employees = frappe.get_all("Employee", filters={"department": department}, pluck="name")
-        scorecard_names = set()
-        if dept_employees:
-            scorecard_names.update(
-                frappe.get_all(
-                    "Performance Scorecard",
-                    filters={"employee": ["in", dept_employees]},
-                    pluck="name",
-                )
-            )
-        scorecard_names.update(
-            frappe.get_all(
-                "Performance Scorecard",
-                filters={"department": department},
-                pluck="name",
-            )
-        )
-        filters["name"] = ["in", list(scorecard_names)] if scorecard_names else "__none__"
-    elif level == "Individual":
+        return _build_department_rollups(department)
+
+    filters = {}
+    if level == "Individual":
         if employee:
             if isinstance(employee, (list, tuple)):
                 filters["employee"] = ["in", list(employee)]
@@ -1078,16 +1064,14 @@ def _build_rollups(level, employee, department, session_user):
 
     goal_names = list({i.goal for i in items if i.goal})
     goal_parent = {}
-    goal_weights = {}
     goal_kpa = {}
     if goal_names:
         for row in frappe.get_all(
             "Goal",
             filters={"name": ["in", goal_names]},
-            fields=["name", "parent_goal", "weightage", "kpa"],
+            fields=["name", "parent_goal", "kpa"],
         ):
             goal_parent[row.name] = row.parent_goal
-            goal_weights[row.name] = row.weightage or 0
             goal_kpa[row.name] = row.kpa
 
         if level == "Department":
@@ -1096,19 +1080,10 @@ def _build_rollups(level, employee, department, session_user):
                 for row in frappe.get_all(
                     "Goal",
                     filters={"name": ["in", list(set(dept_goal_names))]},
-                    fields=["name", "weightage", "kpa"],
+                    fields=["name", "kpa"],
                 ):
-                    goal_weights[row.name] = row.weightage or 0
                     goal_kpa[row.name] = row.kpa
 
-    kpa_weights = {
-        row.name: (row.weightage or 0)
-        for row in frappe.get_all("KPA Master", fields=["name", "weightage"])
-    }
-    kra_weights = {
-        row.name: (row.weightage or 0)
-        for row in frappe.get_all("KRA", fields=["name", "weightage"])
-    }
     kra_parent = {}
     if level == "Department":
         kra_names = list({i.kra for i in items if i.kra})
@@ -1134,90 +1109,219 @@ def _build_rollups(level, employee, department, session_user):
         rollup.setdefault(kpa, {"goals": {}})
         goal_bucket = rollup[kpa]["goals"].setdefault(
             goal_name,
-            {"kras": {}, "weightage": goal_weights.get(goal_name) or 0},
+            {"kras": {}},
         )
         kra_name = kra_parent.get(item.kra) if level == "Department" else item.kra
         if not kra_name:
             continue
         kra_bucket = goal_bucket["kras"].setdefault(
             kra_name,
-            {"items": [], "weightage": kra_weights.get(kra_name) or 0},
+            {"items": []},
         )
 
-        weight = item.weightage or 0
         kra_bucket["items"].append(
             {
                 "score": item.score or 0,
-                "weightage": weight if weight > 0 else 1,
             }
         )
 
     kpa_rows = []
     overall_sum = 0
-    overall_weight = 0
+    overall_count = 0
     for kpa, data in rollup.items():
         goal_rows = []
         kpa_sum = 0
-        kpa_weight = 0
+        kpa_count = 0
         for goal_name, goal_data in data["goals"].items():
             kra_rows = []
             goal_sum = 0
-            goal_weight = 0
+            goal_count = 0
             for kra_name, kra_data in goal_data["kras"].items():
-                item_sum = sum(i["score"] * i["weightage"] for i in kra_data["items"])
-                item_weight = sum(i["weightage"] for i in kra_data["items"]) or 1
-                kra_avg = item_sum / item_weight
-                kra_weight = kra_data.get("weightage") or 1
+                item_scores = [i["score"] for i in kra_data["items"]]
+                kra_avg = sum(item_scores) / len(item_scores) if item_scores else 0
 
                 kra_rows.append(
                     {
                         "kra": kra_name,
                         "average_score": kra_avg,
-                        "weightage": kra_weight,
+                        "weightage": 0,
                     }
                 )
-                goal_sum += kra_avg * kra_weight
-                goal_weight += kra_weight
+                goal_sum += kra_avg
+                goal_count += 1
 
-            goal_avg = goal_sum / (goal_weight or 1)
-            gw = goal_data.get("weightage") or 1
+            goal_avg = goal_sum / goal_count if goal_count else 0
             goal_rows.append(
                 {
                     "goal": goal_name,
                     "average_score": goal_avg,
-                    "weightage": gw,
+                    "weightage": 0,
                     "kras": kra_rows,
                 }
             )
-            kpa_sum += goal_avg * gw
-            kpa_weight += gw
+            kpa_sum += goal_avg
+            kpa_count += 1
 
-        kpa_avg = kpa_sum / (kpa_weight or 1)
-        kpa_w = kpa_weights.get(kpa) or 1
-        overall_sum += kpa_avg * kpa_w
-        overall_weight += kpa_w
+        kpa_avg = kpa_sum / kpa_count if kpa_count else 0
+        overall_sum += kpa_avg
+        overall_count += 1
 
         kpa_rows.append(
             {
                 "kpa": kpa,
                 "average_score": kpa_avg,
-                "weightage": kpa_weights.get(kpa) or 0,
+                "weightage": 0,
                 "goals": goal_rows,
             }
         )
 
-    overall_score = overall_sum / (overall_weight or 1)
+    overall_score = overall_sum / overall_count if overall_count else 0
+    return {"kpas": kpa_rows, "overall_score": overall_score}
+
+
+def _build_department_rollups(department):
+    dept_goals = frappe.get_all(
+        "Goal",
+        filters={"owner_type": "Department", "department": department, "status": ["!=", "Archived"]},
+        fields=["name", "kpa"],
+    )
+    if not dept_goals:
+        return {"kpas": [], "overall_score": 0}
+
+    dept_employees = frappe.get_all("Employee", filters={"department": department}, pluck="name")
+
+    dept_goal_names = [g.name for g in dept_goals]
+    dept_kras = frappe.get_all(
+        "KRA",
+        filters={"goal": ["in", dept_goal_names]},
+        fields=["name", "goal"],
+    )
+    dept_kra_names = [k.name for k in dept_kras]
+
+    child_kra_map = {}
+    if dept_kra_names:
+        child_filters = {"parent_kra": ["in", dept_kra_names], "owner_type": "Employee"}
+        if dept_employees:
+            child_filters["employee"] = ["in", dept_employees]
+        child_kras = frappe.get_all("KRA", filters=child_filters, fields=["name", "parent_kra"])
+        for row in child_kras:
+            child_kra_map.setdefault(row.parent_kra, []).append(row.name)
+
+    scorecard_names = set()
+    if dept_employees:
+        scorecard_names.update(
+            frappe.get_all(
+                "Performance Scorecard",
+                filters={"employee": ["in", dept_employees]},
+                pluck="name",
+            )
+        )
+    scorecard_names.update(
+        frappe.get_all(
+            "Performance Scorecard",
+            filters={"department": department},
+            pluck="name",
+        )
+    )
+
+    child_kra_scores = {}
+    if scorecard_names and dept_kra_names:
+        all_child_kras = [k for kids in child_kra_map.values() for k in kids]
+        if all_child_kras:
+            items = frappe.get_all(
+                "Scorecard Item",
+                filters={"parent": ["in", list(scorecard_names)], "kra": ["in", all_child_kras]},
+                fields=["kra", "score", "target", "actual"],
+            )
+            for item in items:
+                score = item.score
+                if score is None and item.target not in (None, 0):
+                    score = (item.actual or 0) / item.target * 100
+                bucket = child_kra_scores.setdefault(item.kra, {"sum": 0, "count": 0})
+                bucket["sum"] += score or 0
+                bucket["count"] += 1
+
+    dept_kra_scores = {}
+    for kra in dept_kras:
+        child_names = child_kra_map.get(kra.name) or []
+        if not child_names:
+            dept_kra_scores[kra.name] = 0
+            continue
+        child_avgs = []
+        for child in child_names:
+            bucket = child_kra_scores.get(child)
+            if bucket and bucket.get("count"):
+                child_avgs.append(bucket["sum"] / bucket["count"])
+            else:
+                child_avgs.append(0)
+        dept_kra_scores[kra.name] = sum(child_avgs) / len(child_avgs) if child_avgs else 0
+
+    goal_kra_map = {}
+    for kra in dept_kras:
+        goal_kra_map.setdefault(kra.goal, []).append(kra.name)
+
+    goal_scores = {}
+    for goal in dept_goals:
+        kra_names = goal_kra_map.get(goal.name) or []
+        if not kra_names:
+            goal_scores[goal.name] = 0
+            continue
+        kra_avgs = [dept_kra_scores.get(name, 0) for name in kra_names]
+        goal_scores[goal.name] = sum(kra_avgs) / len(kra_avgs) if kra_avgs else 0
+
+    kpa_goal_map = {}
+    for goal in dept_goals:
+        kpa_goal_map.setdefault(goal.kpa or "Unassigned", []).append(goal.name)
+
+    kpa_rows = []
+    overall_sum = 0
+    overall_count = 0
+    for kpa, goals in kpa_goal_map.items():
+        if not goals:
+            continue
+        goal_rows = []
+        for goal_name in goals:
+            kra_rows = []
+            for kra_name in goal_kra_map.get(goal_name, []):
+                kra_rows.append(
+                    {
+                        "kra": kra_name,
+                        "average_score": dept_kra_scores.get(kra_name, 0),
+                        "weightage": 0,
+                    }
+                )
+            goal_rows.append(
+                {
+                    "goal": goal_name,
+                    "average_score": goal_scores.get(goal_name, 0),
+                    "weightage": 0,
+                    "kras": kra_rows,
+                }
+            )
+
+        kpa_avg = sum(goal_scores.get(name, 0) for name in goals) / len(goals)
+        overall_sum += kpa_avg
+        overall_count += 1
+        kpa_rows.append(
+            {
+                "kpa": kpa,
+                "average_score": kpa_avg,
+                "weightage": 0,
+                "goals": goal_rows,
+            }
+        )
+
+    overall_score = overall_sum / overall_count if overall_count else 0
     return {"kpas": kpa_rows, "overall_score": overall_score}
 
 
 def _build_company_rollups():
-    # Company goals are the parents. Department goals are children (parent_goal).
+    # Company goals are parents; department goals are children (parent_goal).
     company_goals = frappe.get_all(
         "Goal",
-        filters={"owner_type": "Company", "status": "Active"},
-        fields=["name", "goal_name", "kpa", "weightage"],
+        filters={"owner_type": "Company", "status": ["!=", "Archived"]},
+        fields=["name", "goal_name", "kpa"],
     )
-
     if not company_goals:
         return {"kpas": [], "overall_score": 0}
 
@@ -1225,87 +1329,121 @@ def _build_company_rollups():
     dept_goals = frappe.get_all(
         "Goal",
         filters={"owner_type": "Department", "parent_goal": ["in", company_goal_names]},
-        fields=["name", "goal_name", "parent_goal", "department", "weightage"],
+        fields=["name", "goal_name", "parent_goal", "department"],
     )
     dept_goal_names = [g.name for g in dept_goals]
-    employee_goals = []
-    if dept_goal_names:
-        employee_goals = frappe.get_all(
-            "Goal",
-            filters={"owner_type": "Employee", "parent_goal": ["in", dept_goal_names]},
-            fields=["name", "parent_goal", "employee"],
-        )
-    employee_goal_names = [g.name for g in employee_goals]
-    employee_goal_to_dept_goal = {g.name: g.parent_goal for g in employee_goals}
+    dept_goal_department = {g.name: g.department for g in dept_goals}
 
-    dept_goal_scores = {}
-    if dept_goal_names or employee_goal_names:
+    dept_kras = frappe.get_all(
+        "KRA",
+        filters={"goal": ["in", dept_goal_names]},
+        fields=["name", "goal"],
+    )
+    dept_kra_names = [k.name for k in dept_kras]
+
+    child_kras = []
+    if dept_kra_names:
+        child_kras = frappe.get_all(
+            "KRA",
+            filters={"parent_kra": ["in", dept_kra_names], "owner_type": "Employee"},
+            fields=["name", "parent_kra", "department"],
+        )
+    child_kra_names = [k.name for k in child_kras]
+    child_kra_department = {k.name: k.department for k in child_kras}
+
+    departments = list({g.department for g in dept_goals if g.department})
+    employee_departments = {}
+    if departments:
+        employee_rows = frappe.get_all(
+            "Employee",
+            filters={"department": ["in", departments]},
+            fields=["name", "department"],
+        )
+        for row in employee_rows:
+            employee_departments[row.name] = row.department
+
+    scorecard_dept = {}
+    scorecard_rows = []
+    if departments:
+        scorecard_rows = frappe.get_all(
+            "Performance Scorecard",
+            filters={"department": ["in", departments]},
+            fields=["name", "department", "employee"],
+        )
+    if employee_departments:
+        scorecard_rows += frappe.get_all(
+            "Performance Scorecard",
+            filters={"employee": ["in", list(employee_departments.keys())]},
+            fields=["name", "department", "employee"],
+        )
+    for row in scorecard_rows:
+        dept = row.department or employee_departments.get(row.employee)
+        if dept:
+            scorecard_dept[row.name] = dept
+
+    child_kra_scores = {}
+    if scorecard_dept and child_kra_names:
         items = frappe.get_all(
             "Scorecard Item",
-            filters={"goal": ["in", list(set(dept_goal_names + employee_goal_names))]},
-            fields=["goal", "parent", "score", "weightage"],
+            filters={"parent": ["in", list(scorecard_dept.keys())], "kra": ["in", child_kra_names]},
+            fields=["kra", "score", "target", "actual", "parent"],
         )
-
-        scorecard_dept = {}
-        scorecard_employee = {}
-        if items:
-            parent_names = list({i.parent for i in items if i.parent})
-            for row in frappe.get_all(
-                "Performance Scorecard",
-                fields=["name", "department", "employee"],
-                filters={"name": ["in", parent_names]},
-            ):
-                scorecard_dept[row.name] = row.department
-                scorecard_employee[row.name] = row.employee
-
-        employee_departments = {}
-        employee_names = list({e for e in scorecard_employee.values() if e})
-        if employee_names:
-            for row in frappe.get_all(
-                "Employee",
-                filters={"name": ["in", employee_names]},
-                fields=["name", "department"],
-            ):
-                employee_departments[row.name] = row.department
-
         for item in items:
             dept = scorecard_dept.get(item.parent)
             if not dept:
-                emp = scorecard_employee.get(item.parent)
-                dept = employee_departments.get(emp)
-            if not dept:
                 continue
-
-            dept_goal = employee_goal_to_dept_goal.get(item.goal) or item.goal
-            if dept_goal not in dept_goal_names:
+            if child_kra_department.get(item.kra) and child_kra_department.get(item.kra) != dept:
                 continue
+            score = item.score
+            if score is None and item.target not in (None, 0):
+                score = (item.actual or 0) / item.target * 100
+            bucket = child_kra_scores.setdefault(item.kra, {"sum": 0, "count": 0})
+            bucket["sum"] += score or 0
+            bucket["count"] += 1
 
-            key = (dept_goal, dept)
-            bucket = dept_goal_scores.setdefault(key, {"sum": 0, "weight": 0})
-            weight = item.weightage or 1
-            bucket["sum"] += (item.score or 0) * weight
-            bucket["weight"] += weight
+    child_kra_avg = {
+        name: (bucket["sum"] / bucket["count"]) if bucket.get("count") else 0
+        for name, bucket in child_kra_scores.items()
+    }
+
+    dept_kra_scores = {}
+    child_by_parent = {}
+    for child in child_kras:
+        child_by_parent.setdefault(child.parent_kra, []).append(child.name)
+    for kra in dept_kras:
+        child_names = child_by_parent.get(kra.name) or []
+        if not child_names:
+            dept_kra_scores[kra.name] = 0
+            continue
+        child_avgs = [child_kra_avg.get(name, 0) for name in child_names]
+        dept_kra_scores[kra.name] = sum(child_avgs) / len(child_avgs) if child_avgs else 0
+
+    goal_kra_map = {}
+    for kra in dept_kras:
+        goal_kra_map.setdefault(kra.goal, []).append(kra.name)
+
+    dept_goal_scores = {}
+    for goal in dept_goals:
+        kra_names = goal_kra_map.get(goal.name) or []
+        if not kra_names:
+            dept_goal_scores[goal.name] = 0
+            continue
+        kra_avgs = [dept_kra_scores.get(name, 0) for name in kra_names]
+        dept_goal_scores[goal.name] = sum(kra_avgs) / len(kra_avgs) if kra_avgs else 0
 
     goal_rows = {}
     for goal in company_goals:
         children = [g for g in dept_goals if g.parent_goal == goal.name]
-        avg_weightage = 0
-        if children:
-            avg_weightage = sum((g.weightage or 0) for g in children) / len(children)
-
         dept_contrib = []
         for child in children:
-            for (dept_goal, dept), bucket in dept_goal_scores.items():
-                if dept_goal != child.name:
-                    continue
-                avg_score = (bucket.get("sum") or 0) / (bucket.get("weight") or 1)
-                dept_contrib.append(
-                    {
-                        "department": dept,
-                        "average_score": avg_score,
-                        "weightage": child.weightage or 0,
-                    }
-                )
+            dept = dept_goal_department.get(child.name)
+            dept_contrib.append(
+                {
+                    "department": dept,
+                    "average_score": dept_goal_scores.get(child.name, 0),
+                    "weightage": 0,
+                }
+            )
 
         dept_contrib.sort(key=lambda d: d.get("average_score") or 0, reverse=True)
         worst_dept = dept_contrib[-1] if dept_contrib else None
@@ -1318,9 +1456,9 @@ def _build_company_rollups():
             "goal_id": goal.name,
             "goal": goal.goal_name,
             "goal_name": goal.goal_name,
-            "weightage": goal.weightage or 0,
+            "weightage": 0,
             "kpa": goal.kpa,
-            "avg_dept_weightage": avg_weightage,
+            "avg_dept_weightage": 0,
             "department_contributions": dept_contrib,
             "worst_department": worst_dept,
             "average_score": goal_avg,
@@ -1333,33 +1471,24 @@ def _build_company_rollups():
 
     kpa_rows = []
     overall_sum = 0
-    overall_weight = 0
-    kpa_weights = {
-        row.name: (row.weightage or 0)
-        for row in frappe.get_all("KPA Master", fields=["name", "weightage"])
-    }
-
+    overall_count = 0
     for kpa, goals in kpa_groups.items():
         if not goals:
             continue
-        goal_sum = sum((g.get("average_score") or 0) * ((g.get("weightage") or 1)) for g in goals)
-        goal_weight = sum((g.get("weightage") or 1) for g in goals) or 1
-        kpa_avg = goal_sum / goal_weight
-
-        kpa_weight = kpa_weights.get(kpa) or 1
-        overall_sum += kpa_avg * kpa_weight
-        overall_weight += kpa_weight
+        kpa_avg = sum(g.get("average_score") or 0 for g in goals) / len(goals)
+        overall_sum += kpa_avg
+        overall_count += 1
 
         kpa_rows.append(
             {
                 "kpa": kpa,
                 "average_score": kpa_avg,
-                "weightage": kpa_weights.get(kpa) or 0,
+                "weightage": 0,
                 "goals": goals,
             }
         )
 
-    overall_score = overall_sum / (overall_weight or 1)
+    overall_score = overall_sum / overall_count if overall_count else 0
     return {"kpas": kpa_rows, "overall_score": overall_score}
 
 

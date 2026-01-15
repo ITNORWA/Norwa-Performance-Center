@@ -413,18 +413,28 @@ def _avg_score_for_goals(goal_names, department=None, employee=None):
 	if employee:
 		conditions.append("ps.employee = %s")
 		values.append(employee)
+	score_expr = """
+		CASE
+			WHEN si.score IS NOT NULL THEN si.score
+			WHEN si.target IS NOT NULL AND si.target != 0 THEN (IFNULL(si.actual, 0) / si.target) * 100
+			ELSE 0
+		END
+	"""
 	query = f"""
-		SELECT AVG(
-			CASE
-				WHEN si.score IS NOT NULL THEN si.score
-				WHEN si.target IS NOT NULL AND si.target != 0 THEN (IFNULL(si.actual, 0) / si.target) * 100
-				ELSE 0
-			END
-		) as avg_score
-		FROM `tabScorecard Item` si
-		INNER JOIN `tabPerformance Scorecard` ps ON ps.name = si.parent
-		LEFT JOIN `tabEmployee` e ON e.name = ps.employee
-		WHERE {' AND '.join(conditions)}
+		SELECT AVG(goal_scores.goal_avg) as avg_score
+		FROM (
+			SELECT kra_scores.goal, AVG(kra_scores.kra_avg) as goal_avg
+			FROM (
+				SELECT si.kra, si.goal,
+					AVG({score_expr}) as kra_avg
+				FROM `tabScorecard Item` si
+				INNER JOIN `tabPerformance Scorecard` ps ON ps.name = si.parent
+				LEFT JOIN `tabEmployee` e ON e.name = ps.employee
+				WHERE {' AND '.join(conditions)}
+				GROUP BY si.kra, si.goal
+			) kra_scores
+			GROUP BY kra_scores.goal
+		) goal_scores
 	"""
 	rows = frappe.db.sql(query, values, as_dict=True)
 	if not rows:
@@ -564,21 +574,33 @@ def _get_kra_progress_by_kpa(owner_type, department=None, employee=None):
 		conditions.append("ps.employee = %s")
 		values.append(employee)
 
+	score_expr = """
+		CASE
+			WHEN si.score IS NOT NULL THEN si.score
+			WHEN si.target IS NOT NULL AND si.target != 0 THEN (IFNULL(si.actual, 0) / si.target) * 100
+			ELSE 0
+		END
+	"""
 	query = f"""
-		SELECT si.kpa as kpa,
-			AVG(
-				CASE
-					WHEN si.score IS NOT NULL THEN si.score
-					WHEN si.target IS NOT NULL AND si.target != 0 THEN (IFNULL(si.actual, 0) / si.target) * 100
-					ELSE 0
-				END
-			) as value
-		FROM `tabScorecard Item` si
-		INNER JOIN `tabPerformance Scorecard` ps ON ps.name = si.parent
-		LEFT JOIN `tabEmployee` e ON e.name = ps.employee
-		WHERE {' AND '.join(conditions)}
-		GROUP BY si.kpa
-		ORDER BY si.kpa ASC
+		SELECT goal_scores.kpa as kpa,
+			AVG(goal_scores.goal_avg) as value
+		FROM (
+			SELECT kra_scores.kpa, kra_scores.goal,
+				AVG(kra_scores.kra_avg) as goal_avg
+			FROM (
+				SELECT si.kpa, si.goal, si.kra,
+					AVG({score_expr}) as kra_avg
+				FROM `tabScorecard Item` si
+				INNER JOIN `tabPerformance Scorecard` ps ON ps.name = si.parent
+				LEFT JOIN `tabEmployee` e ON e.name = ps.employee
+				WHERE {' AND '.join(conditions)}
+				GROUP BY si.kpa, si.goal, si.kra
+			) kra_scores
+			GROUP BY kra_scores.kpa, kra_scores.goal
+		) goal_scores
+		WHERE goal_scores.kpa IS NOT NULL AND goal_scores.kpa != ''
+		GROUP BY goal_scores.kpa
+		ORDER BY goal_scores.kpa ASC
 	"""
 	rows = frappe.db.sql(query, values, as_dict=True)
 	values_by_kpa = {
