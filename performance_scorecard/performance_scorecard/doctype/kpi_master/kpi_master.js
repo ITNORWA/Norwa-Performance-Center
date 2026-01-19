@@ -20,7 +20,7 @@ function set_employee_from_kra(frm) {
         return;
     }
 
-    frappe.db.get_value('KRA', frm.doc.kra, ['employee', 'owner_type']).then(r => {
+    frappe.db.get_value('KRA Master', frm.doc.kra, ['employee', 'owner_type']).then(r => {
         const owner_type = r && r.message && r.message.owner_type;
         if (owner_type !== 'Employee') {
             frm.set_value('employee', null);

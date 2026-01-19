@@ -27,18 +27,18 @@ def execute(filters=None):
 			k.goal as goal,
 			g.department as department,
 			g.employee as employee
-		FROM `tabKRA` k
-		INNER JOIN `tabGoal` g ON g.name = k.goal
+		FROM `tabKRA Master` k
+		INNER JOIN `tabGoal Master` g ON g.name = k.goal
 		{where_clause}
 		ORDER BY FIELD(k.priority, 'High', 'Medium', 'Low')
 	"""
 
 	data = frappe.db.sql(query, values, as_dict=True)
 	columns = [
-		{"fieldname": "kra", "label": "KRA", "fieldtype": "Link", "options": "KRA", "width": 260},
+		{"fieldname": "kra", "label": "KRA", "fieldtype": "Link", "options": "KRA Master", "width": 260},
 		{"fieldname": "priority", "label": "Priority", "fieldtype": "Data", "width": 120},
 		{"fieldname": "owner_type", "label": "Owner Type", "fieldtype": "Data", "width": 120},
-		{"fieldname": "goal", "label": "Goal", "fieldtype": "Link", "options": "Goal", "width": 200},
+		{"fieldname": "goal", "label": "Goal", "fieldtype": "Link", "options": "Goal Master", "width": 200},
 		{"fieldname": "department", "label": "Department", "fieldtype": "Link", "options": "Department", "width": 160},
 		{"fieldname": "employee", "label": "Employee", "fieldtype": "Link", "options": "Employee", "width": 160},
 	]

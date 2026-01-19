@@ -350,7 +350,7 @@ function make_goal_dialog(level, callback) {
                         label: 'Parent Goal',
                         fieldname: 'parent_goal',
                         fieldtype: 'Link',
-                        options: 'Goal',
+                        options: 'Goal Master',
                         reqd: level !== 'Company',
                         hidden: level === 'Company',
                         get_query: () => ({
@@ -371,7 +371,7 @@ function make_goal_dialog(level, callback) {
                         method: 'frappe.client.insert',
                         args: {
                             doc: {
-                                doctype: 'Goal',
+                                doctype: 'Goal Master',
                                 ...values
                             }
                         },
@@ -392,7 +392,7 @@ function make_goal_dialog(level, callback) {
                     if (!parent_goal) {
                         return;
                     }
-                    frappe.db.get_value('Goal', parent_goal, 'kpa').then(r => {
+                    frappe.db.get_value('Goal Master', parent_goal, 'kpa').then(r => {
                         if (r && r.message && r.message.kpa) {
                             d.set_value('kpa', r.message.kpa);
                         }
@@ -422,7 +422,7 @@ function make_kra_dialog(level, callback) {
                 title: 'Create KRA',
                 fields: [
                     { label: 'KRA Name', fieldname: 'kra_name', fieldtype: 'Data', reqd: 1 },
-                    { label: 'Link to Goal', fieldname: 'goal', fieldtype: 'Link', options: 'Goal', reqd: 1, get_query: () => ({ filters: goal_filters }) },
+                    { label: 'Link to Goal', fieldname: 'goal', fieldtype: 'Link', options: 'Goal Master', reqd: 1, get_query: () => ({ filters: goal_filters }) },
                     { label: 'Weightage (%)', fieldname: 'weightage', fieldtype: 'Percent' },
                     { label: 'Priority', fieldname: 'priority', fieldtype: 'Select', options: 'Low\nMedium\nHigh', default: 'Medium' }
                 ],
@@ -432,7 +432,7 @@ function make_kra_dialog(level, callback) {
                         method: 'frappe.client.insert',
                         args: {
                             doc: {
-                                doctype: 'KRA',
+                                doctype: 'KRA Master',
                                 ...values
                             }
                         },
@@ -463,7 +463,7 @@ function make_kpi_dialog(level, callback) {
             return;
         }
 
-        frappe.db.get_list('Goal', {
+        frappe.db.get_list('Goal Master', {
             fields: ['name'],
             filters: { owner_type: 'Employee', employee: employee }
         }).then(goals => {
@@ -479,7 +479,7 @@ function make_kpi_dialog(level, callback) {
                 title: 'Create KPI',
                 fields: [
                     { label: 'KPI Name', fieldname: 'kpi_name', fieldtype: 'Data', reqd: 1 },
-                    { label: 'KRA', fieldname: 'kra', fieldtype: 'Link', options: 'KRA', reqd: 1, get_query: () => ({ filters: kra_filters }) },
+                    { label: 'KRA', fieldname: 'kra', fieldtype: 'Link', options: 'KRA Master', reqd: 1, get_query: () => ({ filters: kra_filters }) },
                     { label: 'Unit', fieldname: 'unit', fieldtype: 'Select', options: 'Percentage\nCurrency\nCount\nRating' },
                     { label: 'Calculation Method', fieldname: 'calculation_method', fieldtype: 'Select', options: 'Manual\nSum\nAverage\nLast Value', default: 'Manual' },
                     { label: 'Default Green Threshold (>=)', fieldname: 'default_threshold_green', fieldtype: 'Float' },
@@ -546,7 +546,7 @@ function make_kpi_update_dialog(kpi, scorecard, callback) {
 }
 
 function edit_goal_dialog(goal_name, callback) {
-    frappe.db.get_doc('Goal', goal_name).then(doc => {
+    frappe.db.get_doc('Goal Master', goal_name).then(doc => {
         let d = new frappe.ui.Dialog({
             title: 'Edit Goal: ' + doc.goal_name,
             fields: [
@@ -561,7 +561,7 @@ function edit_goal_dialog(goal_name, callback) {
                 frappe.call({
                     method: 'frappe.client.set_value',
                     args: {
-                        doctype: 'Goal',
+                        doctype: 'Goal Master',
                         name: goal_name,
                         fieldname: values
                     },
@@ -580,7 +580,7 @@ function edit_goal_dialog(goal_name, callback) {
 }
 
 function edit_kra_dialog(kra_name, callback) {
-    frappe.db.get_doc('KRA', kra_name).then(doc => {
+    frappe.db.get_doc('KRA Master', kra_name).then(doc => {
         let d = new frappe.ui.Dialog({
             title: 'Edit KRA: ' + doc.kra_name,
             fields: [
@@ -594,7 +594,7 @@ function edit_kra_dialog(kra_name, callback) {
                 frappe.call({
                     method: 'frappe.client.set_value',
                     args: {
-                        doctype: 'KRA',
+                        doctype: 'KRA Master',
                         name: kra_name,
                         fieldname: values
                     },

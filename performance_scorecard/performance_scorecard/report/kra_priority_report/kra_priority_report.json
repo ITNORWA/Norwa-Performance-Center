@@ -31,7 +31,7 @@
     "owner": "Administrator",
     "prepared_report": 0,
     "query": "",
-    "ref_doctype": "KRA",
+    "ref_doctype": "KRA Master",
     "report_name": "KRA Priority Report",
     "report_type": "Script Report",
     "roles": [

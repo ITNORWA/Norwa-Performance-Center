@@ -38,7 +38,7 @@ def get_children(node_type, node_id, context=None):
     elif node_type == "Company KPA":
         # Company KPA -> Company Goals
         # context should contain company_id if needed, but here we just find Company Goals linked to this KPA
-        goals = frappe.get_all("Goal", filters={
+        goals = frappe.get_all("Goal Master", filters={
             "owner_type": "Company", 
             "parent_kpa": node_id,
             "status": "Active"
@@ -57,7 +57,7 @@ def get_children(node_type, node_id, context=None):
     elif node_type == "Company Goal":
         # Company Goal -> Linked Departments
         # Find Department Goals that have this Company Goal as parent
-        dept_goals = frappe.get_all("Goal", filters={
+        dept_goals = frappe.get_all("Goal Master", filters={
             "parent_goal": node_id,
             "owner_type": "Department"
         }, fields=["department"])
@@ -93,7 +93,7 @@ def get_children(node_type, node_id, context=None):
         # We'll encode context in the ID or pass it separately. 
         # Let's assume the UI passes the 'department' in the context dict.
         department = context.get("department")
-        goals = frappe.get_all("Goal", filters={
+        goals = frappe.get_all("Goal Master", filters={
             "owner_type": "Department",
             "department": department,
             "parent_kpa": node_id,
@@ -115,7 +115,7 @@ def get_children(node_type, node_id, context=None):
         # Actually, Department Goals usually link to Individual Goals directly in the previous logic?
         # User said: "When I select the one of the goals it opens an arrow to linked departmental KRA"
         # So Department Goals have KRAs? Yes, KRA DocType has 'goal' field.
-        kras = frappe.get_all("KRA", filters={"goal": node_id}, fields=["name", "kra_name", "progress"])
+        kras = frappe.get_all("KRA Master", filters={"goal": node_id}, fields=["name", "kra_name", "progress"])
         for kra in kras:
             children.append({
                 "id": kra.name,
@@ -128,7 +128,7 @@ def get_children(node_type, node_id, context=None):
     elif node_type == "Department KRA":
         # Department KRA -> Linked Employees
         # Find Individual KRAs that have this Department KRA as parent
-        ind_kras = frappe.get_all("KRA", filters={"parent_kra": node_id}, fields=["owner"])
+        ind_kras = frappe.get_all("KRA Master", filters={"parent_kra": node_id}, fields=["owner"])
         
         # Get Employees from owners
         employees = set()
@@ -161,7 +161,7 @@ def get_children(node_type, node_id, context=None):
     elif node_type == "Individual KPA":
         # Individual KPA -> Individual Goals
         employee = context.get("employee")
-        goals = frappe.get_all("Goal", filters={
+        goals = frappe.get_all("Goal Master", filters={
             "owner_type": "Employee",
             "employee": employee,
             "parent_kpa": node_id,
@@ -180,7 +180,7 @@ def get_children(node_type, node_id, context=None):
             
     elif node_type == "Individual Goal":
         # Individual Goal -> Individual KRAs
-        kras = frappe.get_all("KRA", filters={"goal": node_id}, fields=["name", "kra_name", "progress"])
+        kras = frappe.get_all("KRA Master", filters={"goal": node_id}, fields=["name", "kra_name", "progress"])
         for kra in kras:
             children.append({
                 "id": kra.name,
@@ -223,7 +223,7 @@ def get_children(node_type, node_id, context=None):
 
 def get_company_progress(company):
     # Avg of all Company Goals
-    goals = frappe.get_all("Goal", filters={"owner_type": "Company", "status": "Active"}, fields=["progress"])
+    goals = frappe.get_all("Goal Master", filters={"owner_type": "Company", "status": "Active"}, fields=["progress"])
     if not goals: return 0
     return sum([flt(g.progress) for g in goals]) / len(goals)
 
@@ -235,11 +235,11 @@ def get_kpa_progress(kpa, level, owner_id):
         filters["owner_type"] = "Department"
         filters["department"] = owner_id
         
-    goals = frappe.get_all("Goal", filters=filters, fields=["progress"])
+    goals = frappe.get_all("Goal Master", filters=filters, fields=["progress"])
     if not goals: return 0
     return sum([flt(g.progress) for g in goals]) / len(goals)
 
 def get_department_progress_for_goal(dept, parent_goal_id):
-    goals = frappe.get_all("Goal", filters={"parent_goal": parent_goal_id, "department": dept}, fields=["progress"])
+    goals = frappe.get_all("Goal Master", filters={"parent_goal": parent_goal_id, "department": dept}, fields=["progress"])
     if not goals: return 0
     return sum([flt(g.progress) for g in goals]) / len(goals)

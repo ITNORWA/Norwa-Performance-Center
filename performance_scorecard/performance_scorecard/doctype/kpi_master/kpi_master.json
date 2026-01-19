@@ -29,7 +29,7 @@
             "fieldname": "kra",
             "fieldtype": "Link",
             "label": "KRA",
-            "options": "KRA"
+            "options": "KRA Master"
         },
         {
             "fieldname": "employee",

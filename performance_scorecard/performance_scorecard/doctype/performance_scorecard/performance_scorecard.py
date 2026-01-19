@@ -23,7 +23,7 @@ class PerformanceScorecard(Document):
 			return
 
 		goals = frappe.get_all(
-			"Goal",
+			"Goal Master",
 			filters={"owner_type": "Employee", "employee": self.employee},
 			fields=["name", "kpa"],
 		)
@@ -32,7 +32,7 @@ class PerformanceScorecard(Document):
 
 		goal_map = {g.name: g for g in goals}
 		kras = frappe.get_all(
-			"KRA",
+			"KRA Master",
 			filters={"goal": ["in", list(goal_map.keys())]},
 			fields=["name", "goal"],
 		)
@@ -108,9 +108,9 @@ def add_kpi_to_active_scorecard(employee, kpi_name):
 
 	kpi_doc = frappe.db.get_value("KPI Master", kpi_name, ["kra"], as_dict=True)
 	kra_name = kpi_doc.kra if kpi_doc else None
-	goal_row = frappe.db.get_value("KRA", kra_name, ["goal"], as_dict=True) if kra_name else None
+	goal_row = frappe.db.get_value("KRA Master", kra_name, ["goal"], as_dict=True) if kra_name else None
 	goal_name = goal_row.goal if goal_row else None
-	kpa_row = frappe.db.get_value("Goal", goal_name, ["kpa"], as_dict=True) if goal_name else None
+	kpa_row = frappe.db.get_value("Goal Master", goal_name, ["kpa"], as_dict=True) if goal_name else None
 	kpa_name = kpa_row.kpa if kpa_row else None
 
 	scorecard_doc = frappe.get_doc("Performance Scorecard", scorecard)

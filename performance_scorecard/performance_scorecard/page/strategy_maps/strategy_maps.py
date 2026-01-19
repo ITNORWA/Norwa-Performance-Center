@@ -33,11 +33,11 @@ def get_children(node_type, node_id, context=None):
         "Company KPA": "KPA",
         "Department KPA": "KPA",
         "Individual KPA": "KPA",
-        "Company Goal": "Goal",
-        "Department Goal": "Goal",
-        "Individual Goal": "Goal",
-        "Department KRA": "KRA",
-        "Individual KRA": "KRA",
+        "Company Goal": "Goal Master",
+        "Department Goal": "Goal Master",
+        "Individual Goal": "Goal Master",
+        "Department KRA": "KRA Master",
+        "Individual KRA": "KRA Master",
     }
     node_type = legacy_map.get(node_type, node_type)
 
@@ -74,7 +74,7 @@ def get_children(node_type, node_id, context=None):
             goal_filters["employee"] = context.get("employee")
 
         goals = frappe.get_all(
-            "Goal",
+            "Goal Master",
             filters=goal_filters,
             fields=["name", "goal_name", "progress", "end_date", "weightage"],
         )
@@ -94,17 +94,17 @@ def get_children(node_type, node_id, context=None):
             children.append({
                 "id": goal.name,
                 "label": goal.goal_name,
-                "type": "Goal",
+                "type": "Goal Master",
                 "expandable": True,
                 "progress": goal_progress,
                 "end_date": goal.end_date,
                 "meta": f"{context_label} · Weight: {flt(goal.weightage) or 0}%"
             })
 
-    elif node_type == "Goal":
+    elif node_type == "Goal Master":
         level = level_from_context()
         if level == "Company":
-            dept_goals = frappe.get_all("Goal", filters={
+            dept_goals = frappe.get_all("Goal Master", filters={
                 "parent_goal": node_id,
                 "owner_type": "Department"
             }, fields=["department", "progress", "weightage"])
@@ -121,11 +121,11 @@ def get_children(node_type, node_id, context=None):
                     "meta": f"Avg KPA Score: {avg_progress:.1f}%"
                 })
         else:
-            kras = frappe.get_all("KRA", filters={"goal": node_id}, fields=["name", "kra_name", "progress", "weightage"])
+            kras = frappe.get_all("KRA Master", filters={"goal": node_id}, fields=["name", "kra_name", "progress", "weightage"])
             for kra in kras:
                 department = context.get("department")
                 if level == "Department":
-                    child_kras = frappe.get_all("KRA", filters={"parent_kra": kra.name}, pluck="name")
+                    child_kras = frappe.get_all("KRA Master", filters={"parent_kra": kra.name}, pluck="name")
                     if child_kras:
                         child_scores = [_avg_score_for_kra(child, department=department) for child in child_kras]
                         kra_progress = sum(child_scores) / len(child_scores) if child_scores else 0
@@ -147,7 +147,7 @@ def get_children(node_type, node_id, context=None):
                 children.append({
                     "id": kra.name,
                     "label": kra.kra_name,
-                    "type": "KRA",
+                    "type": "KRA Master",
                     "expandable": True,
                     "progress": kra_progress,
                     "meta": f"{meta_prefix} · Contribution: {flt(kra.weightage) or 0}%"
@@ -166,14 +166,14 @@ def get_children(node_type, node_id, context=None):
                 "meta": f"{dept_label} Department KPA · Weight: {flt(kpa.weightage) or 0}%"
             })
 
-    elif node_type == "KRA":
+    elif node_type == "KRA Master":
         level = level_from_context()
         if level == "Department":
             department = context.get("department")
             dept_label = _get_department_label(department)
             employees = _get_employee_kra_progress(node_id, department)
             if not employees:
-                ind_kras = frappe.get_all("KRA", filters={"parent_kra": node_id}, fields=["owner", "progress"])
+                ind_kras = frappe.get_all("KRA Master", filters={"parent_kra": node_id}, fields=["owner", "progress"])
                 for k in ind_kras:
                     emp = frappe.db.get_value("Employee", {"user_id": k.owner}, ["name", "employee_name"], as_dict=True)
                     if emp:
@@ -246,7 +246,7 @@ def get_kpa_progress(kpa, level, owner_id):
         return _avg_score_for_kpa(kpa, department=owner_id)
     if level == "Individual":
         goal_names = frappe.get_all(
-            "Goal",
+            "Goal Master",
             filters={"kpa": kpa, "owner_type": "Employee", "employee": owner_id, "status": "Active"},
             pluck="name",
         )
@@ -260,7 +260,7 @@ def get_department_progress_for_goal(dept, parent_goal_id):
     if not dept or not parent_goal_id:
         return 0
     child_goals = frappe.get_all(
-        "Goal",
+        "Goal Master",
         filters={"parent_goal": parent_goal_id, "department": dept},
         pluck="name",
     )
@@ -346,14 +346,14 @@ def _get_goal_progress(goal_name, level, department=None, employee=None):
     goal_names = [goal_name]
     if level == "Company":
         dept_goals = frappe.get_all(
-            "Goal",
+            "Goal Master",
             filters={"parent_goal": goal_name, "owner_type": "Department"},
             pluck="name",
         )
         if dept_goals:
             goal_names.extend(dept_goals)
             emp_goals = frappe.get_all(
-                "Goal",
+                "Goal Master",
                 filters={"parent_goal": ["in", dept_goals], "owner_type": "Employee"},
                 pluck="name",
             )
@@ -361,14 +361,14 @@ def _get_goal_progress(goal_name, level, department=None, employee=None):
                 goal_names.extend(emp_goals)
     elif level == "Department":
         emp_goals = frappe.get_all(
-            "Goal",
+            "Goal Master",
             filters={"parent_goal": goal_name, "owner_type": "Employee"},
             pluck="name",
         )
         if emp_goals:
             goal_names.extend(emp_goals)
     elif level == "Employee":
-        kra_names = frappe.get_all("KRA", filters={"goal": goal_name}, pluck="name")
+        kra_names = frappe.get_all("KRA Master", filters={"goal": goal_name}, pluck="name")
         if not kra_names:
             return 0
         kra_scores = [
@@ -462,7 +462,7 @@ def _get_employee_label(employee):
 @frappe.whitelist()
 def get_strategy_map_data():
     company_goals = frappe.get_all(
-        "Goal",
+        "Goal Master",
         filters={"owner_type": "Company", "status": "Active"},
         fields=["name", "goal_name"],
     )
@@ -470,14 +470,14 @@ def get_strategy_map_data():
     nodes = []
     for company_goal in company_goals:
         dept_goals = frappe.get_all(
-            "Goal",
+            "Goal Master",
             filters={"owner_type": "Department", "parent_goal": company_goal.name},
             fields=["name", "goal_name"],
         )
         dept_nodes = []
         for dept_goal in dept_goals:
             emp_goals = frappe.get_all(
-                "Goal",
+                "Goal Master",
                 filters={"owner_type": "Employee", "parent_goal": dept_goal.name},
                 fields=["name", "goal_name"],
             )

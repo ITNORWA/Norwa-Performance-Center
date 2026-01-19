@@ -36,7 +36,7 @@ def get_dashboard_data():
 	if employee:
 		# 1. My Key Objectives (Goals)
 		data["objectives"] = frappe.db.get_list(
-			"Goal",
+			"Goal Master",
 			filters={"employee": employee, "status": "Active"},
 			fields=["name", "goal_name", "status"]
 		)
@@ -46,7 +46,7 @@ def get_dashboard_data():
 		goals = [g.name for g in data["objectives"]]
 		if goals:
 			data["key_results"] = frappe.db.get_list(
-				"KRA",
+				"KRA Master",
 				filters={"goal": ["in", goals]},
 				fields=["name", "kra_name", "weightage"]
 			)
@@ -205,7 +205,7 @@ def _get_company_kpa_scores():
 
 def _get_department_comparison():
 	rows = frappe.db.get_all(
-		"Goal",
+		"Goal Master",
 		filters={"owner_type": "Department"},
 		fields=["name", "department"]
 	)
@@ -220,7 +220,7 @@ def _get_department_comparison():
 	comparison = []
 	for dept, dept_goals in grouped.items():
 		employee_goals = frappe.db.get_all(
-			"Goal",
+			"Goal Master",
 			filters={"owner_type": "Employee", "parent_goal": ["in", dept_goals]},
 			pluck="name"
 		)
@@ -308,7 +308,7 @@ def _get_department_distribution(department):
 
 def _get_department_goal_achievement(department):
 	dept_goals = frappe.db.get_all(
-		"Goal",
+		"Goal Master",
 		filters={"owner_type": "Department", "department": department},
 		fields=["name", "progress"]
 	)
@@ -380,14 +380,14 @@ def _get_employee_scorecard(employee):
 
 def _get_employee_goal_progress(employee):
 	goals = frappe.db.get_all(
-		"Goal",
+		"Goal Master",
 		filters={"owner_type": "Employee", "employee": employee},
 		fields=["name", "goal_name"]
 	)
 	items = []
 	for goal in goals:
 		kras = frappe.db.get_all(
-			"KRA",
+			"KRA Master",
 			filters={"goal": goal.name},
 			pluck="name"
 		)
@@ -556,9 +556,9 @@ def _get_employee_kpi_targets(employee, limit=6):
 
 
 def _get_goal_kpa_field():
-	if frappe.db.has_column("Goal", "kpa"):
+	if frappe.db.has_column("Goal Master", "kpa"):
 		return "kpa"
-	if frappe.db.has_column("Goal", "parent_kpa"):
+	if frappe.db.has_column("Goal Master", "parent_kpa"):
 		return "parent_kpa"
 	
 	return None
@@ -660,7 +660,7 @@ def _get_kra_attention(owner_type, department=None, employee=None, limit=5):
 		conditions["employee"] = employee
 
 	kras = frappe.db.get_all(
-		"KRA",
+		"KRA Master",
 		filters=conditions,
 		fields=["name", "kra_name"]
 	)
@@ -695,8 +695,8 @@ def _get_top_goals_by_period(employee, days=None, months=None, limit=5):
 		SELECT g.name,
 			g.goal_name as label,
 			IFNULL(g.progress, 0) as value,
-			'Goal' as doctype
-		FROM `tabGoal` g
+			'Goal Master' as doctype
+		FROM `tabGoal Master` g
 		WHERE g.owner_type = 'Employee'
 			AND g.employee = %s
 			AND g.modified >= %s

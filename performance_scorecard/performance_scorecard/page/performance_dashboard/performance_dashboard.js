@@ -107,32 +107,32 @@ function build_home_html(data) {
 			<div class="dashboard-card">
 				<div class="card-header red">Company At-Risk (${(data.attention_company || []).length})</div>
 				<div class="card-content">
-					${render_home_list(data.attention_company, "No company goals flagged.", { doctype: "Goal" })}
+					${render_home_list(data.attention_company, "No company goals flagged.", { doctype: "Goal Master" })}
 				</div>
 			</div>
 			<div class="dashboard-card">
 				<div class="card-header yellow">Department At-Risk (${(data.attention_department || []).length})</div>
 				<div class="card-content">
-					${render_home_list(data.attention_department, "No department KRAs flagged.", { doctype: "KRA" })}
+					${render_home_list(data.attention_department, "No department KRAs flagged.", { doctype: "KRA Master" })}
 				</div>
 			</div>
 			<div class="dashboard-card">
 				<div class="card-header cyan">Individual At-Risk (${(data.attention_individual || []).length})</div>
 				<div class="card-content">
-					${render_home_list(data.attention_individual, "No individual KRAs flagged.", { doctype: "KRA" })}
+					${render_home_list(data.attention_individual, "No individual KRAs flagged.", { doctype: "KRA Master" })}
 				</div>
 			</div>
 		</div>
 			<div class="dashboard-card">
 				<div class="card-header blue">Weekly Achievements</div>
 				<div class="card-content">
-					${render_home_list(data.weekly_top_kras, "No weekly achievements yet.", { doctype: "Goal" })}
+					${render_home_list(data.weekly_top_kras, "No weekly achievements yet.", { doctype: "Goal Master" })}
 				</div>
 			</div>
 			<div class="dashboard-card">
 				<div class="card-header blue">Quarterly Achievements</div>
 				<div class="card-content">
-					${render_home_list(data.quarterly_top_kras, "No quarterly achievements yet.", { doctype: "Goal" })}
+					${render_home_list(data.quarterly_top_kras, "No quarterly achievements yet.", { doctype: "Goal Master" })}
 				</div>
 			</div>
 			<div class="dashboard-card">
@@ -343,10 +343,10 @@ function render_strategy_plans($container) {
 	load_strategy_data($container, "Company", null);
 
 		$actions.find("[data-action='add-goal']").on("click", function () {
-			open_doctype_modal("Goal");
+			open_doctype_modal("Goal Master");
 		});
 		$actions.find("[data-action='add-kra']").on("click", function () {
-			open_doctype_modal("KRA");
+			open_doctype_modal("KRA Master");
 		});
 		$actions.find("[data-action='add-kpa']").on("click", function () {
 			open_doctype_modal("KPA Master");
@@ -1363,9 +1363,9 @@ function render_personal_panel($container, personal, rollups, goals) {
 			}
 			open_doctype_modal("Performance Scorecard");
 		} else if (action === "new-goal") {
-			open_doctype_modal("Goal");
+			open_doctype_modal("Goal Master");
 		} else if (action === "new-kra") {
-			open_doctype_modal("KRA");
+			open_doctype_modal("KRA Master");
 		} else if (action === "new-kpi") {
 			open_doctype_modal("KPI Master");
 		} else if (action === "new-weekly-commitment") {
@@ -1458,8 +1458,8 @@ function render_personal_tables($container, payload, $page_container) {
 			title: "Edit Scorecard Item",
 			fields: [
 				{ fieldname: "kpa", fieldtype: "Link", options: "KPA Master", label: "KPA", reqd: 1, default: row.kpa },
-				{ fieldname: "goal", fieldtype: "Link", options: "Goal", label: "Goal", reqd: 1, default: row.goal },
-				{ fieldname: "kra", fieldtype: "Link", options: "KRA", label: "KRA", reqd: 1, default: row.kra },
+				{ fieldname: "goal", fieldtype: "Link", options: "Goal Master", label: "Goal", reqd: 1, default: row.goal },
+				{ fieldname: "kra", fieldtype: "Link", options: "KRA Master", label: "KRA", reqd: 1, default: row.kra },
 				{ fieldname: "kpi", fieldtype: "Link", options: "KPI Master", label: "KPI", reqd: 1, default: row.kpi },
 				{ fieldname: "weightage", fieldtype: "Percent", label: "Weightage", default: row.weightage },
 				{ fieldname: "target", fieldtype: "Float", label: "Target", default: row.target },

@@ -35,12 +35,12 @@ doctype_js = {
 # DocType Events
 # ------------------
 doc_events = {
-	"Goal": {
+	"Goal Master": {
 		"after_insert": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_goal",
 		"on_update": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_goal",
 		"on_trash": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_goal",
 	},
-	"KRA": {
+	"KRA Master": {
 		"after_insert": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_kra",
 		"on_update": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_kra",
 		"on_trash": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_kra",

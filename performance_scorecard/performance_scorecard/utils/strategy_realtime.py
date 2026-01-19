@@ -20,7 +20,7 @@ def publish_from_kra(doc, method=None):
         return
 
     goal = frappe.db.get_value(
-        "Goal",
+        "Goal Master",
         goal_name,
         ["owner_type", "employee", "department"],
         as_dict=True,
@@ -39,13 +39,13 @@ def publish_from_kpi(doc, method=None):
         publish_strategy_refresh(level="Individual")
         return
 
-    goal_name = frappe.db.get_value("KRA", kra_name, "goal")
+    goal_name = frappe.db.get_value("KRA Master", kra_name, "goal")
     if not goal_name:
         publish_strategy_refresh(level="Individual")
         return
 
     goal = frappe.db.get_value(
-        "Goal",
+        "Goal Master",
         goal_name,
         ["owner_type", "employee", "department"],
         as_dict=True,

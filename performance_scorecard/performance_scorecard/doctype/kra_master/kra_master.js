@@ -1,4 +1,4 @@
-frappe.ui.form.on('KRA', {
+frappe.ui.form.on('KRA Master', {
     refresh: function (frm) {
         set_goal_query(frm);
         set_owner_type_from_goal(frm);
@@ -63,7 +63,7 @@ function set_owner_type_from_goal(frm) {
         return;
     }
 
-    frappe.db.get_value('Goal', frm.doc.goal, 'owner_type').then(r => {
+    frappe.db.get_value('Goal Master', frm.doc.goal, 'owner_type').then(r => {
         const owner_type = r && r.message && r.message.owner_type;
         if (owner_type && frm.doc.owner_type !== owner_type) {
             frm.set_value('owner_type', owner_type);
@@ -83,7 +83,7 @@ function set_parent_kra_query(frm) {
         return;
     }
 
-    frappe.db.get_value('Goal', frm.doc.goal, ['owner_type', 'parent_goal']).then(r => {
+    frappe.db.get_value('Goal Master', frm.doc.goal, ['owner_type', 'parent_goal']).then(r => {
         if (!r || !r.message) {
             return;
         }

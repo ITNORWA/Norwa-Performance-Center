@@ -54,7 +54,7 @@ def get_strategy_data(level, period=None, department=None, employee=None):
             filters["owner"] = session_user
 
     goals = frappe.get_all(
-        "Goal",
+        "Goal Master",
         filters=filters,
         fields=[
             "name",
@@ -76,7 +76,7 @@ def get_strategy_data(level, period=None, department=None, employee=None):
     goal_name_map = {}
     if parent_names:
         for row in frappe.get_all(
-            "Goal",
+            "Goal Master",
             filters={"name": ["in", list(set(parent_names))]},
             fields=["name", "goal_name"],
         ):
@@ -105,14 +105,14 @@ def get_strategy_data(level, period=None, department=None, employee=None):
     kpi_scorecard_filters = scorecard_filters if level == "Individual" else None
     kpi_employee_filter = (selected_employee or employee_list) if level == "Individual" else None
     data = []
-    kra_meta = frappe.get_meta("KRA")
+    kra_meta = frappe.get_meta("KRA Master")
     kra_fields = ["name", "kra_name", "weightage", "priority", "progress"]
     if kra_meta.has_field("description"):
         kra_fields.append("description")
     for goal in goals:
         # Fetch KRAs for this goal
         kras = frappe.get_all(
-            "KRA",
+            "KRA Master",
             filters={"goal": goal.name},
             fields=kra_fields,
         )
@@ -468,7 +468,7 @@ def import_company_goals(file_url=None):
             continue
 
         values = {
-            "doctype": "Goal",
+            "doctype": "Goal Master",
             "goal_name": row["goal_name"],
             "owner_type": "Company",
             "kpa": row["kpa"],
@@ -479,7 +479,7 @@ def import_company_goals(file_url=None):
         }
 
         if row.get("exists"):
-            doc = frappe.get_doc("Goal", row["name"])
+            doc = frappe.get_doc("Goal Master", row["name"])
             doc.update(values)
             doc.save(ignore_permissions=True)
             updated += 1
@@ -502,7 +502,7 @@ def import_department_goals(file_url=None, department=None):
             continue
 
         values = {
-            "doctype": "Goal",
+            "doctype": "Goal Master",
             "goal_name": row["goal_name"],
             "owner_type": "Department",
             "department": row.get("department"),
@@ -514,7 +514,7 @@ def import_department_goals(file_url=None, department=None):
         }
 
         if row.get("exists"):
-            doc = frappe.get_doc("Goal", row["name"])
+            doc = frappe.get_doc("Goal Master", row["name"])
             doc.update(values)
             doc.save(ignore_permissions=True)
             updated += 1
@@ -537,7 +537,7 @@ def import_department_kra(file_url=None, department=None):
             continue
 
         values = {
-            "doctype": "KRA",
+            "doctype": "KRA Master",
             "kra_name": row["kra_name"],
             "goal": row.get("goal"),
             "owner_type": "Department",
@@ -547,7 +547,7 @@ def import_department_kra(file_url=None, department=None):
         }
 
         if row.get("exists"):
-            doc = frappe.get_doc("KRA", row["name"])
+            doc = frappe.get_doc("KRA Master", row["name"])
             doc.update(values)
             doc.save(ignore_permissions=True)
             updated += 1
@@ -570,7 +570,7 @@ def import_employee_goals(file_url=None, employee=None):
             continue
 
         values = {
-            "doctype": "Goal",
+            "doctype": "Goal Master",
             "goal_name": row["goal_name"],
             "owner_type": "Employee",
             "employee": row.get("employee"),
@@ -584,7 +584,7 @@ def import_employee_goals(file_url=None, employee=None):
         }
 
         if row.get("exists"):
-            doc = frappe.get_doc("Goal", row["name"])
+            doc = frappe.get_doc("Goal Master", row["name"])
             doc.update(values)
             doc.save(ignore_permissions=True)
             updated += 1
@@ -607,7 +607,7 @@ def import_employee_kra(file_url=None, employee=None):
             continue
 
         values = {
-            "doctype": "KRA",
+            "doctype": "KRA Master",
             "kra_name": row["kra_name"],
             "goal": row.get("goal"),
             "owner_type": "Employee",
@@ -619,7 +619,7 @@ def import_employee_kra(file_url=None, employee=None):
         }
 
         if row.get("exists"):
-            doc = frappe.get_doc("KRA", row["name"])
+            doc = frappe.get_doc("KRA Master", row["name"])
             doc.update(values)
             doc.save(ignore_permissions=True)
             updated += 1
@@ -754,7 +754,7 @@ def export_company_kpa(format="xlsx"):
 @frappe.whitelist()
 def export_company_goals(format="xlsx"):
     goals = frappe.get_all(
-        "Goal",
+        "Goal Master",
         filters={"owner_type": "Company"},
         fields=["name", "goal_name", "kpa", "weightage", "start_date", "end_date", "status", "owner_type"],
         order_by="goal_name asc",
@@ -781,7 +781,7 @@ def export_department_goals(format="xlsx", department=None):
     if not department:
         frappe.throw("Department is required.")
     goals = frappe.get_all(
-        "Goal",
+        "Goal Master",
         filters={"owner_type": "Department", "department": department},
         fields=["name", "goal_name", "parent_goal", "weightage", "start_date", "end_date", "status", "owner_type", "department"],
         order_by="goal_name asc",
@@ -808,7 +808,7 @@ def export_department_kra(format="xlsx", department=None):
     if not department:
         frappe.throw("Department is required.")
     kras = frappe.get_all(
-        "KRA",
+        "KRA Master",
         filters={"owner_type": "Department", "department": department},
         fields=["name", "kra_name", "goal", "owner_type", "department", "weightage", "priority"],
         order_by="kra_name asc",
@@ -833,7 +833,7 @@ def export_employee_goals(format="xlsx", employee=None):
     if not employee:
         frappe.throw("Employee is required.")
     goals = frappe.get_all(
-        "Goal",
+        "Goal Master",
         filters={"owner_type": "Employee", "employee": employee},
         fields=["name", "goal_name", "parent_goal", "parent_kra", "weightage", "start_date", "end_date", "status", "owner_type", "employee"],
         order_by="goal_name asc",
@@ -861,7 +861,7 @@ def export_employee_kra(format="xlsx", employee=None):
     if not employee:
         frappe.throw("Employee is required.")
     kras = frappe.get_all(
-        "KRA",
+        "KRA Master",
         filters={"owner_type": "Employee", "employee": employee},
         fields=["name", "kra_name", "goal", "owner_type", "employee", "parent_kra", "weightage", "priority"],
         order_by="kra_name asc",
@@ -1067,7 +1067,7 @@ def _build_rollups(level, employee, department, session_user):
     goal_kpa = {}
     if goal_names:
         for row in frappe.get_all(
-            "Goal",
+            "Goal Master",
             filters={"name": ["in", goal_names]},
             fields=["name", "parent_goal", "kpa"],
         ):
@@ -1078,7 +1078,7 @@ def _build_rollups(level, employee, department, session_user):
             dept_goal_names = [g for g in goal_parent.values() if g]
             if dept_goal_names:
                 for row in frappe.get_all(
-                    "Goal",
+                    "Goal Master",
                     filters={"name": ["in", list(set(dept_goal_names))]},
                     fields=["name", "kpa"],
                 ):
@@ -1089,7 +1089,7 @@ def _build_rollups(level, employee, department, session_user):
         kra_names = list({i.kra for i in items if i.kra})
         if kra_names:
             for row in frappe.get_all(
-                "KRA",
+                "KRA Master",
                 filters={"name": ["in", kra_names]},
                 fields=["name", "parent_kra"],
             ):
@@ -1181,7 +1181,7 @@ def _build_rollups(level, employee, department, session_user):
 
 def _build_department_rollups(department):
     dept_goals = frappe.get_all(
-        "Goal",
+        "Goal Master",
         filters={"owner_type": "Department", "department": department, "status": ["!=", "Archived"]},
         fields=["name", "kpa"],
     )
@@ -1192,7 +1192,7 @@ def _build_department_rollups(department):
 
     dept_goal_names = [g.name for g in dept_goals]
     dept_kras = frappe.get_all(
-        "KRA",
+        "KRA Master",
         filters={"goal": ["in", dept_goal_names]},
         fields=["name", "goal"],
     )
@@ -1203,7 +1203,7 @@ def _build_department_rollups(department):
         child_filters = {"parent_kra": ["in", dept_kra_names], "owner_type": "Employee"}
         if dept_employees:
             child_filters["employee"] = ["in", dept_employees]
-        child_kras = frappe.get_all("KRA", filters=child_filters, fields=["name", "parent_kra"])
+        child_kras = frappe.get_all("KRA Master", filters=child_filters, fields=["name", "parent_kra"])
         for row in child_kras:
             child_kra_map.setdefault(row.parent_kra, []).append(row.name)
 
@@ -1318,7 +1318,7 @@ def _build_department_rollups(department):
 def _build_company_rollups():
     # Company goals are parents; department goals are children (parent_goal).
     company_goals = frappe.get_all(
-        "Goal",
+        "Goal Master",
         filters={"owner_type": "Company", "status": ["!=", "Archived"]},
         fields=["name", "goal_name", "kpa"],
     )
@@ -1327,7 +1327,7 @@ def _build_company_rollups():
 
     company_goal_names = [g.name for g in company_goals]
     dept_goals = frappe.get_all(
-        "Goal",
+        "Goal Master",
         filters={"owner_type": "Department", "parent_goal": ["in", company_goal_names]},
         fields=["name", "goal_name", "parent_goal", "department"],
     )
@@ -1335,7 +1335,7 @@ def _build_company_rollups():
     dept_goal_department = {g.name: g.department for g in dept_goals}
 
     dept_kras = frappe.get_all(
-        "KRA",
+        "KRA Master",
         filters={"goal": ["in", dept_goal_names]},
         fields=["name", "goal"],
     )
@@ -1344,7 +1344,7 @@ def _build_company_rollups():
     child_kras = []
     if dept_kra_names:
         child_kras = frappe.get_all(
-            "KRA",
+            "KRA Master",
             filters={"parent_kra": ["in", dept_kra_names], "owner_type": "Employee"},
             fields=["name", "parent_kra", "department"],
         )
@@ -1518,7 +1518,7 @@ def _parse_company_goal_file(file_url):
         rows,
         header_map,
         required,
-        doctype="Goal",
+        doctype="Goal Master",
         context={"expected_owner_type": "Company", "default_owner_type": "Company"},
     )
 
@@ -1540,7 +1540,7 @@ def _parse_department_goal_file(file_url, department=None):
         rows,
         header_map,
         required,
-        doctype="Goal",
+        doctype="Goal Master",
         context={"expected_owner_type": "Department", "default_department": department},
     )
 
@@ -1560,7 +1560,7 @@ def _parse_department_kra_file(file_url, department=None):
         rows,
         header_map,
         required,
-        doctype="KRA",
+        doctype="KRA Master",
         context={"expected_owner_type": "Department", "default_department": department},
     )
 
@@ -1583,7 +1583,7 @@ def _parse_employee_goal_file(file_url, employee=None):
         rows,
         header_map,
         required,
-        doctype="Goal",
+        doctype="Goal Master",
         context={
             "expected_owner_type": "Employee",
             "default_owner_type": "Employee",
@@ -1608,7 +1608,7 @@ def _parse_employee_kra_file(file_url, employee=None):
         rows,
         header_map,
         required,
-        doctype="KRA",
+        doctype="KRA Master",
         context={
             "expected_owner_type": "Employee",
             "default_owner_type": "Employee",
@@ -1674,9 +1674,9 @@ def _parse_import_rows(rows, header_map, required_fields, doctype, context=None)
             kpa_name = values.get("kpa_name")
             exists = bool(kpa_name and frappe.db.exists("KPA Master", kpa_name))
             name = kpa_name if exists else None
-        elif doctype == "Goal":
+        elif doctype == "Goal Master":
             goal_name = values.get("goal_name")
-            exists = bool(goal_name and frappe.db.exists("Goal", goal_name))
+            exists = bool(goal_name and frappe.db.exists("Goal Master", goal_name))
             name = goal_name if exists else None
         elif doctype == "KPI Master":
             kpi_name = values.get("kpi_name")
@@ -1684,7 +1684,7 @@ def _parse_import_rows(rows, header_map, required_fields, doctype, context=None)
             name = kpi_name if exists else None
         else:
             kra_name = values.get("kra_name")
-            exists = bool(kra_name and frappe.db.exists("KRA", kra_name))
+            exists = bool(kra_name and frappe.db.exists("KRA Master", kra_name))
             name = kra_name if exists else None
 
         parsed_rows.append(
@@ -1769,7 +1769,7 @@ def _validate_import_row(values, required_fields, doctype, context=None):
             errors.append("Status must be Draft, Active, Completed, or Archived")
         values["status_label"] = cleaned
 
-    if doctype == "Goal":
+    if doctype == "Goal Master":
         kpa_value = values.get("kpa")
         if kpa_value:
             kpa_name = frappe.db.get_value("KPA Master", {"kpa_name": kpa_value}, "name")
@@ -1784,10 +1784,10 @@ def _validate_import_row(values, required_fields, doctype, context=None):
             parent_goal = values.get("parent_goal")
             if not parent_goal:
                 errors.append("Parent Goal is required")
-            elif not frappe.db.exists("Goal", parent_goal):
+            elif not frappe.db.exists("Goal Master", parent_goal):
                 errors.append("Parent Goal not found")
             else:
-                parent_owner = frappe.db.get_value("Goal", parent_goal, "owner_type")
+                parent_owner = frappe.db.get_value("Goal Master", parent_goal, "owner_type")
                 if parent_owner != "Company":
                     errors.append("Parent Goal must be a Company goal")
 
@@ -1797,29 +1797,29 @@ def _validate_import_row(values, required_fields, doctype, context=None):
             parent_goal = values.get("parent_goal")
             if not parent_goal:
                 errors.append("Parent Goal is required")
-            elif not frappe.db.exists("Goal", parent_goal):
+            elif not frappe.db.exists("Goal Master", parent_goal):
                 errors.append("Parent Goal not found")
             else:
-                parent_owner = frappe.db.get_value("Goal", parent_goal, "owner_type")
+                parent_owner = frappe.db.get_value("Goal Master", parent_goal, "owner_type")
                 if parent_owner != "Department":
                     errors.append("Parent Goal must be a Department goal")
-                parent_dept = frappe.db.get_value("Goal", parent_goal, "department")
+                parent_dept = frappe.db.get_value("Goal Master", parent_goal, "department")
                 if parent_dept and values.get("department") and parent_dept != values.get("department"):
                     errors.append("Parent Goal Department does not match")
                 if parent_dept and not values.get("department"):
                     values["department"] = parent_dept
 
-    if doctype == "KRA" and expected_owner_type == "Department":
+    if doctype == "KRA Master" and expected_owner_type == "Department":
         goal = values.get("goal")
         if not goal:
             errors.append("Goal is required")
-        elif not frappe.db.exists("Goal", goal):
+        elif not frappe.db.exists("Goal Master", goal):
             errors.append("Goal not found")
         else:
-            goal_owner = frappe.db.get_value("Goal", goal, "owner_type")
+            goal_owner = frappe.db.get_value("Goal Master", goal, "owner_type")
             if goal_owner != "Department":
                 errors.append("Goal must be a Department goal")
-            goal_department = frappe.db.get_value("Goal", goal, "department")
+            goal_department = frappe.db.get_value("Goal Master", goal, "department")
             if goal_department and not values.get("department"):
                 values["department"] = goal_department
             if goal_department and values.get("department") and goal_department != values.get("department"):
@@ -1827,22 +1827,22 @@ def _validate_import_row(values, required_fields, doctype, context=None):
         if not values.get("department"):
             errors.append("Department is required")
 
-    if doctype == "KRA" and expected_owner_type == "Employee":
+    if doctype == "KRA Master" and expected_owner_type == "Employee":
         goal = values.get("goal")
         if not goal:
             errors.append("Goal is required")
-        elif not frappe.db.exists("Goal", goal):
+        elif not frappe.db.exists("Goal Master", goal):
             errors.append("Goal not found")
         else:
-            goal_owner = frappe.db.get_value("Goal", goal, "owner_type")
+            goal_owner = frappe.db.get_value("Goal Master", goal, "owner_type")
             if goal_owner != "Employee":
                 errors.append("Goal must be an Employee goal")
-            goal_employee = frappe.db.get_value("Goal", goal, "employee")
+            goal_employee = frappe.db.get_value("Goal Master", goal, "employee")
             if goal_employee and not values.get("employee"):
                 values["employee"] = goal_employee
             if goal_employee and values.get("employee") and goal_employee != values.get("employee"):
                 errors.append("Goal Employee does not match")
-            goal_department = frappe.db.get_value("Goal", goal, "department")
+            goal_department = frappe.db.get_value("Goal Master", goal, "department")
             if goal_department and not values.get("department"):
                 values["department"] = goal_department
         if not values.get("employee"):
@@ -1854,12 +1854,12 @@ def _validate_import_row(values, required_fields, doctype, context=None):
             errors.append("Employee not found")
         kra = values.get("kra")
         if kra:
-            if not frappe.db.exists("KRA", kra):
+            if not frappe.db.exists("KRA Master", kra):
                 errors.append("KRA not found")
             else:
-                kra_owner = frappe.db.get_value("KRA", kra, "owner_type")
+                kra_owner = frappe.db.get_value("KRA Master", kra, "owner_type")
                 if kra_owner == "Employee":
-                    kra_employee = frappe.db.get_value("KRA", kra, "employee")
+                    kra_employee = frappe.db.get_value("KRA Master", kra, "employee")
                     if kra_employee and not employee:
                         values["employee"] = kra_employee
                         employee = kra_employee
@@ -1919,7 +1919,7 @@ def _apply_department_progress(goals, department):
         return
 
     employee_goals = frappe.get_all(
-        "Goal",
+        "Goal Master",
         filters={"owner_type": "Employee", "parent_goal": ["in", dept_goal_names]},
         fields=["name", "parent_goal"],
     )
@@ -1930,7 +1930,7 @@ def _apply_department_progress(goals, department):
     goal_parent = {g.name: g.parent_goal for g in employee_goals}
 
     employee_kras = frappe.get_all(
-        "KRA",
+        "KRA Master",
         filters={"goal": ["in", employee_goal_names]},
         fields=["name", "parent_kra"],
     )

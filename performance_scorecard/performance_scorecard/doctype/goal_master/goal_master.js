@@ -1,4 +1,4 @@
-frappe.ui.form.on('Goal', {
+frappe.ui.form.on('Goal Master', {
     owner_type: function (frm) {
         if (frm.doc.owner_type == 'Company') {
             frm.set_value('employee', '');
@@ -70,7 +70,7 @@ function set_kpa_from_parent(frm) {
         return;
     }
 
-    frappe.db.get_value('Goal', frm.doc.parent_goal, 'kpa').then(r => {
+    frappe.db.get_value('Goal Master', frm.doc.parent_goal, 'kpa').then(r => {
         if (r && r.message && r.message.kpa) {
             frm.set_value('kpa', r.message.kpa);
         }

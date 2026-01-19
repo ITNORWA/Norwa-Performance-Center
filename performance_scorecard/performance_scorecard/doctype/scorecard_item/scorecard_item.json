@@ -29,7 +29,7 @@
             "fieldtype": "Link",
             "in_list_view": 1,
             "label": "Goal",
-            "options": "Goal",
+            "options": "Goal Master",
             "reqd": 1
         },
         {
@@ -37,7 +37,7 @@
             "fieldtype": "Link",
             "in_list_view": 1,
             "label": "KRA",
-            "options": "KRA",
+            "options": "KRA Master",
             "reqd": 1
         },
         {

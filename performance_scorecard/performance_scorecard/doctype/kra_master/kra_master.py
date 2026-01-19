@@ -1,7 +1,7 @@
 import frappe
 from frappe.model.document import Document
 
-class KRA(Document):
+class KRAMaster(Document):
 	def validate(self):
 		self.validate_goal_link()
 
@@ -9,7 +9,7 @@ class KRA(Document):
 		if not self.goal:
 			frappe.throw("KRA must be linked to a goal.")
 
-		goal = frappe.get_doc("Goal", self.goal)
+		goal = frappe.get_doc("Goal Master", self.goal)
 		if goal.owner_type == "Company":
 			frappe.throw("Company goals cannot have KRAs.")
 
@@ -17,8 +17,8 @@ class KRA(Document):
 			self.owner_type = goal.owner_type
 
 		if self.parent_kra:
-			parent = frappe.get_doc("KRA", self.parent_kra)
-			parent_goal = frappe.get_doc("Goal", parent.goal) if parent.goal else None
+			parent = frappe.get_doc("KRA Master", self.parent_kra)
+			parent_goal = frappe.get_doc("Goal Master", parent.goal) if parent.goal else None
 
 			if goal.owner_type != "Employee":
 				frappe.throw("Parent KRA can only be set for employee goals.")

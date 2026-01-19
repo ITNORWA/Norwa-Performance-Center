@@ -49,7 +49,7 @@ class ScoringEngine:
                 }
                 if use_weighted:
                     hierarchy[item.kpa]["goals"][item.goal]["weight"] = flt(
-                        frappe.get_value("Goal", item.goal, "weightage") or 0
+                        frappe.get_value("Goal Master", item.goal, "weightage") or 0
                     )
 
             if item.kra not in hierarchy[item.kpa]["goals"][item.goal]["kras"]:
@@ -59,7 +59,7 @@ class ScoringEngine:
                 }
                 if use_weighted:
                     hierarchy[item.kpa]["goals"][item.goal]["kras"][item.kra]["weight"] = flt(
-                        frappe.get_value("KRA", item.kra, "weightage") or 0
+                        frappe.get_value("KRA Master", item.kra, "weightage") or 0
                     )
 
             hierarchy[item.kpa]["goals"][item.goal]["kras"][item.kra]["items"].append(item)
@@ -143,7 +143,7 @@ class ScoringEngine:
             return
         visited.add(kra_name)
 
-        kra_doc = frappe.get_doc("KRA", kra_name)
+        kra_doc = frappe.get_doc("KRA Master", kra_name)
         settings = ScoringEngine.get_settings()
         method = settings.calculation_method or "Weighted Average"
         
@@ -164,7 +164,7 @@ class ScoringEngine:
                 kpi_progress = sum([flt(k.score) for k in linked_kpis]) / len(linked_kpis)
         
         # 2. Check if this KRA has Child KRAs
-        child_kras = frappe.get_all("KRA", filters={"parent_kra": kra_name}, fields=["progress", "weightage"])
+        child_kras = frappe.get_all("KRA Master", filters={"parent_kra": kra_name}, fields=["progress", "weightage"])
         
         if child_kras:
             if method == "Weighted Average":
@@ -177,7 +177,7 @@ class ScoringEngine:
             kra_progress = kpi_progress
 
         # Update KRA Progress
-        frappe.db.set_value("KRA", kra_name, "progress", kra_progress)
+        frappe.db.set_value("KRA Master", kra_name, "progress", kra_progress)
         
         # Trigger cascading update for the linked Goal
         if kra_doc.goal:
@@ -200,12 +200,12 @@ class ScoringEngine:
             return
         visited.add(goal_name)
 
-        goal_doc = frappe.get_doc("Goal", goal_name)
+        goal_doc = frappe.get_doc("Goal Master", goal_name)
         settings = ScoringEngine.get_settings()
         method = settings.calculation_method or "Weighted Average"
         
         # 1. Calculate progress from linked KRAs
-        linked_kras = frappe.get_all("KRA", filters={"goal": goal_name}, fields=["progress", "weightage"])
+        linked_kras = frappe.get_all("KRA Master", filters={"goal": goal_name}, fields=["progress", "weightage"])
         
         goal_progress_from_kras = 0
         if linked_kras:
@@ -217,7 +217,7 @@ class ScoringEngine:
                 goal_progress_from_kras = sum([flt(k.progress) for k in linked_kras]) / len(linked_kras)
             
         # 2. Check for Child Goals
-        child_goals = frappe.get_all("Goal", filters={"parent_goal": goal_name}, fields=["progress", "weightage"])
+        child_goals = frappe.get_all("Goal Master", filters={"parent_goal": goal_name}, fields=["progress", "weightage"])
         
         if child_goals:
             if method == "Weighted Average":
@@ -230,7 +230,7 @@ class ScoringEngine:
             goal_progress = goal_progress_from_kras
             
         # Update Goal Progress
-        frappe.db.set_value("Goal", goal_name, "progress", goal_progress)
+        frappe.db.set_value("Goal Master", goal_name, "progress", goal_progress)
         
         # Trigger cascading update for Parent Goal (if any)
         if goal_doc.parent_goal:
@@ -248,7 +248,7 @@ class ScoringEngine:
         settings = ScoringEngine.get_settings()
         method = settings.calculation_method or "Weighted Average"
 
-        linked_goals = frappe.get_all("Goal", filters={"kpa": kpa_name}, fields=["progress", "weightage"])
+        linked_goals = frappe.get_all("Goal Master", filters={"kpa": kpa_name}, fields=["progress", "weightage"])
 
         kpa_progress = 0
         if linked_goals:

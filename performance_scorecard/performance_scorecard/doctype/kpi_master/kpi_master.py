@@ -14,7 +14,7 @@ class KPIMaster(Document):
 			frappe.throw("KPI must be linked to a KRA.")
 
 		goal = frappe.db.get_value(
-			"KRA",
+			"KRA Master",
 			self.kra,
 			["goal"],
 			as_dict=True,
@@ -23,7 +23,7 @@ class KPIMaster(Document):
 			frappe.throw("KPI KRA must be linked to a goal.")
 
 		goal_row = frappe.db.get_value(
-			"Goal",
+			"Goal Master",
 			goal.goal,
 			["owner_type", "employee"],
 			as_dict=True,
