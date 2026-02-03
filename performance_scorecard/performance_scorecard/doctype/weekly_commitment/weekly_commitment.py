@@ -66,7 +66,6 @@ class WeeklyCommitment(Document):
 		new_total = _get_commitment_total_excluding(self.employee, self.kpi, self.name) + current_value
 		_apply_commitment_totals(self.employee, self.kpi, prev_total, new_total)
 
-
 @frappe.whitelist()
 def update_commitment(name, field, value):
 	doc = frappe.get_doc("Weekly Commitment", name)
@@ -107,7 +106,7 @@ def _apply_commitment_totals(employee, kpi, prev_total, new_total):
 		base_actual = flt(item.actual or 0) - flt(prev_total or 0)
 	actual = flt(base_actual) + flt(new_total or 0)
 	target = flt(item.target or 0)
-	score = (actual / target) * 100 if target else 0
+	score = ScoringEngine.calculate_kpi_score(item.kpi, actual, target)
 	frappe.db.set_value("Scorecard Item", item.name, {"base_actual": base_actual, "actual": actual, "score": score})
 	if item.kra:
 		ScoringEngine.update_kra_progress(item.kra)

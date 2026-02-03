@@ -242,11 +242,11 @@ def get_strategy_data(level, period=None, department=None, employee=None):
                 kpi_doc = frappe.get_value(
                     "KPI Master",
                     item.kpi,
-                    ["kpi_name", "default_threshold_green", "default_threshold_yellow"],
+                    ["kpi_name", "direction", "baseline"],
                     as_dict=True,
                 )
-                green = (kpi_doc or {}).get("default_threshold_green") or 80
-                yellow = (kpi_doc or {}).get("default_threshold_yellow") or 60
+                green = 90
+                yellow = 50
                 score = item.score or 0
                 if score >= green:
                     rating = "On Track"
@@ -264,6 +264,8 @@ def get_strategy_data(level, period=None, department=None, employee=None):
                         "kra": item.kra,
                         "kpi": item.kpi,
                         "kpi_name": (kpi_doc or {}).get("kpi_name") or item.kpi,
+                        "kpi_direction": (kpi_doc or {}).get("direction") or "Increase",
+                        "kpi_baseline": (kpi_doc or {}).get("baseline"),
                         "weightage": item.weightage,
                         "target": item.target,
                         "actual": item.actual,
@@ -412,7 +414,7 @@ def preview_employee_kpi_import(file_url=None, employee=None):
     rows = _parse_employee_kpi_file(file_url, employee)
     return _build_preview_response(
         rows,
-        headers=["Row", "Action", "Status", "Message", "KPI Name", "KRA", "Employee", "Unit", "Calculation Method", "Default Green Threshold", "Default Yellow Threshold", "Description"],
+        headers=["Row", "Action", "Status", "Message", "KPI Name", "KRA", "Employee", "Unit", "Direction", "Baseline", "Calculation Method", "Description"],
         field_map={
             "Row": "row",
             "Action": "action",
@@ -422,9 +424,9 @@ def preview_employee_kpi_import(file_url=None, employee=None):
             "KRA": "kra",
             "Employee": "employee",
             "Unit": "unit",
+            "Direction": "direction",
+            "Baseline": "baseline",
             "Calculation Method": "calculation_method",
-            "Default Green Threshold": "default_threshold_green",
-            "Default Yellow Threshold": "default_threshold_yellow",
             "Description": "description",
         },
     )
@@ -647,9 +649,9 @@ def import_employee_kpi(file_url=None, employee=None):
             "kra": row.get("kra"),
             "employee": row.get("employee"),
             "unit": row.get("unit"),
+            "direction": row.get("direction"),
+            "baseline": row.get("baseline"),
             "calculation_method": row.get("calculation_method"),
-            "default_threshold_green": row.get("default_threshold_green"),
-            "default_threshold_yellow": row.get("default_threshold_yellow"),
             "description": row.get("description"),
         }
 
@@ -733,8 +735,8 @@ def download_employee_kra_template(format="xlsx"):
 
 @frappe.whitelist()
 def download_employee_kpi_template(format="xlsx"):
-    headers = ["kpi_name", "kra", "employee", "unit", "calculation_method", "default_threshold_green", "default_threshold_yellow", "description"]
-    data = [headers, ["Onboarding satisfaction score", "Reduce onboarding time", "EMP-0001", "Rating", "Manual", 80, 60, "Monthly survey rating"]]
+    headers = ["kpi_name", "kra", "employee", "unit", "direction", "baseline", "calculation_method", "description"]
+    data = [headers, ["Onboarding satisfaction score", "Reduce onboarding time", "EMP-0001", "Rating", "Increase", "", "Manual", "Monthly survey rating"]]
     filename = "employee_kpi_template"
     if format == "xlsx":
         build_xlsx_response(data, filename)
@@ -895,14 +897,14 @@ def export_employee_kpi(format="xlsx", employee=None):
             "kra",
             "employee",
             "unit",
+            "direction",
+            "baseline",
             "calculation_method",
-            "default_threshold_green",
-            "default_threshold_yellow",
             "description",
         ],
         order_by="kpi_name asc",
     )
-    data = [["kpi_name", "kra", "employee", "unit", "calculation_method", "default_threshold_green", "default_threshold_yellow", "description"]]
+    data = [["kpi_name", "kra", "employee", "unit", "direction", "baseline", "calculation_method", "description"]]
     for kpi in kpis:
         data.append(
             [
@@ -910,9 +912,9 @@ def export_employee_kpi(format="xlsx", employee=None):
                 kpi.kra,
                 kpi.employee,
                 kpi.unit,
+                kpi.direction,
+                kpi.baseline,
                 kpi.calculation_method,
-                kpi.default_threshold_green,
-                kpi.default_threshold_yellow,
                 kpi.description,
             ]
         )
@@ -929,15 +931,15 @@ def _enrich_updates(updates):
         for row in frappe.get_all(
             "KPI Master",
             filters={"name": ["in", list(set(kpis))]},
-            fields=["name", "kpi_name", "default_threshold_green", "default_threshold_yellow"],
+            fields=["name", "kpi_name"],
         ):
             kpi_map[row.name] = row
 
     for update in updates:
         kpi = update.get("kpi")
         kpi_doc = kpi_map.get(kpi) or {}
-        green = kpi_doc.get("default_threshold_green") or 80
-        yellow = kpi_doc.get("default_threshold_yellow") or 60
+        green = 90
+        yellow = 50
         actual = update.get("actual_value") or 0
 
         if actual >= green:
@@ -1624,9 +1626,9 @@ def _parse_employee_kpi_file(file_url, employee=None):
         "kra": {"kra", "kra_name", "kra name"},
         "employee": {"employee", "owner", "owner_employee"},
         "unit": {"unit"},
+        "direction": {"direction", "trend"},
+        "baseline": {"baseline", "baseline_value", "start_value", "start value"},
         "calculation_method": {"calculation_method", "calculation method"},
-        "default_threshold_green": {"default_threshold_green", "green_threshold", "green threshold"},
-        "default_threshold_yellow": {"default_threshold_yellow", "yellow_threshold", "yellow threshold"},
         "description": {"description"},
     }
     required = {"kpi_name"}

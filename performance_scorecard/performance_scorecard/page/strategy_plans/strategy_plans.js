@@ -481,9 +481,9 @@ function make_kpi_dialog(level, callback) {
                     { label: 'KPI Name', fieldname: 'kpi_name', fieldtype: 'Data', reqd: 1 },
                     { label: 'KRA', fieldname: 'kra', fieldtype: 'Link', options: 'KRA Master', reqd: 1, get_query: () => ({ filters: kra_filters }) },
                     { label: 'Unit', fieldname: 'unit', fieldtype: 'Select', options: 'Percentage\nCurrency\nCount\nRating' },
+                    { label: 'Direction', fieldname: 'direction', fieldtype: 'Select', options: 'Increase\nDecrease', default: 'Increase' },
+                    { label: 'Baseline (Start Value)', fieldname: 'baseline', fieldtype: 'Float' },
                     { label: 'Calculation Method', fieldname: 'calculation_method', fieldtype: 'Select', options: 'Manual\nSum\nAverage\nLast Value', default: 'Manual' },
-                    { label: 'Default Green Threshold (>=)', fieldname: 'default_threshold_green', fieldtype: 'Float' },
-                    { label: 'Default Yellow Threshold (>=)', fieldname: 'default_threshold_yellow', fieldtype: 'Float' },
                     { label: 'Description', fieldname: 'description', fieldtype: 'Small Text' }
                 ],
                 primary_action_label: 'Create',

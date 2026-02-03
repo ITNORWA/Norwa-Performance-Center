@@ -10,10 +10,10 @@
         "kra",
         "employee",
         "unit",
+        "direction",
+        "baseline",
         "calculation_method",
         "column_break_1",
-        "default_threshold_green",
-        "default_threshold_yellow",
         "description"
     ],
     "fields": [
@@ -36,12 +36,26 @@
             "fieldtype": "Link",
             "label": "Owner (Employee)",
             "options": "Employee"
+            ,
+            "in_list_view": 1
         },
         {
             "fieldname": "unit",
             "fieldtype": "Select",
             "label": "Unit",
             "options": "Percentage\nCurrency\nCount\nRating"
+        },
+        {
+            "fieldname": "direction",
+            "fieldtype": "Select",
+            "label": "Direction",
+            "options": "Increase\nDecrease",
+            "default": "Increase"
+        },
+        {
+            "fieldname": "baseline",
+            "fieldtype": "Float",
+            "label": "Baseline (Start Value)"
         },
         {
             "fieldname": "calculation_method",
@@ -57,12 +71,16 @@
         {
             "fieldname": "default_threshold_green",
             "fieldtype": "Float",
-            "label": "Default Green Threshold (>=)"
+            "label": "Default Green Threshold (>=)",
+            "hidden": 1,
+            "read_only": 1
         },
         {
             "fieldname": "default_threshold_yellow",
             "fieldtype": "Float",
-            "label": "Default Yellow Threshold (>=)"
+            "label": "Default Yellow Threshold (>=)",
+            "hidden": 1,
+            "read_only": 1
         },
         {
             "fieldname": "description",

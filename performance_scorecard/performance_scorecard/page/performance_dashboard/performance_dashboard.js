@@ -475,7 +475,7 @@ function load_strategy_data($container, level, department, employee) {
 			if (r.message) {
 				const payload = r.message;
 				if (payload.meta && payload.meta.level === "Individual") {
-					render_personal_panel($container, payload.personal || { scorecards: [], updates: [] }, payload.rollups || {}, payload.goals || []);
+					render_personal_panel($container, payload.personal || { scorecards: [], updates: [] }, payload.rollups || {}, payload.goals || [], payload.meta || {});
 					render_personal_tables($content, payload, $container);
 					load_weekly_commitments($content, payload.meta && payload.meta.employee);
 				} else if (payload.meta && payload.meta.level === "Company" && payload.company) {
@@ -1059,6 +1059,58 @@ function open_doctype_modal(doctype, name) {
 	);
 }
 
+function open_doctype_list_modal(doctype, filters) {
+	const slug = frappe.router.slug(doctype);
+	const url = `/app/${slug}`;
+	const modal = open_locked_modal(
+		doctype,
+		url,
+		[["Form", doctype], ["List", doctype], [slug]],
+		{
+			extra_css: `
+				.page-head {
+					position: sticky !important;
+					top: 0;
+					z-index: 10;
+					background: #fff;
+					margin: 0 !important;
+					padding-top: 6px !important;
+				}
+				.page-head::before {
+					content: "";
+					position: absolute;
+					inset: 0;
+					background: #fff;
+					z-index: -1;
+				}
+				.page-head .page-actions {
+					margin-top: 0 !important;
+				}
+				.layout-main-section-wrapper,
+				.layout-main-section,
+				.page-body {
+					padding-top: 0 !important;
+				}
+			`
+		}
+	);
+	const $frame = modal.frame;
+	$frame.on("load", function () {
+		if (!filters || !Object.keys(filters).length) {
+			return;
+		}
+		try {
+			const win = this.contentWindow;
+			if (win && win.frappe) {
+				win.frappe.route_options = filters;
+				win.frappe.set_route("List", doctype);
+			}
+		} catch (e) {
+			// Ignore iframe access errors.
+		}
+	});
+}
+
 function open_report_modal(report_name, options) {
 	const url = `/app/query-report/${encodeURIComponent(report_name)}`;
 	let options_applied = false;
@@ -1289,7 +1341,7 @@ function render_strategy_table($container, data, rollups, level) {
 
 }
 
-function render_personal_panel($container, personal, rollups, goals) {
+function render_personal_panel($container, personal, rollups, goals, meta) {
 	$container.find(".personal-actions").remove();
 	$container.find(".personal-summaries").remove();
 
@@ -1379,6 +1431,10 @@ function render_personal_panel($container, personal, rollups, goals) {
 			open_doctype_modal("Performance Scorecard", name);
 		}
 	});
+
+	$container.find(".kra-read-more").on("click", function () {
+		open_doctype_list_modal("KRA Master", {});
+	});
 }
 
 function build_personal_kra_rows(goals) {
@@ -1403,7 +1459,11 @@ function build_personal_kra_rows(goals) {
 		return '<div class="empty-state">No KRAs yet.</div>';
 	}
 
-	return kra_rows.map(kra => {
+	kra_rows.sort((a, b) => b.progress - a.progress);
+	const visible = kra_rows.slice(0, 3);
+	const remaining = kra_rows.length - visible.length;
+
+	const rows_html = visible.map(kra => {
 		const avg = kra.progress.toFixed(1);
 		const badge = kra.progress >= 80 ? "badge-green" : (kra.progress >= 60 ? "badge-yellow" : "badge-red");
 		return `
@@ -1413,6 +1473,18 @@ function build_personal_kra_rows(goals) {
 			</div>
 		`;
 	}).join("");
+
+	if (remaining <= 0) {
+		return rows_html;
+	}
+
+	return `
+		${rows_html}
+		<div class="list-item list-item-action">
+			<span class="kra-read-more" data-action="view-all-kras">Read more (${remaining})</span>
+			<span class="badge badge-yellow">View all</span>
+		</div>
+	`;
 }
 
 function render_personal_tables($container, payload, $page_container) {
@@ -1650,12 +1722,13 @@ function build_kpi_table(rows) {
 			<table class="table table-bordered table-hover">
 				<thead class="thead-light">
 					<tr>
-						<th style="width: 20%">KPI</th>
-						<th style="width: 18%">Target</th>
-						<th style="width: 18%">Actual</th>
-						<th style="width: 26%">Score</th>
+						<th style="width: 18%">KPI</th>
+						<th style="width: 14%">Baseline</th>
+						<th style="width: 14%">Target</th>
+						<th style="width: 14%">Actual</th>
+						<th style="width: 24%">Score</th>
 						<th style="width: 10%">Rating</th>
-						<th style="width: 8%">Actions</th>
+						<th style="width: 6%">Actions</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -1663,13 +1736,20 @@ function build_kpi_table(rows) {
 
 	rows.forEach((row, index) => {
 		const score = flt(row.score || 0);
+		const score_class = score < 0 ? "is-red" : "";
+		const direction = (row.kpi_direction || row.direction || "Increase").toLowerCase();
+		const direction_label = direction === "decrease" ? "Decrease" : "Increase";
+		const direction_badge = direction === "decrease"
+			? '<span class="badge badge-blue kpi-direction-badge">Decrease</span>'
+			: '<span class="badge badge-green kpi-direction-badge">Increase</span>';
 		html += `
 			<tr>
-				<td>${row.kpi_name || row.kpi || "-"}</td>
+				<td>${row.kpi_name || row.kpi || "-"} ${direction_badge}</td>
+				<td>${row.kpi_baseline ?? "-"}</td>
 				<td>${row.target ?? "-"}</td>
 				<td>${row.actual ?? "-"}</td>
 				<td>
-					<div class="status-value">${score.toFixed(1)}%</div>
+					<div class="status-value ${score_class}">${score.toFixed(1)}%</div>
 					${render_status_bar(score)}
 				</td>
 				<td>${row.rating || "-"}</td>
@@ -1786,11 +1866,13 @@ function build_kpa_table(kpas) {
 }
 
 function render_status_bar(percent) {
-	const value = Math.max(0, Math.min(100, flt(percent || 0)));
-	const color = value >= 80 ? "bg-success" : (value >= 60 ? "bg-warning" : "bg-danger");
+	const raw = flt(percent || 0);
+	const is_negative = raw < 0;
+	const value = Math.max(0, Math.min(100, raw));
+	const color = value >= 90 ? "bg-success" : (value >= 50 ? "bg-warning" : "bg-danger");
 	return `
-		<div class="progress status-bar">
-			<div class="progress-bar ${color}" role="progressbar" style="width: ${value}%" aria-valuenow="${value}" aria-valuemin="0" aria-valuemax="100"></div>
+		<div class="progress status-bar ${is_negative ? "status-negative" : ""}">
+			<div class="progress-bar ${color} ${is_negative ? "status-negative-bar" : ""}" role="progressbar" style="width: ${value}%" aria-valuenow="${value}" aria-valuemin="0" aria-valuemax="100"></div>
 		</div>
 	`;
 }
@@ -1864,7 +1946,8 @@ function render_documentation($container) {
 			color: "cyan",
 			content: `
 				<div class="doc-subtitle">Item score</div>
-				<pre class="doc-formula">score = (actual / target) * 100</pre>
+				<pre class="doc-formula">Increase: score = (actual / target) * 100</pre>
+				<pre class="doc-formula">Decrease: score = ((baseline - actual) / (baseline - target)) * 100</pre>
 				<div class="doc-subtitle">Weighted rollups</div>
 				<pre class="doc-formula">weighted score = sum(score * weight) / sum(weight)</pre>
 				<ul>
@@ -3151,10 +3234,10 @@ function average_score(items) {
 }
 
 function score_class(value) {
-	if (value >= 80) {
+	if (value >= 90) {
 		return "is-green";
 	}
-	if (value >= 60) {
+	if (value >= 50) {
 		return "is-yellow";
 	}
 	return "is-red";
@@ -3166,10 +3249,10 @@ function render_light(value) {
 }
 
 function render_indicator_chip(value) {
-	if (value >= 80) {
+	if (value >= 90) {
 		return '<span class="indicator-chip is-up"><i class="fa fa-arrow-up"></i> Strong</span>';
 	}
-	if (value >= 60) {
+	if (value >= 50) {
 		return '<span class="indicator-chip is-flat"><i class="fa fa-minus"></i> Stable</span>';
 	}
 	return '<span class="indicator-chip is-down"><i class="fa fa-arrow-down"></i> Needs attention</span>';

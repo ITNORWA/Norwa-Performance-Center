@@ -3,6 +3,10 @@ frappe.ui.form.on('KPI Master', {
         set_employee_from_user(frm);
         set_kra_query(frm);
         set_employee_from_kra(frm);
+        toggle_baseline_requirement(frm);
+    },
+    direction: function (frm) {
+        toggle_baseline_requirement(frm);
     },
     kra: function (frm) {
         set_employee_from_kra(frm);
@@ -60,4 +64,12 @@ function set_employee_from_user(frm) {
             frm.set_value('employee', employee);
         }
     });
+}
+
+function toggle_baseline_requirement(frm) {
+    if (!frm.fields_dict.baseline) {
+        return;
+    }
+    const needs_baseline = (frm.doc.direction || "Increase") === "Decrease";
+    frm.set_df_property("baseline", "reqd", needs_baseline);
 }

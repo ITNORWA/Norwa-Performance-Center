@@ -37,6 +37,7 @@
             "fieldtype": "Select",
             "label": "Owner Type",
             "options": "Department\nEmployee",
+            "in_list_view": 1,
             "reqd": 1,
             "default": "Employee"
         },
@@ -45,6 +46,7 @@
             "fieldtype": "Link",
             "label": "Department",
             "options": "Department",
+            "in_list_view": 1,
             "depends_on": "eval:doc.owner_type=='Department'"
         },
         {
@@ -52,6 +54,7 @@
             "fieldtype": "Link",
             "label": "Employee",
             "options": "Employee",
+            "in_list_view": 1,
             "depends_on": "eval:doc.owner_type=='Employee'"
         },
         {

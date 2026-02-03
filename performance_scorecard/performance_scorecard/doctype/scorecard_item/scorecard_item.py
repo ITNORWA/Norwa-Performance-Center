@@ -27,7 +27,7 @@ def update_scorecard_item_actual(item_name, base_actual):
 	base_actual = flt(base_actual or 0)
 	actual = base_actual + flt(commitment_total)
 	target = flt(item.target or 0)
-	score = (actual / target) * 100 if target else 0
+	score = ScoringEngine.calculate_kpi_score(item.kpi, actual, target)
 	frappe.db.set_value(
 		"Scorecard Item",
 		item_name,

@@ -3,6 +3,40 @@ from frappe.utils import flt
 
 class ScoringEngine:
     @staticmethod
+    def get_kpi_meta(kpi_name, cache=None):
+        if not kpi_name:
+            return {}
+        if cache is not None and kpi_name in cache:
+            return cache[kpi_name]
+        meta = frappe.db.get_value(
+            "KPI Master",
+            kpi_name,
+            ["direction", "baseline"],
+            as_dict=True,
+        ) or {}
+        if cache is not None:
+            cache[kpi_name] = meta
+        return meta
+
+    @staticmethod
+    def calculate_kpi_score(kpi_name, actual, target, cache=None):
+        meta = ScoringEngine.get_kpi_meta(kpi_name, cache=cache)
+        direction = (meta.get("direction") or "Increase").lower()
+        actual_value = flt(actual or 0)
+        target_value = flt(target or 0)
+
+        if direction == "decrease":
+            baseline = meta.get("baseline")
+            if baseline is None:
+                return 0
+            baseline_value = flt(baseline)
+            if baseline_value == target_value:
+                return 0
+            return ((baseline_value - actual_value) / (baseline_value - target_value)) * 100
+
+        return (actual_value / target_value) * 100 if target_value else 0
+
+    @staticmethod
     def get_settings():
         if frappe.db.exists("DocType", "Performance Settings"):
             return frappe.get_single("Performance Settings")
@@ -22,13 +56,18 @@ class ScoringEngine:
         hierarchy = {}
         kra_updates = set()
 
+        kpi_cache = {}
         for item in scorecard_doc.items:
             if not item.kpa or not item.goal or not item.kra or not item.kpi:
                 continue
 
-            if item.target and item.actual is not None:
-                target = flt(item.target)
-                item.score = (flt(item.actual) / target) * 100 if target else 0
+            if item.target is not None and item.actual is not None:
+                item.score = ScoringEngine.calculate_kpi_score(
+                    item.kpi,
+                    item.actual,
+                    item.target,
+                    cache=kpi_cache,
+                )
             else:
                 item.score = 0
 

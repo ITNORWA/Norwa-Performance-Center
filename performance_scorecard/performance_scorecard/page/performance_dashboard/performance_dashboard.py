@@ -64,7 +64,7 @@ def get_dashboard_data():
 		if latest_scorecard:
 			scorecard_doc = frappe.get_doc("Performance Scorecard", latest_scorecard)
 			for item in scorecard_doc.items:
-				if item.score and item.score < 50:
+				if item.score is not None and item.score < 50:
 					data["needs_attention"].append({
 						"kpi": item.kpi,
 						"score": item.score,
@@ -296,9 +296,9 @@ def _get_department_distribution(department):
 	buckets = {"Top": 0, "Mid": 0, "Low": 0}
 	for row in rows:
 		score = row.overall_score or 0
-		if score >= 80:
+		if score >= 90:
 			buckets["Top"] += 1
-		elif score >= 60:
+		elif score >= 50:
 			buckets["Mid"] += 1
 		else:
 			buckets["Low"] += 1
@@ -346,7 +346,7 @@ def _get_department_at_risk_kpis(department):
 
 	items = frappe.db.get_all(
 		"Scorecard Item",
-		filters={"parent": ["in", card_names], "score": ["<", 60]},
+		filters={"parent": ["in", card_names], "score": ["<", 50]},
 		fields=["kpi", "score"]
 	)
 	return [{"label": item.kpi, "value": item.score or 0} for item in items]
@@ -496,7 +496,7 @@ def _get_employee_at_risk_kpis(employee):
 		return []
 	items = frappe.db.get_all(
 		"Scorecard Item",
-		filters={"parent": scorecard, "score": ["<", 60]},
+		filters={"parent": scorecard, "score": ["<", 50]},
 		fields=["kpi", "score"]
 	)
 	return [{"label": item.kpi, "value": item.score or 0} for item in items]
@@ -673,7 +673,7 @@ def _get_kra_attention(owner_type, department=None, employee=None, limit=5):
 			employee=employee if owner_type == "Employee" else None,
 		)
 		score = score or 0
-		if score < 60:
+		if score < 50:
 			results.append({"name": kra.name, "label": kra.kra_name, "value": score})
 
 	results.sort(key=lambda r: r.get("value", 0))
