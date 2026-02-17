@@ -34,6 +34,24 @@ doctype_js = {
 
 # DocType Events
 # ------------------
+# Permissions
+# ------------------
+permission_query_conditions = {
+	"Goal Master": "performance_scorecard.performance_scorecard.permissions.get_permission_query_conditions",
+	"KRA Master": "performance_scorecard.performance_scorecard.permissions.get_permission_query_conditions",
+	"KPI Master": "performance_scorecard.performance_scorecard.permissions.get_permission_query_conditions",
+	"KPA Master": "performance_scorecard.performance_scorecard.permissions.get_permission_query_conditions",
+}
+
+has_permission = {
+	"Goal Master": "performance_scorecard.performance_scorecard.permissions.has_permission",
+	"KRA Master": "performance_scorecard.performance_scorecard.permissions.has_permission",
+	"KPI Master": "performance_scorecard.performance_scorecard.permissions.has_permission",
+	"KPA Master": "performance_scorecard.performance_scorecard.permissions.has_permission",
+}
+
+# DocType Events
+# ------------------
 doc_events = {
 	"Goal Master": {
 		"after_insert": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_goal",

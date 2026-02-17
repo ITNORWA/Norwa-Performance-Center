@@ -7,6 +7,7 @@
     "engine": "InnoDB",
     "field_order": [
         "kpa_name",
+        "company",
         "weightage",
         "progress"
     ],
@@ -18,6 +19,15 @@
             "label": "KPA Name",
             "reqd": 1,
             "unique": 1
+        },
+        {
+            "fieldname": "company",
+            "fieldtype": "Link",
+            "label": "Company",
+            "options": "Company",
+            "in_list_view": 1,
+            "reqd": 1,
+            "default": ":Company"
         },
         {
             "fieldname": "weightage",

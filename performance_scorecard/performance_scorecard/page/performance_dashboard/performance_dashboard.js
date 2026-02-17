@@ -25,6 +25,11 @@ function load_dashboard(page) {
 function render_dashboard(page, data) {
 	$(page.body).empty();
 
+	data = data || {};
+	const company_name = data.company || frappe.boot.sysdefaults.company || "Company";
+	const fullname = data.fullname || frappe.session.user_fullname;
+	const designation = data.designation || "";
+
 	const home_html = build_home_html(data);
 
 	let html = `
@@ -32,7 +37,7 @@ function render_dashboard(page, data) {
 			<!-- Sidebar -->
 			<div class="dashboard-sidebar">
 			<div class="sidebar-header">
-				<h3 style="color:white; margin:0;">${data.company}</h3>
+				<h3 style="color:white; margin:0;">${company_name}</h3>
 			</div>
 				<ul class="sidebar-menu">
 					<li class="active" data-section="home"><i class="fa fa-home"></i> Home</li>
@@ -49,8 +54,8 @@ function render_dashboard(page, data) {
 					<i class="fa fa-user"></i>
 				</div>
 				<div>
-					<div style="font-weight:bold; font-size:12px;">${data.fullname}</div>
-					<div style="font-size:10px; color:#a0aec0;">${data.designation}</div>
+					<div style="font-weight:bold; font-size:12px;">${fullname}</div>
+					<div style="font-size:10px; color:#a0aec0;">${designation}</div>
 				</div>
 			</div>
 		</div>
@@ -214,10 +219,17 @@ function bind_sidebar(page, data, home_html, initial_section) {
 
 function render_home_charts($body, data) {
 	const progress = data.kra_progress || {};
-	const palette = data.kpa_palette || [];
-	render_chart("#home-kpa-company", progress.company, "pie", { colors: palette, normalize: true });
-	render_chart("#home-kpa-department", progress.department, "pie", { colors: palette, normalize: true });
-	render_chart("#home-kpa-individual", progress.individual, "pie", { colors: palette, normalize: true });
+	const palette = data.kpa_palette || ["#F47920", "#009DDC", "#00A651", "#BDBDBD"];
+
+	if (progress.company) {
+		render_chart("#home-kpa-company", progress.company, "pie", { colors: palette, normalize: true });
+	}
+	if (progress.department) {
+		render_chart("#home-kpa-department", progress.department, "pie", { colors: palette, normalize: true });
+	}
+	if (progress.individual) {
+		render_chart("#home-kpa-individual", progress.individual, "pie", { colors: palette, normalize: true });
+	}
 }
 
 function render_home_list(items, empty_text, options) {
@@ -342,30 +354,30 @@ function render_strategy_plans($container) {
 	update_strategy_actions($actions, "Company");
 	load_strategy_data($container, "Company", null);
 
-		$actions.find("[data-action='add-goal']").on("click", function () {
-			open_doctype_modal("Goal Master");
-		});
-		$actions.find("[data-action='add-kra']").on("click", function () {
-			open_doctype_modal("KRA Master");
-		});
-		$actions.find("[data-action='add-kpa']").on("click", function () {
-			open_doctype_modal("KPA Master");
-		});
-		$actions.find("[data-action='import-company']").on("click", function () {
-			const level = $container.find(".nav-link.active").data("level");
-			const filters = $container.data("strategy-filters") || {};
-			const department = filters.department || "";
-			const employee = filters.employee || "";
-			if (level === "Department" && !department) {
-				frappe.msgprint("Select a department before importing.");
-				return;
-			}
-			if (level === "Individual" && !employee) {
-				frappe.msgprint("Select an employee before importing.");
-				return;
-			}
-			open_strategy_import_dialog($container, level, department, employee);
-		});
+	$actions.find("[data-action='add-goal']").on("click", function () {
+		open_doctype_modal("Goal Master");
+	});
+	$actions.find("[data-action='add-kra']").on("click", function () {
+		open_doctype_modal("KRA Master");
+	});
+	$actions.find("[data-action='add-kpa']").on("click", function () {
+		open_doctype_modal("KPA Master");
+	});
+	$actions.find("[data-action='import-company']").on("click", function () {
+		const level = $container.find(".nav-link.active").data("level");
+		const filters = $container.data("strategy-filters") || {};
+		const department = filters.department || "";
+		const employee = filters.employee || "";
+		if (level === "Department" && !department) {
+			frappe.msgprint("Select a department before importing.");
+			return;
+		}
+		if (level === "Individual" && !employee) {
+			frappe.msgprint("Select an employee before importing.");
+			return;
+		}
+		open_strategy_import_dialog($container, level, department, employee);
+	});
 	deptControl.$input.on("change", function () {
 		const level = $container.find(".nav-link.active").data("level");
 		if (level === "Department") {
@@ -1379,13 +1391,13 @@ function render_personal_panel($container, personal, rollups, goals, meta) {
 				<div class="card-header blue">MY SCORECARDS</div>
 				<div class="card-content">
 					${personal.scorecards.length ?
-				personal.scorecards.map(s => `
+			personal.scorecards.map(s => `
 						<div class="list-item scorecard-item" data-name="${s.name}">
 							<span class="scorecard-link">${s.name}</span>
 							<span class="badge badge-green">${s.status}</span>
 						</div>
 					`).join('') :
-				'<div class="empty-state">No scorecards yet.</div>'}
+			'<div class="empty-state">No scorecards yet.</div>'}
 				</div>
 			</div>
 			<div class="dashboard-card">
@@ -1610,11 +1622,11 @@ function load_weekly_commitments($container, employee) {
 		frappe.call({
 			method: "frappe.client.get_list",
 			args: {
-			doctype: "Weekly Commitment",
-			fields: ["name", "title", "description", "week_start", "week_end", "kpi", "kpi_unit", "actual_value", "status"],
-			filters: { owner: frappe.session.user },
-			order_by: "week_start desc"
-		},
+				doctype: "Weekly Commitment",
+				fields: ["name", "title", "description", "week_start", "week_end", "kpi", "kpi_unit", "actual_value", "status"],
+				filters: { owner: frappe.session.user },
+				order_by: "week_start desc"
+			},
 			callback: function (r) {
 				const items = r.message || [];
 				if (!items.length) {

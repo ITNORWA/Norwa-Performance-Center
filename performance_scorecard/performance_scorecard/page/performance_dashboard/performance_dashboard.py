@@ -3,171 +3,182 @@ from frappe.utils import add_days, add_months, nowdate
 
 
 @frappe.whitelist()
+@frappe.whitelist()
 def get_dashboard_data():
-	user = frappe.session.user
-	employee = frappe.db.get_value("Employee", {"user_id": user}, "name")
-	department = frappe.db.get_value("Employee", employee, "department") if employee else None
-	chart_employee, chart_department = _get_employee_profile(user)
+	try:
+		user = frappe.session.user
+		employee = frappe.db.get_value("Employee", {"user_id": user}, "name")
+		department = frappe.db.get_value("Employee", employee, "department") if employee else None
+		company = frappe.db.get_value("Employee", employee, "company") if employee else frappe.defaults.get_user_default("Company")
+		
+		# If no employee/company, user might be Administrator/System Manager
+		if not company:
+			company = frappe.defaults.get_user_default("Company") or frappe.db.get_single_value("Global Defaults", "default_company")
 
-	data = {
-		"company": frappe.defaults.get_user_default("Company") or frappe.db.get_single_value("Global Defaults", "default_company"),
-		"fullname": frappe.utils.get_fullname(user),
-		"designation": frappe.db.get_value("Employee", {"user_id": user}, "designation") or "User",
-		"objectives": [],
-		"key_results": [],
-		"needs_attention": [],
-		"tasks": [],
-		"kpis_needing_update": [],
-		"recent_updates": [],
-		"kra_progress": {
-			"company": [],
-			"department": [],
-			"individual": []
-		},
-		"attention_company": [],
-		"attention_department": [],
-		"attention_individual": [],
-		"weekly_top_kras": [],
-		"quarterly_top_kras": [],
-		"kpa_weights": [],
-		"kpa_palette": []
-	}
+		chart_employee, chart_department = _get_employee_profile(user)
 
-	if employee:
-		# 1. My Key Objectives (Goals)
-		data["objectives"] = frappe.db.get_list(
-			"Goal Master",
-			filters={"employee": employee, "status": "Active"},
-			fields=["name", "goal_name", "status"]
-		)
+		data = {
+			"company": company,
+			"fullname": frappe.utils.get_fullname(user),
+			"designation": frappe.db.get_value("Employee", {"user_id": user}, "designation") or "User",
+			"objectives": [],
+			"key_results": [],
+			"needs_attention": [],
+			"tasks": [],
+			"kpis_needing_update": [],
+			"recent_updates": [],
+			"kra_progress": {
+				"company": [],
+				"department": [],
+				"individual": []
+			},
+			"attention_company": [],
+			"attention_department": [],
+			"attention_individual": [],
+			"weekly_top_kras": [],
+			"quarterly_top_kras": [],
+			"kpa_weights": [],
+			"kpa_palette": []
+		}
 
-		# 2. My Key Results (KRAs)
-		# Fetch KRAs linked to employee's goals
-		goals = [g.name for g in data["objectives"]]
-		if goals:
-			data["key_results"] = frappe.db.get_list(
-				"KRA Master",
-				filters={"goal": ["in", goals]},
-				fields=["name", "kra_name", "weightage"]
+		if employee:
+			# 1. My Key Objectives (Goals)
+			data["objectives"] = frappe.db.get_list(
+				"Goal Master",
+				filters={"employee": employee, "status": ["!=", "Archived"]},
+				fields=["name", "goal_name", "status"]
 			)
 
-		# 3. Needs Attention (Overdue/Underperforming KPIs)
-		# Fetch latest scorecard items where score is low (e.g. < 50%)
-		# For simplicity, let's fetch items from the latest active scorecard
-		latest_scorecard = frappe.db.get_value(
-			"Performance Scorecard",
-			{"employee": employee, "docstatus": 0},
-			"name",
-			order_by="creation desc"
-		)
+			# 2. My Key Results (KRAs)
+			goals = [g.name for g in data["objectives"]]
+			if goals:
+				data["key_results"] = frappe.db.get_list(
+					"KRA Master",
+					filters={"goal": ["in", goals]},
+					fields=["name", "kra_name", "weightage"]
+				)
 
-		if latest_scorecard:
-			scorecard_doc = frappe.get_doc("Performance Scorecard", latest_scorecard)
-			for item in scorecard_doc.items:
-				if item.score is not None and item.score < 50:
-					data["needs_attention"].append({
-						"kpi": item.kpi,
-						"score": item.score,
-						"target": item.target,
-						"actual": item.actual
-					})
+			# 3. Needs Attention
+			latest_scorecard = frappe.db.get_value(
+				"Performance Scorecard",
+				{"employee": employee, "docstatus": 0},
+				"name",
+				order_by="creation desc"
+			)
 
-		# 4. My Tasks (Pending Updates)
-		data["tasks"] = frappe.db.get_list(
-			"Performance Update",
-			filters={"owner": user, "status": "Draft"},
-			fields=["name", "kpi", "status", "modified"]
-		)
+			if latest_scorecard:
+				scorecard_doc = frappe.get_doc("Performance Scorecard", latest_scorecard)
+				for item in scorecard_doc.items:
+					if item.score is not None and item.score < 50:
+						data["needs_attention"].append({
+							"kpi": item.kpi,
+							"score": item.score,
+							"target": item.target,
+							"actual": item.actual
+						})
 
-		# 5. KPIs Needing Update
-		# TODO: Logic to check which KPIs haven't been updated in the current period
-		# For now, return empty or mock
+			# 4. My Tasks
+			data["tasks"] = frappe.db.get_list(
+				"Performance Update",
+				filters={"owner": user, "status": "Draft"},
+				fields=["name", "kpi", "status", "modified"]
+			)
 
-		# 6. Recent KPI Updates
-		data["recent_updates"] = frappe.db.get_list(
-			"Performance Update",
-			filters={"owner": user},
-			fields=["kpi", "actual_value", "modified"],
-			order_by="modified desc",
-			limit=5
-		)
+			# 6. Recent Updates
+			data["recent_updates"] = frappe.db.get_list(
+				"Performance Update",
+				filters={"owner": user},
+				fields=["kpi", "actual_value", "modified"],
+				order_by="modified desc",
+				limit=5
+			)
 
-	data["kra_progress"]["company"] = _get_kra_progress_by_kpa(owner_type="Company")
-	if chart_department:
-		data["kra_progress"]["department"] = _get_kra_progress_by_kpa(owner_type="Department", department=chart_department)
-	if chart_employee:
-		data["kra_progress"]["individual"] = _get_kra_progress_by_kpa(owner_type="Employee", employee=chart_employee)
+		data["kra_progress"]["company"] = _get_kra_progress_by_kpa(owner_type="Company", company=company)
+		if chart_department:
+			data["kra_progress"]["department"] = _get_kra_progress_by_kpa(owner_type="Department", department=chart_department, company=company)
+		if chart_employee:
+			data["kra_progress"]["individual"] = _get_kra_progress_by_kpa(owner_type="Employee", employee=chart_employee, company=company)
 
-	data["attention_company"] = _get_kra_attention(owner_type="Company")
-	if chart_department:
-		data["attention_department"] = _get_kra_attention(owner_type="Department", department=chart_department)
-	if chart_employee:
-		data["attention_individual"] = _get_kra_attention(owner_type="Employee", employee=chart_employee)
+		data["attention_company"] = _get_kra_attention(owner_type="Company", company=company)
+		if chart_department:
+			data["attention_department"] = _get_kra_attention(owner_type="Department", department=chart_department, company=company)
+		if chart_employee:
+			data["attention_individual"] = _get_kra_attention(owner_type="Employee", employee=chart_employee, company=company)
 
-	if chart_employee:
-		data["weekly_top_kras"] = _get_top_goals_by_period(chart_employee, days=7, limit=5)
-		data["quarterly_top_kras"] = _get_top_goals_by_period(chart_employee, months=3, limit=5)
+		if chart_employee:
+			data["weekly_top_kras"] = _get_top_goals_by_period(chart_employee, days=7, limit=5)
+			data["quarterly_top_kras"] = _get_top_goals_by_period(chart_employee, months=3, limit=5)
 
-	data["kpa_weights"] = _get_kpa_weightages()
-	data["kpa_palette"] = _get_kpa_palette()
+		data["kpa_weights"] = _get_kpa_weightages()
+		data["kpa_palette"] = _get_kpa_palette()
 
-	return data
+		return data
+	except Exception as e:
+		frappe.log_error(f"Performance Dashboard Error: {str(e)}")
+		return {}
 
 
 @frappe.whitelist()
 def get_dashboard_insights(department=None, employee=None):
-	user = frappe.session.user
-	profile_employee, profile_department = _get_employee_profile(user)
-	selected_department = department or profile_department
-	selected_employee = employee if employee or department else profile_employee
-	employee_department = None
+	try:
+		user = frappe.session.user
+		profile_employee, profile_department = _get_employee_profile(user)
+		company = frappe.db.get_value("Employee", profile_employee, "company") if profile_employee else frappe.defaults.get_user_default("Company")
+		
+		selected_department = department or profile_department
+		selected_employee = employee if employee or department else profile_employee
+		employee_department = None
 
-	if selected_employee:
-		employee_department = frappe.db.get_value("Employee", selected_employee, "department")
-		if selected_department and employee_department and employee_department != selected_department:
-			selected_employee = None
-		elif not selected_department:
-			selected_department = employee_department
+		if selected_employee:
+			employee_department = frappe.db.get_value("Employee", selected_employee, "department")
+			if selected_department and employee_department and employee_department != selected_department:
+				selected_employee = None
+			elif not selected_department:
+				selected_department = employee_department
 
-	insights = {
-		"meta": {
-			"employee": selected_employee,
-			"department": selected_department
-		},
-		"company": {},
-		"department": {},
-		"employee": {}
-	}
-
-	insights["company"] = {
-		"kpa_scores": _get_company_kpa_scores(),
-		"department_comparison": _get_department_comparison(),
-		"trend": _get_score_trend(),
-		"top_performers": _get_top_employees()
-	}
-
-	if selected_department:
-		insights["department"] = {
-			"kpa_scores": _get_department_kpa_scores(selected_department),
-			"employee_distribution": _get_department_distribution(selected_department),
-			"goal_achievement_rate": _get_department_goal_achievement(selected_department),
-			"at_risk_kpis": _get_department_at_risk_kpis(selected_department),
-			"trend": _get_department_trend(selected_department),
-			"top_employees": _get_department_top_employees(selected_department)
+		insights = {
+			"meta": {
+				"employee": selected_employee,
+				"department": selected_department,
+				"company": company
+			},
+			"company": {},
+			"department": {},
+			"employee": {}
 		}
 
-	if selected_employee:
-		dept_for_employee = selected_department or employee_department
-		insights["employee"] = {
-			"scorecard": _get_employee_scorecard(selected_employee),
-			"goal_progress": _get_employee_goal_progress(selected_employee),
-			"department_average": _get_department_average(dept_for_employee),
-			"at_risk_kpis": _get_employee_at_risk_kpis(selected_employee),
-			"kpi_targets": _get_employee_kpi_targets(selected_employee),
-			"trend": _get_employee_trend(selected_employee)
+		insights["company"] = {
+			"kpa_scores": _get_company_kpa_scores(company),
+			"department_comparison": _get_department_comparison(company),
+			"trend": _get_score_trend(company),
+			"top_performers": _get_top_employees(company)
 		}
 
-	return insights
+		if selected_department:
+			insights["department"] = {
+				"kpa_scores": _get_department_kpa_scores(selected_department, company),
+				"employee_distribution": _get_department_distribution(selected_department),
+				"goal_achievement_rate": _get_department_goal_achievement(selected_department),
+				"at_risk_kpis": _get_department_at_risk_kpis(selected_department),
+				"trend": _get_department_trend(selected_department),
+				"top_employees": _get_department_top_employees(selected_department)
+			}
+
+		if selected_employee:
+			dept_for_employee = selected_department or employee_department
+			insights["employee"] = {
+				"scorecard": _get_employee_scorecard(selected_employee),
+				"goal_progress": _get_employee_goal_progress(selected_employee),
+				"department_average": _get_department_average(dept_for_employee),
+				"at_risk_kpis": _get_employee_at_risk_kpis(selected_employee),
+				"kpi_targets": _get_employee_kpi_targets(selected_employee),
+				"trend": _get_employee_trend(selected_employee)
+			}
+
+		return insights
+	except Exception as e:
+		frappe.log_error(f"Dashboard Insights Error: {str(e)}")
+		return {}
 
 
 def _get_employee_profile(user):
@@ -198,15 +209,19 @@ def _get_employee_profile(user):
 	return employee, department
 
 
-def _get_company_kpa_scores():
+def _get_company_kpa_scores(company=None):
 	# KPI-based KPA averages across all scorecards
-	return _get_kra_progress_by_kpa(owner_type="Company")
+	return _get_kra_progress_by_kpa(owner_type="Company", company=company)
 
 
-def _get_department_comparison():
+def _get_department_comparison(company=None):
+	filters = {"owner_type": "Department"}
+	if company:
+		filters["company"] = company
+	
 	rows = frappe.db.get_all(
 		"Goal Master",
-		filters={"owner_type": "Department"},
+		filters=filters,
 		fields=["name", "department"]
 	)
 
@@ -231,23 +246,38 @@ def _get_department_comparison():
 	return sorted(comparison, key=lambda x: x["value"], reverse=True)
 
 
-def _get_score_trend():
+def _get_score_trend(company=None):
 	start = add_months(nowdate(), -5)
-	query = """
-		SELECT DATE_FORMAT(creation, '%%Y-%%m') as label,
-			AVG(overall_score) as value
-		FROM `tabPerformance Scorecard`
-		WHERE creation >= %s
-		GROUP BY DATE_FORMAT(creation, '%%Y-%%m')
+	company_condition = "AND e.company = %s" if company else ""
+	params = [start]
+	if company:
+		params.append(company)
+
+	query = f"""
+		SELECT DATE_FORMAT(ps.creation, '%%Y-%%m') as label,
+			AVG(ps.overall_score) as value
+		FROM `tabPerformance Scorecard` ps
+		JOIN `tabEmployee` e ON ps.employee = e.name
+		WHERE ps.creation >= %s {company_condition}
+		GROUP BY DATE_FORMAT(ps.creation, '%%Y-%%m')
 		ORDER BY label ASC
 	"""
-	return frappe.db.sql(query, (start,), as_dict=True)
+	return frappe.db.sql(query, tuple(params), as_dict=True)
 
 
-def _get_top_employees():
+def _get_top_employees(company=None):
+	filters = {}
+	if company:
+		# Need to filter employees by company first
+		employees = frappe.db.get_all("Employee", filters={"company": company}, pluck="name")
+		if not employees:
+			return []
+		filters["employee"] = ["in", employees]
+
 	rows = frappe.db.get_all(
 		"Performance Scorecard",
 		fields=["employee", "overall_score", "modified"],
+		filters=filters,
 		order_by="modified desc"
 	)
 
@@ -260,9 +290,9 @@ def _get_top_employees():
 	return sorted(entries, key=lambda x: x["value"], reverse=True)
 
 
-def _get_department_kpa_scores(department):
+def _get_department_kpa_scores(department, company=None):
 	# KPI-based KPA averages for the department
-	return _get_kra_progress_by_kpa(owner_type="Department", department=department)
+	return _get_kra_progress_by_kpa(owner_type="Department", department=department, company=company)
 
 
 def _get_department_top_employees(department, limit=5):
@@ -401,7 +431,7 @@ def _get_employee_goal_progress(employee):
 	return {"items": items, "average": average}
 
 
-def _avg_score_for_goals(goal_names, department=None, employee=None):
+def _avg_score_for_goals(goal_names, department=None, employee=None, company=None):
 	if not goal_names:
 		return 0
 	placeholders = ", ".join(["%s"] * len(goal_names))
@@ -442,7 +472,7 @@ def _avg_score_for_goals(goal_names, department=None, employee=None):
 	return rows[0].get("avg_score") or 0
 
 
-def _avg_score_for_kra(kra, department=None, employee=None):
+def _avg_score_for_kra(kra, department=None, employee=None, company=None):
 	if not kra:
 		return 0
 	conditions = ["si.kra = %s", "ps.docstatus = 0"]
@@ -564,7 +594,7 @@ def _get_goal_kpa_field():
 	return None
 
 
-def _get_kra_progress_by_kpa(owner_type, department=None, employee=None):
+def _get_kra_progress_by_kpa(owner_type, department=None, employee=None, company=None):
 	conditions = ["si.kpa IS NOT NULL", "si.kpa != ''"]
 	values = []
 	if owner_type == "Department" and department:
@@ -573,6 +603,10 @@ def _get_kra_progress_by_kpa(owner_type, department=None, employee=None):
 	if owner_type == "Employee" and employee:
 		conditions.append("ps.employee = %s")
 		values.append(employee)
+	
+	if company:
+		conditions.append("e.company = %s")
+		values.append(company)
 
 	score_expr = """
 		CASE
@@ -652,12 +686,14 @@ def _get_kpa_palette():
 	return ["#F47920", "#009DDC", "#00A651", "#BDBDBD"]
 
 
-def _get_kra_attention(owner_type, department=None, employee=None, limit=5):
+def _get_kra_attention(owner_type, department=None, employee=None, limit=5, company=None):
 	conditions = {"owner_type": owner_type}
 	if department:
 		conditions["department"] = department
 	if employee:
 		conditions["employee"] = employee
+	if company:
+		conditions["company"] = company
 
 	kras = frappe.db.get_all(
 		"KRA Master",
@@ -671,6 +707,7 @@ def _get_kra_attention(owner_type, department=None, employee=None, limit=5):
 			kra.name,
 			department=department if owner_type == "Department" else None,
 			employee=employee if owner_type == "Employee" else None,
+			company=company
 		)
 		score = score or 0
 		if score < 50:
