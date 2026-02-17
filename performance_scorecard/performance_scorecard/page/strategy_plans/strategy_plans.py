@@ -435,6 +435,7 @@ def preview_employee_kpi_import(file_url=None, employee=None):
 def import_company_kpa(file_url=None):
     rows = _parse_company_kpa_file(file_url)
     created = updated = skipped = 0
+    company = frappe.defaults.get_user_default("Company")
 
     for row in rows:
         if row.get("errors"):
@@ -445,6 +446,7 @@ def import_company_kpa(file_url=None):
             "doctype": "KPA Master",
             "kpa_name": row["kpa_name"],
             "weightage": row.get("weightage"),
+            "company": company,
         }
         if row.get("exists"):
             doc = frappe.get_doc("KPA Master", row["name"])
@@ -463,6 +465,7 @@ def import_company_kpa(file_url=None):
 def import_company_goals(file_url=None):
     rows = _parse_company_goal_file(file_url)
     created = updated = skipped = 0
+    company = frappe.defaults.get_user_default("Company")
 
     for row in rows:
         if row.get("errors"):
@@ -478,6 +481,7 @@ def import_company_goals(file_url=None):
             "start_date": row.get("start_date"),
             "end_date": row.get("end_date"),
             "status": row.get("status_label") or "Draft",
+            "company": company,
         }
 
         if row.get("exists"):
@@ -497,6 +501,7 @@ def import_company_goals(file_url=None):
 def import_department_goals(file_url=None, department=None):
     rows = _parse_department_goal_file(file_url, department)
     created = updated = skipped = 0
+    company = frappe.defaults.get_user_default("Company")
 
     for row in rows:
         if row.get("errors"):
@@ -513,6 +518,7 @@ def import_department_goals(file_url=None, department=None):
             "start_date": row.get("start_date"),
             "end_date": row.get("end_date"),
             "status": row.get("status_label") or "Draft",
+            "company": company,
         }
 
         if row.get("exists"):
@@ -532,6 +538,7 @@ def import_department_goals(file_url=None, department=None):
 def import_department_kra(file_url=None, department=None):
     rows = _parse_department_kra_file(file_url, department)
     created = updated = skipped = 0
+    company = frappe.defaults.get_user_default("Company")
 
     for row in rows:
         if row.get("errors"):
@@ -546,6 +553,7 @@ def import_department_kra(file_url=None, department=None):
             "department": row.get("department"),
             "weightage": row.get("weightage"),
             "priority": row.get("priority"),
+            "company": company,
         }
 
         if row.get("exists"):
@@ -565,6 +573,7 @@ def import_department_kra(file_url=None, department=None):
 def import_employee_goals(file_url=None, employee=None):
     rows = _parse_employee_goal_file(file_url, employee)
     created = updated = skipped = 0
+    company = frappe.defaults.get_user_default("Company")
 
     for row in rows:
         if row.get("errors"):
@@ -583,6 +592,7 @@ def import_employee_goals(file_url=None, employee=None):
             "start_date": row.get("start_date"),
             "end_date": row.get("end_date"),
             "status": row.get("status_label") or "Draft",
+            "company": company,
         }
 
         if row.get("exists"):
@@ -602,6 +612,7 @@ def import_employee_goals(file_url=None, employee=None):
 def import_employee_kra(file_url=None, employee=None):
     rows = _parse_employee_kra_file(file_url, employee)
     created = updated = skipped = 0
+    company = frappe.defaults.get_user_default("Company")
 
     for row in rows:
         if row.get("errors"):
@@ -618,6 +629,7 @@ def import_employee_kra(file_url=None, employee=None):
             "parent_kra": row.get("parent_kra"),
             "weightage": row.get("weightage"),
             "priority": row.get("priority"),
+            "company": company,
         }
 
         if row.get("exists"):
@@ -635,8 +647,10 @@ def import_employee_kra(file_url=None, employee=None):
 
 @frappe.whitelist()
 def import_employee_kpi(file_url=None, employee=None):
+    from performance_scorecard.performance_scorecard.doctype.performance_scorecard.performance_scorecard import add_kpi_to_active_scorecard
     rows = _parse_employee_kpi_file(file_url, employee)
     created = updated = skipped = 0
+    company = frappe.defaults.get_user_default("Company")
 
     for row in rows:
         if row.get("errors"):
@@ -653,6 +667,7 @@ def import_employee_kpi(file_url=None, employee=None):
             "baseline": row.get("baseline"),
             "calculation_method": row.get("calculation_method"),
             "description": row.get("description"),
+            "company": company,
         }
 
         if row.get("exists"):
@@ -664,6 +679,9 @@ def import_employee_kpi(file_url=None, employee=None):
             doc = frappe.get_doc(values)
             doc.insert(ignore_permissions=True)
             created += 1
+        
+        # Explicitly update scorecard for good measure, though after_insert should handle it
+        add_kpi_to_active_scorecard(values["employee"], doc.name)
 
     return {"created": created, "updated": updated, "skipped": skipped}
 

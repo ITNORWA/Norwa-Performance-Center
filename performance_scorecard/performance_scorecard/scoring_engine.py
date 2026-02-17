@@ -190,7 +190,7 @@ class ScoringEngine:
         linked_kpis = frappe.db.sql("""
             SELECT score, weightage
             FROM `tabScorecard Item`
-            WHERE kra = %s AND docstatus = 0
+            WHERE kra = %s AND docstatus < 2
         """, (kra_name,), as_dict=True)
         
         kpi_progress = 0
