@@ -15,7 +15,9 @@
         "baseline",
         "calculation_method",
         "column_break_1",
-        "description"
+        "column_break_1",
+        "description",
+        "workflow_state"
     ],
     "fields": [
         {
@@ -64,14 +66,16 @@
         {
             "fieldname": "baseline",
             "fieldtype": "Float",
-            "label": "Baseline (Start Value)"
+            "label": "Baseline (Start Value)",
+            "permlevel": 1
         },
         {
             "fieldname": "calculation_method",
             "fieldtype": "Select",
             "label": "Calculation Method",
             "options": "Manual\nSum\nAverage\nLast Value",
-            "default": "Manual"
+            "default": "Manual",
+            "permlevel": 1
         },
         {
             "fieldname": "column_break_1",
@@ -95,6 +99,13 @@
             "fieldname": "description",
             "fieldtype": "Small Text",
             "label": "Description"
+        },
+        {
+            "fieldname": "workflow_state",
+            "fieldtype": "Data",
+            "label": "Workflow State",
+            "hidden": 1,
+            "read_only": 1
         }
     ],
     "index_web_pages_for_search": 1,

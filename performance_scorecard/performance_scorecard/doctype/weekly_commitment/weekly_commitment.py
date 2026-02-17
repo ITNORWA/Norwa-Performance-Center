@@ -21,6 +21,12 @@ class WeeklyCommitment(Document):
 	def before_save(self):
 		self._ensure_employee()
 		self._set_kpi_unit()
+		# KPI update now happens on Submit (Approval), not Save.
+
+	def on_submit(self):
+		self._sync_kpi_actual()
+
+	def on_cancel(self):
 		self._sync_kpi_actual()
 
 	def _ensure_employee(self):
@@ -124,8 +130,10 @@ def _get_commitment_total_excluding(employee, kpi, commitment_name):
 	rows = frappe.get_all(
 		"Weekly Commitment",
 		filters=filters,
-		fields=["actual_value", "status"]
+		fields=["actual_value", "status", "docstatus"]
 	)
+	# Only count Submitted (Approved) commitments
+	rows = [r for r in rows if r.docstatus == 1]
 	return sum(_get_commitment_value(row) for row in rows)
 
 def get_kpi_commitment_total(employee, kpi):
@@ -134,21 +142,16 @@ def get_kpi_commitment_total(employee, kpi):
 	rows = frappe.get_all(
 		"Weekly Commitment",
 		filters={"employee": employee, "kpi": kpi},
-		fields=["actual_value", "status"]
+		fields=["actual_value", "status", "docstatus"]
 	)
+	# Only count Submitted (Approved) commitments
+	rows = [r for r in rows if r.docstatus == 1]
 	return sum(_get_commitment_value(row) for row in rows)
 
 
 def _get_commitment_value(doc):
 	if not doc:
 		return 0
-	if doc.actual_value is not None and doc.actual_value != "":
-		return flt(doc.actual_value)
-	value = doc.status
-	if value is None:
-		return 0
-	text = str(value).strip().replace("%", "")
-	try:
-		return float(text)
-	except ValueError:
-		return 0
+	# Strict verification: Only the explicit 'Actual Value' contributes to the KPI.
+	# The 'Status' (0-100%) is for the task completion itself, not the KPI score.
+	return flt(doc.actual_value)

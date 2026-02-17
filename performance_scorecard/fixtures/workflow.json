@@ -1,0 +1,132 @@
+[
+    {
+        "doctype": "Workflow",
+        "workflow_name": "Weekly Commitment Review",
+        "document_type": "Weekly Commitment",
+        "workflow_state_field": "workflow_state",
+        "is_active": 1,
+        "states": [
+            {
+                "state": "Draft",
+                "doc_status": 0,
+                "allow_edit": "Employee",
+                "update_field": "workflow_state"
+            },
+            {
+                "state": "Pending Review",
+                "doc_status": 0,
+                "allow_edit": "Department Manager",
+                "update_field": "workflow_state"
+            },
+            {
+                "state": "Approved",
+                "doc_status": 1,
+                "allow_edit": "Department Manager",
+                "update_field": "workflow_state"
+            },
+            {
+                "state": "Rejected",
+                "doc_status": 0,
+                "allow_edit": "Employee",
+                "update_field": "workflow_state"
+            }
+        ],
+        "transitions": [
+            {
+                "state": "Draft",
+                "action": "Submit for Review",
+                "next_state": "Pending Review",
+                "allowed": "Employee"
+            },
+            {
+                "state": "Pending Review",
+                "action": "Approve",
+                "next_state": "Approved",
+                "allowed": "Department Manager"
+            },
+            {
+                "state": "Pending Review",
+                "action": "Reject",
+                "next_state": "Rejected",
+                "allowed": "Department Manager"
+            },
+            {
+                "state": "Rejected",
+                "action": "Re-Draft",
+                "next_state": "Draft",
+                "allowed": "Employee"
+            }
+        ]
+    },
+    {
+        "doctype": "Workflow",
+        "workflow_name": "KPI Master Review",
+        "document_type": "KPI Master",
+        "workflow_state_field": "workflow_state",
+        "is_active": 1,
+        "states": [
+            {
+                "state": "Draft",
+                "doc_status": 0,
+                "allow_edit": "Employee",
+                "update_field": "workflow_state"
+            },
+            {
+                "state": "Pending Review",
+                "doc_status": 0,
+                "allow_edit": "Department Manager",
+                "update_field": "workflow_state"
+            },
+            {
+                "state": "Approved",
+                "doc_status": 1,
+                "allow_edit": "System Manager",
+                "update_field": "workflow_state"
+            },
+            {
+                "state": "Rejected",
+                "doc_status": 0,
+                "allow_edit": "Employee",
+                "update_field": "workflow_state"
+            },
+            {
+                "state": "Amendment",
+                "doc_status": 0,
+                "allow_edit": "Employee",
+                "update_field": "workflow_state"
+            }
+        ],
+        "transitions": [
+            {
+                "state": "Draft",
+                "action": "Submit for Review",
+                "next_state": "Pending Review",
+                "allowed": "Employee"
+            },
+            {
+                "state": "Pending Review",
+                "action": "Approve",
+                "next_state": "Approved",
+                "allowed": "Department Manager"
+            },
+            {
+                "state": "Pending Review",
+                "action": "Reject",
+                "next_state": "Rejected",
+                "allowed": "Department Manager"
+            },
+            {
+                "state": "Approved",
+                "action": "Amend",
+                "next_state": "Amendment",
+                "allowed": "Department Manager"
+            },
+            {
+                "state": "Amendment",
+                "action": "Submit for Review",
+                "next_state": "Pending Review",
+                "allowed": "Employee"
+            }
+        ]
+    }
+]

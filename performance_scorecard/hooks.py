@@ -5,6 +5,12 @@ app_description = "Performance Management App for ERPNext"
 app_email = "bot@example.com"
 app_license = "MIT"
 
+# Fixtures
+fixtures = [
+    "Workflow",
+    "Workflow State"
+]
+
 add_to_apps_screen = [
 	{
 		"name": "performance_scorecard",
