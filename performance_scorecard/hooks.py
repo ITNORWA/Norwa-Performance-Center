@@ -81,6 +81,11 @@ doc_events = {
 		"on_update": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_update",
 		"on_submit": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_update",
 	},
+	"Weekly Commitment": {
+		"on_update": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_commitment",
+		"on_submit": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_commitment",
+		"on_cancel": "performance_scorecard.performance_scorecard.utils.strategy_realtime.publish_from_commitment",
+	},
 }
 
 # Scheduled Tasks
