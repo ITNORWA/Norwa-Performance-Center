@@ -41,7 +41,7 @@
             "options": "Company",
             "in_list_view": 1,
             "reqd": 1,
-            "default": ":Company"
+            "default": ":employee"
         },
         {
             "fieldname": "column_break_1",
