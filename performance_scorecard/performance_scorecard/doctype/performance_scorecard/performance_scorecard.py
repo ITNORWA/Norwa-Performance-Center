@@ -15,8 +15,11 @@ class PerformanceScorecard(Document):
 		self.overall_score = ScoringEngine.calculate_scorecard_score(self)
 
 	def set_department(self):
-		if self.employee and not self.department:
-			self.department = frappe.db.get_value("Employee", self.employee, "department")
+		if self.employee:
+			if not self.department:
+				self.department = frappe.db.get_value("Employee", self.employee, "department")
+			if not self.company:
+				self.company = frappe.db.get_value("Employee", self.employee, "company")
 
 	def populate_items_from_kpis(self):
 		if self.items or not self.employee:

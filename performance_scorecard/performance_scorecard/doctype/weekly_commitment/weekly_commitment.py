@@ -35,6 +35,8 @@ class WeeklyCommitment(Document):
 		employee = frappe.db.get_value("Employee", {"user_id": frappe.session.user}, "name")
 		if employee:
 			self.employee = employee
+			if not self.company:
+				self.company = frappe.db.get_value("Employee", employee, "company")
 			return
 		if self.kpi:
 			kpi_employee = frappe.db.get_value("KPI Master", self.kpi, "employee")

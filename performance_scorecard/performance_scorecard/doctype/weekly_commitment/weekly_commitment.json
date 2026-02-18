@@ -9,6 +9,7 @@
         "title",
         "description",
         "employee",
+        "company",
         "week_start",
         "week_end",
         "kpi",
@@ -37,6 +38,15 @@
             "label": "Employee",
             "options": "Employee",
             "read_only": 1
+        },
+        {
+            "fieldname": "company",
+            "fieldtype": "Link",
+            "label": "Company",
+            "options": "Company",
+            "in_list_view": 1,
+            "reqd": 1,
+            "default": ":Company"
         },
         {
             "fieldname": "week_start",

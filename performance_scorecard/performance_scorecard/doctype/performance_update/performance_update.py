@@ -9,6 +9,12 @@ class PerformanceUpdate(Document):
 	def on_update(self):
 		self.update_scorecard()
 
+	def validate(self):
+		if not self.company and self.scorecard:
+			self.company = frappe.db.get_value("Performance Scorecard", self.scorecard, "company")
+		if not self.company and self.kpi:
+			self.company = frappe.db.get_value("KPI Master", self.kpi, "company")
+
 	def on_submit(self):
 		self.update_scorecard()
 
