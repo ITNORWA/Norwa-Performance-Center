@@ -13,6 +13,13 @@ class GoalMaster(Document):
 
 		if self.owner_type == "Employee" and self.employee and not self.department:
 			self.department = frappe.db.get_value("Employee", self.employee, "department")
+		
+		# Set company based on Employee or Department
+		if not self.company:
+			if self.owner_type == "Employee" and self.employee:
+				self.company = frappe.db.get_value("Employee", self.employee, "company")
+			elif self.owner_type == "Department" and self.department:
+				self.company = frappe.db.get_value("Department", self.department, "company")
 
 	def validate_hierarchy(self):
 		if self.owner_type == "Company":

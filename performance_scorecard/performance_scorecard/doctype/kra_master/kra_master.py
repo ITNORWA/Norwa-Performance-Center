@@ -15,6 +15,9 @@ class KRAMaster(Document):
 
 		if not self.owner_type:
 			self.owner_type = goal.owner_type
+		
+		if not self.company and goal.company:
+			self.company = goal.company
 
 		if self.parent_kra:
 			parent = frappe.get_doc("KRA Master", self.parent_kra)

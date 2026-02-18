@@ -36,6 +36,8 @@ class KPIMaster(Document):
 			frappe.throw("KPI goal must be linked to an employee.")
 
 		self.employee = goal_row.employee
+		if not self.company and self.employee:
+			self.company = frappe.db.get_value("Employee", self.employee, "company")
 
 	def after_insert(self):
 		add_kpi_to_active_scorecard(self.employee, self.name)

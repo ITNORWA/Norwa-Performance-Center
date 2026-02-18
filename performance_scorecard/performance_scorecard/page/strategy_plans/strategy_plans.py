@@ -501,18 +501,20 @@ def import_company_goals(file_url=None):
 def import_department_goals(file_url=None, department=None):
     rows = _parse_department_goal_file(file_url, department)
     created = updated = skipped = 0
-    company = frappe.defaults.get_user_default("Company")
 
     for row in rows:
         if row.get("errors"):
             skipped += 1
             continue
+        
+        dept = row.get("department")
+        company = frappe.db.get_value("Department", dept, "company") if dept else frappe.defaults.get_user_default("Company")
 
         values = {
             "doctype": "Goal Master",
             "goal_name": row["goal_name"],
             "owner_type": "Department",
-            "department": row.get("department"),
+            "department": dept,
             "parent_goal": row.get("parent_goal"),
             "weightage": row.get("weightage"),
             "start_date": row.get("start_date"),
@@ -538,19 +540,21 @@ def import_department_goals(file_url=None, department=None):
 def import_department_kra(file_url=None, department=None):
     rows = _parse_department_kra_file(file_url, department)
     created = updated = skipped = 0
-    company = frappe.defaults.get_user_default("Company")
 
     for row in rows:
         if row.get("errors"):
             skipped += 1
             continue
 
+        dept = row.get("department")
+        company = frappe.db.get_value("Department", dept, "company") if dept else frappe.defaults.get_user_default("Company")
+
         values = {
             "doctype": "KRA Master",
             "kra_name": row["kra_name"],
             "goal": row.get("goal"),
             "owner_type": "Department",
-            "department": row.get("department"),
+            "department": dept,
             "weightage": row.get("weightage"),
             "priority": row.get("priority"),
             "company": company,
@@ -573,19 +577,21 @@ def import_department_kra(file_url=None, department=None):
 def import_employee_goals(file_url=None, employee=None):
     rows = _parse_employee_goal_file(file_url, employee)
     created = updated = skipped = 0
-    company = frappe.defaults.get_user_default("Company")
 
     for row in rows:
         if row.get("errors"):
             skipped += 1
             continue
+        
+        emp = row.get("employee")
+        company = frappe.db.get_value("Employee", emp, "company") if emp else frappe.defaults.get_user_default("Company")
 
         values = {
             "doctype": "Goal Master",
             "goal_name": row["goal_name"],
             "owner_type": "Employee",
-            "employee": row.get("employee"),
-            "department": row.get("department") or frappe.db.get_value("Employee", row.get("employee"), "department"),
+            "employee": emp,
+            "department": row.get("department") or frappe.db.get_value("Employee", emp, "department"),
             "parent_goal": row.get("parent_goal"),
             "parent_kra": row.get("parent_kra"),
             "weightage": row.get("weightage"),
@@ -612,20 +618,22 @@ def import_employee_goals(file_url=None, employee=None):
 def import_employee_kra(file_url=None, employee=None):
     rows = _parse_employee_kra_file(file_url, employee)
     created = updated = skipped = 0
-    company = frappe.defaults.get_user_default("Company")
 
     for row in rows:
         if row.get("errors"):
             skipped += 1
             continue
 
+        emp = row.get("employee")
+        company = frappe.db.get_value("Employee", emp, "company") if emp else frappe.defaults.get_user_default("Company")
+
         values = {
             "doctype": "KRA Master",
             "kra_name": row["kra_name"],
             "goal": row.get("goal"),
             "owner_type": "Employee",
-            "employee": row.get("employee"),
-            "department": row.get("department") or frappe.db.get_value("Employee", row.get("employee"), "department"),
+            "employee": emp,
+            "department": row.get("department") or frappe.db.get_value("Employee", emp, "department"),
             "parent_kra": row.get("parent_kra"),
             "weightage": row.get("weightage"),
             "priority": row.get("priority"),
@@ -650,18 +658,20 @@ def import_employee_kpi(file_url=None, employee=None):
     from performance_scorecard.performance_scorecard.doctype.performance_scorecard.performance_scorecard import add_kpi_to_active_scorecard
     rows = _parse_employee_kpi_file(file_url, employee)
     created = updated = skipped = 0
-    company = frappe.defaults.get_user_default("Company")
 
     for row in rows:
         if row.get("errors"):
             skipped += 1
             continue
 
+        emp = row.get("employee")
+        company = frappe.db.get_value("Employee", emp, "company") if emp else frappe.defaults.get_user_default("Company")
+
         values = {
             "doctype": "KPI Master",
             "kpi_name": row["kpi_name"],
             "kra": row.get("kra"),
-            "employee": row.get("employee"),
+            "employee": emp,
             "unit": row.get("unit"),
             "direction": row.get("direction"),
             "baseline": row.get("baseline"),
