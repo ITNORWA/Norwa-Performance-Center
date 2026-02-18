@@ -5,13 +5,13 @@ def get_permission_query_conditions(user):
         user = frappe.session.user
 
     roles = frappe.get_roles(user)
-    if "System Manager" in roles or "HR Manager" in roles:
+    if "System Manager" in roles or "HR Manager" in roles or frappe.flags.in_migrate:
         return ""
 
     employee = frappe.db.get_value("Employee", {"user_id": user}, ["name", "company", "department"], as_dict=True)
     
     if not employee:
-        # Fallback for non-employees (e.g. Administrator if not caught above)
+        # Fallback for non-employees
         return "1=0"
 
     conditions = []
