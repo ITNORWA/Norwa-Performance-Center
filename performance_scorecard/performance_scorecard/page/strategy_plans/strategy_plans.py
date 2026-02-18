@@ -1815,8 +1815,14 @@ def _validate_import_row(values, required_fields, doctype, context=None):
             if not parent_goal:
                 errors.append("Parent Goal is required")
             elif not frappe.db.exists("Goal Master", parent_goal):
-                errors.append("Parent Goal not found")
-            else:
+                parent_name = frappe.db.get_value("Goal Master", {"goal_name": parent_goal}, "name")
+                if parent_name:
+                    values["parent_goal"] = parent_name
+                    parent_goal = parent_name
+                else:
+                    errors.append("Parent Goal not found")
+            
+            if parent_goal and frappe.db.exists("Goal Master", parent_goal):
                 parent_owner = frappe.db.get_value("Goal Master", parent_goal, "owner_type")
                 if parent_owner != "Company":
                     errors.append("Parent Goal must be a Company goal")
@@ -1828,8 +1834,14 @@ def _validate_import_row(values, required_fields, doctype, context=None):
             if not parent_goal:
                 errors.append("Parent Goal is required")
             elif not frappe.db.exists("Goal Master", parent_goal):
-                errors.append("Parent Goal not found")
-            else:
+                parent_name = frappe.db.get_value("Goal Master", {"goal_name": parent_goal}, "name")
+                if parent_name:
+                    values["parent_goal"] = parent_name
+                    parent_goal = parent_name
+                else:
+                    errors.append("Parent Goal not found")
+            
+            if parent_goal and frappe.db.exists("Goal Master", parent_goal):
                 parent_owner = frappe.db.get_value("Goal Master", parent_goal, "owner_type")
                 if parent_owner != "Department":
                     errors.append("Parent Goal must be a Department goal")
@@ -1844,8 +1856,14 @@ def _validate_import_row(values, required_fields, doctype, context=None):
         if not goal:
             errors.append("Goal is required")
         elif not frappe.db.exists("Goal Master", goal):
-            errors.append("Goal not found")
-        else:
+            goal_name = frappe.db.get_value("Goal Master", {"goal_name": goal}, "name")
+            if goal_name:
+                values["goal"] = goal_name
+                goal = goal_name
+            else:
+                errors.append("Goal not found")
+        
+        if goal and frappe.db.exists("Goal Master", goal):
             goal_owner = frappe.db.get_value("Goal Master", goal, "owner_type")
             if goal_owner != "Department":
                 errors.append("Goal must be a Department goal")
@@ -1862,8 +1880,14 @@ def _validate_import_row(values, required_fields, doctype, context=None):
         if not goal:
             errors.append("Goal is required")
         elif not frappe.db.exists("Goal Master", goal):
-            errors.append("Goal not found")
-        else:
+            goal_name = frappe.db.get_value("Goal Master", {"goal_name": goal}, "name")
+            if goal_name:
+                values["goal"] = goal_name
+                goal = goal_name
+            else:
+                errors.append("Goal not found")
+        
+        if goal and frappe.db.exists("Goal Master", goal):
             goal_owner = frappe.db.get_value("Goal Master", goal, "owner_type")
             if goal_owner != "Employee":
                 errors.append("Goal must be an Employee goal")
@@ -1882,11 +1906,16 @@ def _validate_import_row(values, required_fields, doctype, context=None):
         employee = values.get("employee")
         if employee and not frappe.db.exists("Employee", employee):
             errors.append("Employee not found")
-        kra = values.get("kra")
         if kra:
             if not frappe.db.exists("KRA Master", kra):
-                errors.append("KRA not found")
-            else:
+                kra_name = frappe.db.get_value("KRA Master", {"kra_name": kra}, "name")
+                if kra_name:
+                    values["kra"] = kra_name
+                    kra = kra_name
+                else:
+                    errors.append("KRA not found")
+            
+            if kra and frappe.db.exists("KRA Master", kra):
                 kra_owner = frappe.db.get_value("KRA Master", kra, "owner_type")
                 if kra_owner == "Employee":
                     kra_employee = frappe.db.get_value("KRA Master", kra, "employee")

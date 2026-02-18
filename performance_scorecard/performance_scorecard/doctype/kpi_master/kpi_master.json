@@ -66,16 +66,14 @@
         {
             "fieldname": "baseline",
             "fieldtype": "Float",
-            "label": "Baseline (Start Value)",
-            "permlevel": 1
+            "label": "Baseline (Start Value)"
         },
         {
             "fieldname": "calculation_method",
             "fieldtype": "Select",
             "label": "Calculation Method",
             "options": "Manual\nSum\nAverage\nLast Value",
-            "default": "Manual",
-            "permlevel": 1
+            "default": "Manual"
         },
         {
             "fieldname": "column_break_1",
