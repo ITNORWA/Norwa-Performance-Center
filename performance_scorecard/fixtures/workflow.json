@@ -1,5 +1,6 @@
 [
     {
+        "name": "Weekly Commitment Review",
         "doctype": "Workflow",
         "workflow_name": "Weekly Commitment Review",
         "document_type": "Weekly Commitment",
@@ -59,6 +60,7 @@
         ]
     },
     {
+        "name": "KPI Master Review",
         "doctype": "Workflow",
         "workflow_name": "KPI Master Review",
         "document_type": "KPI Master",

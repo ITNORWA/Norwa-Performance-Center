@@ -1,5 +1,6 @@
 [
     {
+        "name": "Draft",
         "doctype": "Workflow State",
         "workflow_state_name": "Draft",
         "doc_status": "0",
@@ -7,6 +8,7 @@
         "style": "Gray"
     },
     {
+        "name": "Pending Review",
         "doctype": "Workflow State",
         "workflow_state_name": "Pending Review",
         "doc_status": "0",
@@ -14,6 +16,7 @@
         "style": "Orange"
     },
     {
+        "name": "Approved",
         "doctype": "Workflow State",
         "workflow_state_name": "Approved",
         "doc_status": "1",
@@ -21,6 +24,7 @@
         "style": "Green"
     },
     {
+        "name": "Rejected",
         "doctype": "Workflow State",
         "workflow_state_name": "Rejected",
         "doc_status": "0",
@@ -28,6 +32,7 @@
         "style": "Red"
     },
     {
+        "name": "Amendment",
         "doctype": "Workflow State",
         "workflow_state_name": "Amendment",
         "doc_status": "0",
