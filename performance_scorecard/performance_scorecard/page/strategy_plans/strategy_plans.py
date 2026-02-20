@@ -1763,6 +1763,12 @@ def _coerce_value(field, value):
 
 def _validate_import_row(values, required_fields, doctype, context=None):
     errors = []
+    
+    # Trim all string inputs
+    for k, v in values.items():
+        if isinstance(v, str):
+            values[k] = v.strip()
+
     context = context or {}
     expected_owner_type = context.get("expected_owner_type")
     default_department = context.get("default_department")
@@ -1822,6 +1828,7 @@ def _validate_import_row(values, required_fields, doctype, context=None):
                 else:
                     errors.append("Parent Goal not found")
             
+            # Re-check existence as it might have been resolved by name
             if parent_goal and frappe.db.exists("Goal Master", parent_goal):
                 parent_owner = frappe.db.get_value("Goal Master", parent_goal, "owner_type")
                 if parent_owner != "Company":
@@ -1841,6 +1848,7 @@ def _validate_import_row(values, required_fields, doctype, context=None):
                 else:
                     errors.append("Parent Goal not found")
             
+            # Re-check existence as it might have been resolved by name
             if parent_goal and frappe.db.exists("Goal Master", parent_goal):
                 parent_owner = frappe.db.get_value("Goal Master", parent_goal, "owner_type")
                 if parent_owner != "Department":
@@ -1863,6 +1871,7 @@ def _validate_import_row(values, required_fields, doctype, context=None):
             else:
                 errors.append("Goal not found")
         
+        # Re-check existence as it might have been resolved by name
         if goal and frappe.db.exists("Goal Master", goal):
             goal_owner = frappe.db.get_value("Goal Master", goal, "owner_type")
             if goal_owner != "Department":
@@ -1887,6 +1896,7 @@ def _validate_import_row(values, required_fields, doctype, context=None):
             else:
                 errors.append("Goal not found")
         
+        # Re-check existence as it might have been resolved by name
         if goal and frappe.db.exists("Goal Master", goal):
             goal_owner = frappe.db.get_value("Goal Master", goal, "owner_type")
             if goal_owner != "Employee":
@@ -1906,6 +1916,8 @@ def _validate_import_row(values, required_fields, doctype, context=None):
         employee = values.get("employee")
         if employee and not frappe.db.exists("Employee", employee):
             errors.append("Employee not found")
+        
+        kra = values.get("kra")
         if kra:
             if not frappe.db.exists("KRA Master", kra):
                 kra_name = frappe.db.get_value("KRA Master", {"kra_name": kra}, "name")
@@ -1915,6 +1927,7 @@ def _validate_import_row(values, required_fields, doctype, context=None):
                 else:
                     errors.append("KRA not found")
             
+            # Re-check existence as it might have been resolved by name
             if kra and frappe.db.exists("KRA Master", kra):
                 kra_owner = frappe.db.get_value("KRA Master", kra, "owner_type")
                 if kra_owner == "Employee":

@@ -6,6 +6,7 @@ from performance_scorecard.performance_scorecard.scoring_engine import ScoringEn
 
 class PerformanceScorecard(Document):
 	def validate(self):
+		self.resolve_names()
 		self.set_department()
 		self._validate_unique_period()
 		self.populate_items_from_kpis()
@@ -13,6 +14,18 @@ class PerformanceScorecard(Document):
 
 	def calculate_score(self):
 		self.overall_score = ScoringEngine.calculate_scorecard_score(self)
+
+	def resolve_names(self):
+		for item in self.get("items", []):
+			if item.goal and not frappe.db.exists("Goal Master", item.goal):
+				goal_name = frappe.db.get_value("Goal Master", {"goal_name": item.goal}, "name")
+				if goal_name:
+					item.goal = goal_name
+			
+			if item.kra and not frappe.db.exists("KRA Master", item.kra):
+				kra_name = frappe.db.get_value("KRA Master", {"kra_name": item.kra}, "name")
+				if kra_name:
+					item.kra = kra_name
 
 	def set_department(self):
 		if self.employee:

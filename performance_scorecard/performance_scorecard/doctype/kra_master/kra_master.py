@@ -9,6 +9,11 @@ class KRAMaster(Document):
 		if not self.goal:
 			frappe.throw("KRA must be linked to a goal.")
 
+		if not frappe.db.exists("Goal Master", self.goal):
+			goal_id = frappe.db.get_value("Goal Master", {"goal_name": self.goal}, "name")
+			if goal_id:
+				self.goal = goal_id
+
 		goal = frappe.get_doc("Goal Master", self.goal)
 		if goal.owner_type == "Company":
 			frappe.throw("Company goals cannot have KRAs.")
