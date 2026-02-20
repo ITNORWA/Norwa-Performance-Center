@@ -17,15 +17,26 @@ class PerformanceScorecard(Document):
 
 	def resolve_names(self):
 		for item in self.get("items", []):
-			if item.goal and not frappe.db.exists("Goal Master", item.goal):
-				goal_name = frappe.db.get_value("Goal Master", {"goal_name": item.goal}, "name")
-				if goal_name:
-					item.goal = goal_name
-			
-			if item.kra and not frappe.db.exists("KRA Master", item.kra):
-				kra_name = frappe.db.get_value("KRA Master", {"kra_name": item.kra}, "name")
-				if kra_name:
-					item.kra = kra_name
+			for field, doctype, name_field in [
+				("goal", "Goal Master", "goal_name"),
+				("kra", "KRA Master", "kra_name"),
+				("kpa", "KPA Master", "kpa_name"),
+				("kpi", "KPI Master", "kpi_name")
+			]:
+				val = item.get(field)
+				if val and isinstance(val, str):
+					val = val.strip()
+					item.set(field, val)
+					
+					if not frappe.db.exists(doctype, val):
+						# Try exact case match first
+						resolved = frappe.db.get_value(doctype, {name_field: val}, "name")
+						if not resolved:
+							# Try case-insensitive if exact name match fails
+							resolved = frappe.db.get_value(doctype, {name_field: ["like", val]}, "name")
+						
+						if resolved:
+							item.set(field, resolved)
 
 	def set_department(self):
 		if self.employee:

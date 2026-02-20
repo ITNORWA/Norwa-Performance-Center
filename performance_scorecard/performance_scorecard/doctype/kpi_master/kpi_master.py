@@ -13,8 +13,14 @@ class KPIMaster(Document):
 		if not self.kra:
 			frappe.throw("KPI must be linked to a KRA.")
 
+		self.kra = self.kra.strip()
 		if not frappe.db.exists("KRA Master", self.kra):
+			# Try exact match first
 			kra_id = frappe.db.get_value("KRA Master", {"kra_name": self.kra}, "name")
+			if not kra_id:
+				# Try case-insensitive fallback
+				kra_id = frappe.db.get_value("KRA Master", {"kra_name": ["like", self.kra]}, "name")
+			
 			if kra_id:
 				self.kra = kra_id
 

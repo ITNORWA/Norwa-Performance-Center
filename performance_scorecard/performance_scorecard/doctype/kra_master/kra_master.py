@@ -9,8 +9,14 @@ class KRAMaster(Document):
 		if not self.goal:
 			frappe.throw("KRA must be linked to a goal.")
 
+		self.goal = self.goal.strip()
 		if not frappe.db.exists("Goal Master", self.goal):
+			# Try exact match first
 			goal_id = frappe.db.get_value("Goal Master", {"goal_name": self.goal}, "name")
+			if not goal_id:
+				# Try case-insensitive fallback
+				goal_id = frappe.db.get_value("Goal Master", {"goal_name": ["like", self.goal]}, "name")
+			
 			if goal_id:
 				self.goal = goal_id
 

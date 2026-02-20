@@ -1822,6 +1822,9 @@ def _validate_import_row(values, required_fields, doctype, context=None):
                 errors.append("Parent Goal is required")
             elif not frappe.db.exists("Goal Master", parent_goal):
                 parent_name = frappe.db.get_value("Goal Master", {"goal_name": parent_goal}, "name")
+                if not parent_name:
+                    parent_name = frappe.db.get_value("Goal Master", {"goal_name": ["like", parent_goal]}, "name")
+                
                 if parent_name:
                     values["parent_goal"] = parent_name
                     parent_goal = parent_name
@@ -1842,6 +1845,9 @@ def _validate_import_row(values, required_fields, doctype, context=None):
                 errors.append("Parent Goal is required")
             elif not frappe.db.exists("Goal Master", parent_goal):
                 parent_name = frappe.db.get_value("Goal Master", {"goal_name": parent_goal}, "name")
+                if not parent_name:
+                    parent_name = frappe.db.get_value("Goal Master", {"goal_name": ["like", parent_goal]}, "name")
+                
                 if parent_name:
                     values["parent_goal"] = parent_name
                     parent_goal = parent_name
@@ -1865,6 +1871,9 @@ def _validate_import_row(values, required_fields, doctype, context=None):
             errors.append("Goal is required")
         elif not frappe.db.exists("Goal Master", goal):
             goal_name = frappe.db.get_value("Goal Master", {"goal_name": goal}, "name")
+            if not goal_name:
+                goal_name = frappe.db.get_value("Goal Master", {"goal_name": ["like", goal]}, "name")
+            
             if goal_name:
                 values["goal"] = goal_name
                 goal = goal_name
@@ -1890,6 +1899,9 @@ def _validate_import_row(values, required_fields, doctype, context=None):
             errors.append("Goal is required")
         elif not frappe.db.exists("Goal Master", goal):
             goal_name = frappe.db.get_value("Goal Master", {"goal_name": goal}, "name")
+            if not goal_name:
+                goal_name = frappe.db.get_value("Goal Master", {"goal_name": ["like", goal]}, "name")
+            
             if goal_name:
                 values["goal"] = goal_name
                 goal = goal_name
@@ -1921,6 +1933,9 @@ def _validate_import_row(values, required_fields, doctype, context=None):
         if kra:
             if not frappe.db.exists("KRA Master", kra):
                 kra_name = frappe.db.get_value("KRA Master", {"kra_name": kra}, "name")
+                if not kra_name:
+                    kra_name = frappe.db.get_value("KRA Master", {"kra_name": ["like", kra]}, "name")
+                
                 if kra_name:
                     values["kra"] = kra_name
                     kra = kra_name
