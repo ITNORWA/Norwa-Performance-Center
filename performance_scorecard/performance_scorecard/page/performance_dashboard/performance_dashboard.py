@@ -37,6 +37,7 @@ def get_dashboard_data():
 			"attention_individual": [],
 			"weekly_top_kras": [],
 			"quarterly_top_kras": [],
+			"pending_kpi_updates": [],
 			"kpa_weights": [],
 			"kpa_palette": []
 		}
@@ -91,6 +92,13 @@ def get_dashboard_data():
 				fields=["kpi", "actual_value", "modified"],
 				order_by="modified desc",
 				limit=5
+			)
+
+			# 7. KPIs with Pending updates
+			data["pending_kpi_updates"] = frappe.db.get_all(
+				"Performance Update",
+				filters={"owner": user, "status": "Pending Review"},
+				pluck="kpi"
 			)
 
 		data["kra_progress"]["company"] = _get_kra_progress_by_kpa(owner_type="Company", company=company)

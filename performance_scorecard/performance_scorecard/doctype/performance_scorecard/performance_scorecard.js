@@ -1,6 +1,7 @@
 frappe.ui.form.on('Performance Scorecard', {
     refresh: function (frm) {
         set_item_queries(frm);
+        toggle_actual_read_only(frm);
     },
     employee: function (frm) {
         if (frm.doc.employee) {
@@ -45,4 +46,10 @@ function set_item_queries(frm) {
         }
         return { filters: { employee: employee } };
     });
+}
+
+function toggle_actual_read_only(frm) {
+    const is_manager = frappe.user_roles.includes('System Manager') || frappe.user_roles.includes('HR Manager');
+    frm.set_df_property('items', 'read_only', !is_manager, frm.doc.name, 'actual');
+    frm.set_df_property('items', 'read_only', !is_manager, frm.doc.name, 'base_actual');
 }

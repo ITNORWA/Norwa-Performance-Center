@@ -175,6 +175,7 @@ def get_strategy_data(level, period=None, department=None, employee=None):
             "updates": [],
         },
         "rows": [],
+        "pending_kpi_updates": [],
         "rollups": {},
         "company": {},
     }
@@ -229,6 +230,11 @@ def get_strategy_data(level, period=None, department=None, employee=None):
                 limit=10,
             )
             _enrich_updates(response["personal"]["updates"])
+            response["pending_kpi_updates"] = frappe.db.get_all(
+                "Performance Update",
+                filters={"owner": session_user, "status": "Pending Review"},
+                pluck="kpi"
+            )
 
         latest_scorecard = scorecards[0].name if scorecards else frappe.db.get_value(
             "Performance Scorecard",

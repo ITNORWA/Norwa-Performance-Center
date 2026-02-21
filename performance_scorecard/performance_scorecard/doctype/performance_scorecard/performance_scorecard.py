@@ -10,10 +10,38 @@ class PerformanceScorecard(Document):
 		self.set_department()
 		self._validate_unique_period()
 		self.populate_items_from_kpis()
+		self.check_modifications()
 		self.calculate_score()
 
 	def calculate_score(self):
 		self.overall_score = ScoringEngine.calculate_scorecard_score(self)
+
+	def check_modifications(self):
+		if self.flags.from_performance_update:
+			return
+
+		if self.is_new():
+			return
+
+		# Allow System Manager or HR Manager to bypass for corrections
+		user_roles = frappe.get_roles()
+		if "System Manager" in user_roles or "HR Manager" in user_roles:
+			return
+
+		old_doc = self.get_doc_before_save()
+		if not old_doc:
+			return
+
+		old_items = {item.name: item for item in old_doc.items}
+		for item in self.items:
+			if item.name in old_items:
+				old_item = old_items[item.name]
+				if (frappe.utils.flt(item.actual) != frappe.utils.flt(old_item.actual) or 
+					frappe.utils.flt(item.base_actual) != frappe.utils.flt(old_item.base_actual)):
+					frappe.throw(
+						f"Direct modification of Actual values is not allowed for KPI: {item.kpi}. "
+						"Please use the 'Performance Update' process for verification."
+					)
 
 	def resolve_names(self):
 		for item in self.get("items", []):

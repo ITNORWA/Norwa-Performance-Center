@@ -1504,7 +1504,8 @@ function render_personal_tables($container, payload, $page_container) {
 	const goals = payload.goals || [];
 	const rollups = payload.rollups || {};
 
-	const kpi_table = build_kpi_table(rows);
+	const pending_updates = payload.pending_kpi_updates || [];
+	const kpi_table = build_kpi_table(rows, pending_updates);
 	const goal_table = build_goal_table(goals);
 	const kpa_table = build_kpa_table(rollups.kpas || []);
 
@@ -1561,24 +1562,30 @@ function render_personal_tables($container, payload, $page_container) {
 					target: values.target
 				};
 				frappe.call({
-					method: "frappe.client.set_value",
+					method: "frappe.client.insert",
 					args: {
-						doctype: "Scorecard Item",
-						name: row.item_name,
-						fieldname: fields
+						doc: {
+							doctype: "Performance Update",
+							scorecard: row.parent,
+							kpi: values.kpi,
+							actual_value: values.actual,
+							company: row.company || frappe.boot.sysdefaults.company,
+							status: "Pending Review",
+							comments: `Updated via Dashboard: ${values.kpi}`
+						}
 					},
-					callback: () => {
-						frappe.call({
-							method: "performance_scorecard.performance_scorecard.doctype.scorecard_item.scorecard_item.update_scorecard_item_actual",
-							args: { item_name: row.item_name, base_actual: baseActual },
-							callback: () => {
-								dialog.hide();
-								if ($page_container && $page_container.length) {
-									const filters = $page_container.data("strategy-filters") || {};
-									load_strategy_data($page_container, "Individual", filters.department, filters.employee);
-								}
+					callback: (r) => {
+						if (!r.exc) {
+							frappe.show_alert({
+								message: __("Performance Update created for review"),
+								indicator: "green"
+							});
+							dialog.hide();
+							if ($page_container && $page_container.length) {
+								const filters = $page_container.data("strategy-filters") || {};
+								load_strategy_data($page_container, "Individual", filters.department, filters.employee);
 							}
-						});
+						}
 					}
 				});
 			}
@@ -1724,7 +1731,7 @@ function render_weekly_commitment_options(current) {
 	}).join("");
 }
 
-function build_kpi_table(rows) {
+function build_kpi_table(rows, pending_updates = []) {
 	if (!rows.length) {
 		return '<div class="empty-state">No KPIs yet. Create a scorecard to populate this table.</div>';
 	}
@@ -1754,18 +1761,23 @@ function build_kpi_table(rows) {
 		const direction_badge = direction === "decrease"
 			? '<span class="badge badge-blue kpi-direction-badge">Decrease</span>'
 			: '<span class="badge badge-green kpi-direction-badge">Increase</span>';
+
+		const is_pending = pending_updates.includes(row.kpi);
+		const pending_badge = is_pending ? ' <span class="badge badge-yellow">Pending Review</span>' : "";
+		const edit_disabled = is_pending ? "disabled" : "";
+
 		html += `
 			<tr>
 				<td>${row.kpi_name || row.kpi || "-"} ${direction_badge}</td>
 				<td>${row.kpi_baseline ?? "-"}</td>
 				<td>${row.target ?? "-"}</td>
-				<td>${row.actual ?? "-"}</td>
+				<td>${row.actual ?? "-"}${pending_badge}</td>
 				<td>
 					<div class="status-value ${score_class}">${score.toFixed(1)}%</div>
 					${render_status_bar(score)}
 				</td>
 				<td>${row.rating || "-"}</td>
-				<td><button class="btn btn-xs btn-default btn-edit-row" data-index="${index}">Edit</button></td>
+				<td><button class="btn btn-xs btn-default btn-edit-row" data-index="${index}" ${edit_disabled}>Edit</button></td>
 			</tr>
 		`;
 	});

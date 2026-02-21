@@ -6,9 +6,6 @@ from performance_scorecard.performance_scorecard.doctype.weekly_commitment.weekl
 from performance_scorecard.performance_scorecard.scoring_engine import ScoringEngine
 
 class PerformanceUpdate(Document):
-	def on_update(self):
-		self.update_scorecard()
-
 	def validate(self):
 		if not self.company and self.scorecard:
 			self.company = frappe.db.get_value("Performance Scorecard", self.scorecard, "company")
@@ -16,6 +13,7 @@ class PerformanceUpdate(Document):
 			self.company = frappe.db.get_value("KPI Master", self.kpi, "company")
 
 	def on_submit(self):
+		self.status = "Approved"
 		self.update_scorecard()
 
 	def update_scorecard(self):
@@ -31,5 +29,6 @@ class PerformanceUpdate(Document):
 					if item.actual != combined_actual:
 						item.actual = combined_actual
 					break
+			scorecard.flags.from_performance_update = True
 			scorecard.overall_score = ScoringEngine.calculate_scorecard_score(scorecard)
 			scorecard.save()
