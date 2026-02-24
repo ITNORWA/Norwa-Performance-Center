@@ -1401,9 +1401,9 @@ function render_personal_panel($container, personal, rollups, goals, meta) {
 				</div>
 			</div>
 			<div class="dashboard-card">
-				<div class="card-header cyan">MY KRAS</div>
+				<div class="card-header cyan">MY WEEKLY COMMITMENTS</div>
 				<div class="card-content">
-					${kra_rows}
+					${build_personal_weekly_commitment_rows(personal.this_week_commitments)}
 				</div>
 			</div>
 			<div class="dashboard-card">
@@ -1447,6 +1447,41 @@ function render_personal_panel($container, personal, rollups, goals, meta) {
 	$container.find(".kra-read-more").on("click", function () {
 		open_doctype_list_modal("KRA Master", {});
 	});
+
+	$container.find(".commitment-read-more").on("click", function () {
+		open_doctype_list_modal("Weekly Commitment", {});
+	});
+}
+
+function build_personal_weekly_commitment_rows(commitments) {
+	if (!commitments || !commitments.length) {
+		return '<div class="empty-state">No commitments for this week.</div>';
+	}
+	const visible = commitments.slice(0, 3);
+	const remaining = commitments.length - visible.length;
+
+	const rows_html = visible.map(c => {
+		const status = c.status || 'Pending';
+		const badge = status === 'Completed' ? 'badge-green' : (status === 'In Progress' ? 'badge-yellow' : 'badge-red');
+		return `
+			<div class="list-item" style="align-items: flex-start;">
+				<span style="flex: 1; margin-right: 10px; line-height: 1.4; word-break: break-word;">${c.title}</span>
+				<span class="badge ${badge}" style="margin-top: 2px; white-space: nowrap;">${status}</span>
+			</div>
+		`;
+	}).join("");
+
+	if (remaining <= 0) {
+		return rows_html;
+	}
+
+	return `
+		${rows_html}
+		<div class="list-item list-item-action">
+			<span class="commitment-read-more" data-action="view-all-commitments">Read more (${remaining})</span>
+			<span class="badge badge-yellow">View all</span>
+		</div>
+	`;
 }
 
 function build_personal_kra_rows(goals) {

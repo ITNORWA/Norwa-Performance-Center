@@ -236,6 +236,19 @@ def get_strategy_data(level, period=None, department=None, employee=None):
                 pluck="kpi"
             )
 
+            today_date = getdate()
+            response["personal"]["this_week_commitments"] = frappe.get_all(
+                "Weekly Commitment",
+                filters={
+                    "owner": session_user,
+                    "week_start": ["<=", today_date],
+                    "week_end": [">=", today_date]
+                },
+                fields=["name", "title", "kpi", "kpi_unit", "actual_value", "status", "week_start", "week_end"],
+                order_by="modified desc",
+                limit=10,
+            )
+
         latest_scorecard = scorecards[0].name if scorecards else frappe.db.get_value(
             "Performance Scorecard",
             scorecard_filters,
