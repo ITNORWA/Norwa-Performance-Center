@@ -28,6 +28,8 @@ class PerformanceUpdate(Document):
 					item.base_actual = base_actual
 					if item.actual != combined_actual:
 						item.actual = combined_actual
+					if self.target is not None:
+						item.target = self.target
 					break
 			scorecard.flags.from_performance_update = True
 			scorecard.overall_score = ScoringEngine.calculate_scorecard_score(scorecard)

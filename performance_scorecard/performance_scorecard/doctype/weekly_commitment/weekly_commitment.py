@@ -9,7 +9,11 @@ class WeeklyCommitment(Document):
 	def autoname(self):
 		self._ensure_employee()
 		if self.employee and self.week_start:
-			self.name = f"WC-{self.employee}-{self.week_start}"
+			# Append a random or sequential suffix to allow multiple commitments per week
+			# We'll use a 4-digit sequence placeholder which Frappe will resolve if we return it correctly,
+			# but since we are setting self.name manually, we should use frappe.model.naming.make_autoname
+			from frappe.model.naming import make_autoname
+			self.name = make_autoname(f"WC-{self.employee}-{self.week_start}-.####")
 
 	def before_insert(self):
 		if self.employee:

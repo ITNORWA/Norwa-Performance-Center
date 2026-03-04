@@ -13,6 +13,7 @@
         "unit",
         "direction",
         "baseline",
+        "target",
         "calculation_method",
         "column_break_1",
         "column_break_1",
@@ -67,6 +68,11 @@
             "fieldname": "baseline",
             "fieldtype": "Float",
             "label": "Baseline (Start Value)"
+        },
+        {
+            "fieldname": "target",
+            "fieldtype": "Float",
+            "label": "Target"
         },
         {
             "fieldname": "calculation_method",

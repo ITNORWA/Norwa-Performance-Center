@@ -1587,15 +1587,6 @@ function render_personal_tables($container, payload, $page_container) {
 			],
 			primary_action_label: "Save",
 			primary_action: (values) => {
-				const baseActual = values.actual;
-				const fields = {
-					kpa: values.kpa,
-					goal: values.goal,
-					kra: values.kra,
-					kpi: values.kpi,
-					weightage: values.weightage,
-					target: values.target
-				};
 				frappe.call({
 					method: "frappe.client.insert",
 					args: {
@@ -1603,6 +1594,7 @@ function render_personal_tables($container, payload, $page_container) {
 							doctype: "Performance Update",
 							scorecard: row.scorecard,
 							kpi: values.kpi,
+							target: values.target,
 							actual_value: values.actual,
 							company: row.company || frappe.boot.sysdefaults.company,
 							status: "Pending Review",
@@ -1625,6 +1617,24 @@ function render_personal_tables($container, payload, $page_container) {
 				});
 			}
 		});
+
+		dialog.add_custom_button(__('Edit Full Form'), () => {
+			const values = dialog.get_values();
+			if (!values) return;
+
+			frappe.model.with_doctype('Performance Update', () => {
+				let doc = frappe.model.get_new_doc('Performance Update');
+				doc.scorecard = row.scorecard;
+				doc.kpi = values.kpi;
+				doc.target = values.target;
+				doc.actual_value = values.actual;
+				doc.company = row.company || frappe.boot.sysdefaults.company;
+				doc.comments = `Opening full form from Dashboard: ${values.kpi}`;
+
+				frappe.set_route('Form', 'Performance Update', doc.name);
+			});
+		}, 'btn-default');
+
 		dialog.show();
 	});
 

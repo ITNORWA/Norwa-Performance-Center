@@ -1,6 +1,6 @@
 {
     "actions": [],
-    "autoname": "format:PU-{scorecard}-{kpi}",
+    "autoname": "format:PU-{scorecard}-{kpi}-{####}",
     "creation": "2024-05-22 10:00:00.000000",
     "doctype": "DocType",
     "editable_grid": 1,
@@ -10,6 +10,7 @@
         "scorecard",
         "kpi",
         "company",
+        "target",
         "actual_value",
         "evidence",
         "comments",
@@ -40,6 +41,11 @@
             "in_list_view": 1,
             "reqd": 1,
             "default": ":scorecard"
+        },
+        {
+            "fieldname": "target",
+            "fieldtype": "Float",
+            "label": "Target"
         },
         {
             "fieldname": "actual_value",

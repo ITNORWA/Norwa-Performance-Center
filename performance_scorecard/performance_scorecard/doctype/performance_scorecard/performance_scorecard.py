@@ -101,7 +101,7 @@ class PerformanceScorecard(Document):
 				"kra": ["in", list(kra_map.keys())],
 				"employee": self.employee,
 			},
-			fields=["name", "kra"],
+			fields=["name", "kra", "target"],
 		)
 		if not kpis:
 			return
@@ -117,6 +117,7 @@ class PerformanceScorecard(Document):
 					"kra": kpi.kra,
 					"kpi": kpi.name,
 					"weightage": 0,
+					"target": kpi.target or 0,
 				},
 			)
 
@@ -160,8 +161,8 @@ def add_kpi_to_active_scorecard(employee, kpi_name):
 
 	if frappe.db.exists("Scorecard Item", {"parent": scorecard, "kpi": kpi_name}):
 		return
-
-	kpi_doc = frappe.db.get_value("KPI Master", kpi_name, ["kra"], as_dict=True)
+	
+	kpi_doc = frappe.db.get_value("KPI Master", kpi_name, ["kra", "target"], as_dict=True)
 	kra_name = kpi_doc.kra if kpi_doc else None
 	goal_row = frappe.db.get_value("KRA Master", kra_name, ["goal"], as_dict=True) if kra_name else None
 	goal_name = goal_row.goal if goal_row else None
@@ -177,6 +178,7 @@ def add_kpi_to_active_scorecard(employee, kpi_name):
 			"kra": kra_name,
 			"kpi": kpi_name,
 			"weightage": 0,
+			"target": kpi_doc.target if kpi_doc else 0,
 		},
 	)
 	scorecard_doc.save(ignore_permissions=True)
