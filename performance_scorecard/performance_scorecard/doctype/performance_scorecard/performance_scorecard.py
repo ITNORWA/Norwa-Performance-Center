@@ -192,3 +192,19 @@ def get_permission_query_conditions(user):
 	if employee:
 		return f"`tabPerformance Scorecard`.employee = {frappe.db.escape(employee)}"
 	return "1=0"
+
+
+@frappe.whitelist()
+def get_scorecard_summary(employee, end_date):
+	scorecard = frappe.db.get_value(
+		"Performance Scorecard",
+		{
+			"employee": employee,
+			"end_date": ["<=", end_date],
+			"docstatus": 1
+		},
+		["name", "overall_score"],
+		as_dict=True,
+		order_by="end_date desc"
+	)
+	return scorecard

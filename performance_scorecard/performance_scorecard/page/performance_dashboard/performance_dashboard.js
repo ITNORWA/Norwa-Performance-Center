@@ -1601,7 +1601,7 @@ function render_personal_tables($container, payload, $page_container) {
 					args: {
 						doc: {
 							doctype: "Performance Update",
-							scorecard: row.parent,
+							scorecard: row.scorecard,
 							kpi: values.kpi,
 							actual_value: values.actual,
 							company: row.company || frappe.boot.sysdefaults.company,
