@@ -1465,7 +1465,7 @@ function build_personal_weekly_commitment_rows(commitments) {
 		const badge = status === 'Completed' ? 'badge-green' : (status === 'In Progress' ? 'badge-yellow' : 'badge-red');
 		return `
 			<div class="list-item" style="align-items: flex-start;">
-				<span style="flex: 1; margin-right: 10px; line-height: 1.4; word-break: break-word;">${c.title}</span>
+				<span class="line-clamp-2" title="${frappe.utils.escape_html(c.title || '')}" style="flex: 1; margin-right: 10px; line-height: 1.4; word-break: break-word;">${frappe.utils.escape_html(c.title || '')}</span>
 				<span class="badge ${badge}" style="margin-top: 2px; white-space: nowrap;">${status}</span>
 			</div>
 		`;

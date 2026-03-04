@@ -122,8 +122,8 @@
     width: 100%;
 }
 
-.chart-shell .chart-container > svg,
-.chart-shell .chart-container > canvas {
+.chart-shell .chart-container>svg,
+.chart-shell .chart-container>canvas {
     order: 1;
     flex: 0 0 auto;
 }
@@ -634,6 +634,7 @@
     border: 1px solid rgba(15, 41, 64, 0.12);
     box-shadow: 0 8px 16px rgba(15, 23, 42, 0.06);
 }
+
 .weekly-progress-cell {
     display: flex;
     align-items: center;
@@ -672,4 +673,12 @@
 .weekly-commitments-card .weekly-unit-btn {
     width: 100%;
     text-align: center;
+}
+
+.line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    line-clamp: 2;
+    overflow: hidden;
 }
