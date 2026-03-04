@@ -1640,7 +1640,7 @@ function render_personal_tables($container, payload, $page_container) {
 
 }
 
-function load_weekly_commitments($container, employee) {
+function load_weekly_commitments($container, employee, show_all = false) {
 	const $list = $container.find(".weekly-commitments-list");
 	if (!$list.length) {
 		return;
@@ -1666,7 +1666,12 @@ function load_weekly_commitments($container, employee) {
 				return;
 			}
 			$card.show();
-			$list.html(render_weekly_commitments_table(items));
+			$list.html(render_weekly_commitments_list(items, show_all));
+
+			$list.find(".btn-read-more").on("click", function (e) {
+				e.preventDefault();
+				load_weekly_commitments($container, employee, true);
+			});
 		}
 	});
 
@@ -1686,85 +1691,69 @@ function load_weekly_commitments($container, employee) {
 					return;
 				}
 				$card.show();
-				$list.html(render_weekly_commitments_table(items));
+				$list.html(render_weekly_commitments_list(items, show_all));
+
+				$list.find(".btn-read-more").on("click", function (e) {
+					e.preventDefault();
+					load_weekly_commitments($container, employee, true);
+				});
 			}
 		});
 	}
 
-	$list.off("change", "input, select, textarea").on("change", "input, select, textarea", function () {
-		const $row = $(this).closest("tr");
-		const name = $row.data("name");
-		const field = $(this).data("field");
-		const value = $(this).val();
-		if (!name || !field) {
-			return;
-		}
-		frappe.call({
-			method: "performance_scorecard.performance_scorecard.doctype.weekly_commitment.weekly_commitment.update_commitment",
-			args: { name: name, field: field, value: value },
-			callback: function (r) {
-				if (!r.message) {
-					return;
-				}
-				const $unitBtn = $row.find(".weekly-unit-btn");
-				if ($unitBtn.length) {
-					$unitBtn.text(r.message.kpi_unit || "Unit");
-					$unitBtn.data("kpi", r.message.kpi || "");
-				}
-				const $page = $container.closest(".dashboard-content-area");
-				const filters = $page.data("strategy-filters") || {};
-				if ($page.length) {
-					load_strategy_data($page, "Individual", filters.department, filters.employee);
-				}
-			}
-		});
-	});
-
-	$list.off("click", ".weekly-unit-btn").on("click", ".weekly-unit-btn", function (e) {
-		e.preventDefault();
-		const kpi = $(this).data("kpi");
-		if (kpi) {
-			open_doctype_modal("KPI Master", kpi);
+	// Double click to edit in full form
+	$list.on("click", ".weekly-commitment-item", function () {
+		const name = $(this).data("name");
+		if (name) {
+			frappe.set_route("Form", "Weekly Commitment", name);
 		}
 	});
 }
 
-function render_weekly_commitments_table(items) {
+function render_weekly_commitments_list(items, show_all = false) {
 	if (!items || !items.length) {
 		return '<div class="empty-state">No weekly commitments yet.</div>';
 	}
 
-	const rows = items.map(item => `
-		<tr data-name="${item.name}">
-			<td><input class="form-control input-xs" data-field="title" value="${frappe.utils.escape_html(item.title || "")}" /></td>
-			<td><input class="form-control input-xs" data-field="kpi" value="${frappe.utils.escape_html(item.kpi || "")}" /></td>
-			<td>
-				<input class="form-control input-xs" data-field="actual_value" type="number" step="0.01" value="${item.actual_value ?? ""}" />
-			</td>
-			<td>
-				<button class="btn btn-xs btn-default weekly-unit-btn" type="button" data-kpi="${frappe.utils.escape_html(item.kpi || "")}">
-					${item.kpi_unit || "Unit"}
-				</button>
-			</td>
-		</tr>
-	`).join("");
+	const display_items = show_all ? items : items.slice(0, 3);
+	const remaining = items.length - display_items.length;
+
+	const list_html = display_items.map(item => {
+		const score = item.status || "0%";
+		const score_class = score === "100%" ? "high" : "";
+		const kpi_info = item.kpi ? `${item.kpi} (${item.actual_value || 0} ${item.kpi_unit || ""})` : "No KPI linked";
+
+		return `
+			<div class="weekly-commitment-item" data-name="${item.name}" style="cursor: pointer;">
+				<div class="weekly-commitment-info">
+					<div class="weekly-commitment-title line-clamp-2" title="${frappe.utils.escape_html(item.title || "")}">
+						${frappe.utils.escape_html(item.title || "")}
+					</div>
+					<div class="weekly-commitment-meta">
+						<i class="fa fa-bullseye"></i> ${frappe.utils.escape_html(kpi_info)}
+					</div>
+				</div>
+				<div class="weekly-commitment-score ${score_class}">
+					${score}
+				</div>
+			</div>
+		`;
+	}).join("");
+
+	let read_more = "";
+	if (!show_all && remaining > 0) {
+		read_more = `
+			<div class="read-more-wrapper">
+				<a href="#" class="btn-read-more">Read more (${remaining} more)</a>
+			</div>
+		`;
+	}
 
 	return `
-		<div class="table-responsive">
-			<table class="table table-bordered table-hover">
-				<thead class="thead-light">
-					<tr>
-						<th style="width: 40%">Commitment</th>
-						<th style="width: 30%">KPI</th>
-						<th style="width: 15%">Actual</th>
-						<th style="width: 15%">Unit</th>
-					</tr>
-				</thead>
-				<tbody>
-					${rows}
-				</tbody>
-			</table>
+		<div class="weekly-commitments-list-view">
+			${list_html}
 		</div>
+		${read_more}
 	`;
 }
 
