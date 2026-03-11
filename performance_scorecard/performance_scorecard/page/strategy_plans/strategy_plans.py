@@ -233,7 +233,8 @@ def get_strategy_data(level, period=None, department=None, employee=None):
             response["pending_kpi_updates"] = frappe.db.get_all(
                 "Performance Update",
                 filters={"owner": session_user, "status": "Pending Review"},
-                pluck="kpi"
+                fields=["name", "kpi", "status", "modified"],
+                order_by="modified desc",
             )
 
             today_date = getdate()

@@ -1539,7 +1539,7 @@ function render_personal_tables($container, payload, $page_container) {
 	const goals = payload.goals || [];
 	const rollups = payload.rollups || {};
 
-	const pending_updates = payload.pending_kpi_updates || [];
+	const pending_updates = build_pending_update_map(payload.pending_kpi_updates || []);
 	const kpi_table = build_kpi_table(rows, pending_updates);
 	const goal_table = build_goal_table(goals);
 	const kpa_table = build_kpa_table(rollups.kpas || []);
@@ -1567,10 +1567,18 @@ function render_personal_tables($container, payload, $page_container) {
 		</div>
 	`);
 
-	$container.find(".btn-edit-row").on("click", function () {
+	$container.find(".btn-edit-row").on("click", function (e) {
+		e.preventDefault();
+		e.stopPropagation();
 		const row = rows[$(this).data("index")];
 		if (!row || !row.item_name) {
 			frappe.msgprint("Unable to edit this row. Please refresh and try again.");
+			return;
+		}
+
+		const pending_update = pending_updates.get(row.kpi);
+		if (pending_update && pending_update.name) {
+			open_doctype_modal("Performance Update", pending_update.name);
 			return;
 		}
 
@@ -1638,6 +1646,23 @@ function render_personal_tables($container, payload, $page_container) {
 		dialog.show();
 	});
 
+}
+
+function build_pending_update_map(updates) {
+	const pending_map = new Map();
+	(updates || []).forEach(update => {
+		if (!update) {
+			return;
+		}
+		if (typeof update === "string") {
+			pending_map.set(update, { kpi: update });
+			return;
+		}
+		if (update.kpi && !pending_map.has(update.kpi)) {
+			pending_map.set(update.kpi, update);
+		}
+	});
+	return pending_map;
 }
 
 function load_weekly_commitments($container, employee) {
@@ -1776,7 +1801,7 @@ function render_weekly_commitment_options(current) {
 	}).join("");
 }
 
-function build_kpi_table(rows, pending_updates = []) {
+function build_kpi_table(rows, pending_updates = new Map()) {
 	if (!rows.length) {
 		return '<div class="empty-state">No KPIs yet. Create a scorecard to populate this table.</div>';
 	}
@@ -1807,9 +1832,10 @@ function build_kpi_table(rows, pending_updates = []) {
 			? '<span class="badge badge-blue kpi-direction-badge">Decrease</span>'
 			: '<span class="badge badge-green kpi-direction-badge">Increase</span>';
 
-		const is_pending = pending_updates.includes(row.kpi);
+		const pending_update = pending_updates.get(row.kpi);
+		const is_pending = !!pending_update;
 		const pending_badge = is_pending ? ' <span class="badge badge-yellow">Pending Review</span>' : "";
-		const edit_disabled = is_pending ? "disabled" : "";
+		const action_label = is_pending ? "Open" : "Edit";
 
 		html += `
 			<tr>
@@ -1822,7 +1848,7 @@ function build_kpi_table(rows, pending_updates = []) {
 					${render_status_bar(score)}
 				</td>
 				<td>${row.rating || "-"}</td>
-				<td><button class="btn btn-xs btn-default btn-edit-row" data-index="${index}" ${edit_disabled}>Edit</button></td>
+				<td><button class="btn btn-xs btn-default btn-edit-row" data-index="${index}">${action_label}</button></td>
 			</tr>
 		`;
 	});
