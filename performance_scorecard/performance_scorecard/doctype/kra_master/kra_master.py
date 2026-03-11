@@ -30,6 +30,9 @@ class KRAMaster(Document):
 		if not self.company and goal.company:
 			self.company = goal.company
 
+		if not self.department and goal.department:
+			self.department = goal.department
+
 		if self.parent_kra:
 			parent = frappe.get_doc("KRA Master", self.parent_kra)
 			parent_goal = frappe.get_doc("Goal Master", parent.goal) if parent.goal else None

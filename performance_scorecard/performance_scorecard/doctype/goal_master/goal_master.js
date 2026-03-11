@@ -78,21 +78,25 @@ function set_parent_kra_filters(frm) {
         frm.set_query('parent_kra', () => ({
             filters: { goal: frm.doc.parent_goal }
         }));
+
+        // Autofill if only one KRA exists for this goal
+        if (!frm.doc.parent_kra) {
+            frappe.db.get_list('KRA Master', {
+                filters: { goal: frm.doc.parent_goal },
+                limit: 2
+            }).then(res => {
+                if (res && res.length === 1) {
+                    frm.set_value('parent_kra', res[0].name);
+                }
+            });
+        }
     } else if (frm.doc.owner_type === 'Employee' && frm.doc.department) {
-        // Fallback: Show all KRAs from the parent department if no goal selected yet
-        frappe.call({
-            method: 'frappe.client.get_list',
-            args: {
-                doctype: 'Goal Master',
-                filters: { owner_type: 'Department', department: frm.doc.department },
-                fields: ['name']
-            },
-            callback: function(r) {
-                const goals = (r.message || []).map(g => g.name);
-                frm.set_query('parent_kra', () => ({
-                    filters: { goal: ['in', goals] }
-                }));
-            }
+        // Allow selecting any KRA from the department goals
+        frm.set_query('parent_kra', () => {
+            return {
+                query: "performance_scorecard.performance_scorecard.doctype.goal_master.goal_master.get_department_kra_query",
+                filters: { department: frm.doc.department }
+            };
         });
     }
 }

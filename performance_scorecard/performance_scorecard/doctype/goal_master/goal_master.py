@@ -70,3 +70,18 @@ class GoalMaster(Document):
 			self.parent_goal = kra_goal
 		elif self.parent_goal != kra_goal:
 			frappe.throw(f"Parent KRA {self.parent_kra} does not belong to Parent Goal {self.parent_goal}")
+
+@frappe.whitelist()
+@frappe.validate_and_sanitize_search_inputs
+def get_department_kra_query(doctype, txt, searchfield, start, page_len, filters):
+	department = filters.get("department")
+	if not department:
+		return []
+
+	return frappe.db.sql(f"""
+		SELECT name, kra_name, goal
+		FROM `tabKRA Master`
+		WHERE goal IN (SELECT name FROM `tabGoal Master` WHERE department = %s AND owner_type = 'Department')
+		AND (name LIKE %s OR kra_name LIKE %s)
+		LIMIT %s, %s
+	""", (department, f"%{txt}%", f"%{txt}%", start, page_len))
