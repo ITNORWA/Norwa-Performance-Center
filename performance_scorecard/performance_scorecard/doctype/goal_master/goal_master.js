@@ -7,32 +7,16 @@ frappe.ui.form.on('Goal Master', {
         update_owner_fields(frm);
         set_department_from_user(frm);
         set_parent_goal_filters(frm);
+        set_parent_kra_filters(frm);
         set_kpa_from_parent(frm);
     },
     parent_goal: function (frm) {
         set_kpa_from_parent(frm);
         set_parent_kra_filters(frm);
-        
-        // Autofill Parent KRA if only one exists for this goal
-        if (frm.doc.parent_goal && !frm.doc.parent_kra) {
-            frappe.db.get_list('KRA Master', {
-                filters: { goal: frm.doc.parent_goal },
-                limit: 2
-            }).then(res => {
-                if (res && res.length === 1) {
-                    frm.set_value('parent_kra', res[0].name);
-                }
-            });
-        }
+        sync_parent_kra_from_parent_goal(frm);
     },
     parent_kra: function (frm) {
-        if (frm.doc.parent_kra) {
-            frappe.db.get_value('KRA Master', frm.doc.parent_kra, 'goal').then(r => {
-                if (r && r.message && r.message.goal && r.message.goal !== frm.doc.parent_goal) {
-                    frm.set_value('parent_goal', r.message.goal);
-                }
-            });
-        }
+        sync_parent_goal_from_parent_kra(frm);
     },
     employee: function (frm) {
         if (frm.doc.owner_type === 'Employee' && frm.doc.employee) {
@@ -40,10 +24,16 @@ frappe.ui.form.on('Goal Master', {
                 const dept = r && r.message && r.message.department;
                 if (dept) {
                     frm.set_value('department', dept);
+                    set_parent_goal_filters(frm);
                     set_parent_kra_filters(frm);
+                    sync_parent_kra_from_parent_goal(frm);
                 }
             });
         }
+    },
+    department: function (frm) {
+        set_parent_goal_filters(frm);
+        set_parent_kra_filters(frm);
     },
     onload: function (frm) {
         update_owner_fields(frm);
@@ -83,7 +73,12 @@ function set_parent_goal_filters(frm) {
     if (owner_type === 'Department') {
         frm.set_query('parent_goal', () => ({ filters: { owner_type: 'Company' } }));
     } else if (owner_type === 'Employee') {
-        frm.set_query('parent_goal', () => ({ filters: { owner_type: 'Department' } }));
+        frm.set_query('parent_goal', () => ({
+            filters: {
+                owner_type: 'Department',
+                ...(frm.doc.department ? { department: frm.doc.department } : {})
+            }
+        }));
     } else {
         frm.set_query('parent_goal', () => ({}));
     }
@@ -92,18 +87,24 @@ function set_parent_goal_filters(frm) {
 function set_parent_kra_filters(frm) {
     if (!frm.fields_dict.parent_kra) return;
 
+    if (frm.doc.owner_type !== 'Employee') {
+        frm.set_query('parent_kra', () => ({ filters: { name: '' } }));
+        return;
+    }
+
     if (frm.doc.parent_goal) {
         frm.set_query('parent_kra', () => ({
-            filters: { goal: frm.doc.parent_goal }
+            filters: { owner_type: 'Department', goal: frm.doc.parent_goal }
         }));
     } else if (frm.doc.department) {
-        // If no goal selected, allow selecting any KRA from the department
         frm.set_query('parent_kra', () => {
             return {
                 query: "performance_scorecard.performance_scorecard.doctype.goal_master.goal_master.get_department_kra_query",
                 filters: { department: frm.doc.department }
             };
         });
+    } else {
+        frm.set_query('parent_kra', () => ({ filters: { name: '' } }));
     }
 }
 
@@ -128,9 +129,62 @@ function set_department_from_user(frm) {
         const dept = r && r.message && r.message.department;
         if (dept) {
             frm.set_value('department', dept);
-            if (frm.doc.owner_type === 'Employee') {
-                set_parent_kra_filters(frm);
+            set_parent_goal_filters(frm);
+            set_parent_kra_filters(frm);
+        }
+    });
+}
+
+function sync_parent_kra_from_parent_goal(frm) {
+    if (frm.doc.owner_type !== 'Employee') {
+        return;
+    }
+
+    if (!frm.doc.parent_goal) {
+        if (frm.doc.parent_kra) {
+            frm.set_value('parent_kra', null);
+        }
+        return;
+    }
+
+    const autofillParentKra = () => {
+        if (frm.doc.parent_kra) {
+            return;
+        }
+        frappe.call({
+            method: 'performance_scorecard.performance_scorecard.doctype.goal_master.goal_master.get_linked_department_kra',
+            args: { parent_goal: frm.doc.parent_goal }
+        }).then(r => {
+            const message = r && r.message;
+            if (message && message.is_unique && message.name && message.name !== frm.doc.parent_kra) {
+                frm.set_value('parent_kra', message.name);
             }
+        });
+    };
+
+    if (!frm.doc.parent_kra) {
+        autofillParentKra();
+        return;
+    }
+
+    frappe.db.get_value('KRA Master', frm.doc.parent_kra, 'goal').then(r => {
+        const linkedGoal = r && r.message && r.message.goal;
+        if (linkedGoal && linkedGoal !== frm.doc.parent_goal) {
+            frm.set_value('parent_kra', null).then(() => autofillParentKra());
+            return;
+        }
+        autofillParentKra();
+    });
+}
+
+function sync_parent_goal_from_parent_kra(frm) {
+    if (!frm.doc.parent_kra) {
+        return;
+    }
+
+    frappe.db.get_value('KRA Master', frm.doc.parent_kra, 'goal').then(r => {
+        if (r && r.message && r.message.goal && r.message.goal !== frm.doc.parent_goal) {
+            frm.set_value('parent_goal', r.message.goal);
         }
     });
 }

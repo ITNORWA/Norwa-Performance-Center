@@ -43,10 +43,10 @@ doctype_js = {
 # Permissions
 # ------------------
 permission_query_conditions = {
-	"Goal Master": "performance_scorecard.performance_scorecard.permissions.get_permission_query_conditions",
-	"KRA Master": "performance_scorecard.performance_scorecard.permissions.get_permission_query_conditions",
-	"KPI Master": "performance_scorecard.performance_scorecard.permissions.get_permission_query_conditions",
-	"KPA Master": "performance_scorecard.performance_scorecard.permissions.get_permission_query_conditions",
+	"Goal Master": "performance_scorecard.performance_scorecard.permissions.get_goal_permission_query_conditions",
+	"KRA Master": "performance_scorecard.performance_scorecard.permissions.get_kra_permission_query_conditions",
+	"KPI Master": "performance_scorecard.performance_scorecard.permissions.get_kpi_permission_query_conditions",
+	"KPA Master": "performance_scorecard.performance_scorecard.permissions.get_kpa_permission_query_conditions",
 }
 
 has_permission = {

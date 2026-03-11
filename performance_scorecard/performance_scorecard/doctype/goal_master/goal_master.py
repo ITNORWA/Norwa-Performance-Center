@@ -85,3 +85,61 @@ def get_department_kra_query(doctype, txt, searchfield, start, page_len, filters
 		AND (name LIKE %s OR kra_name LIKE %s)
 		LIMIT %s, %s
 	""", (department, f"%{txt}%", f"%{txt}%", start, page_len))
+
+
+@frappe.whitelist()
+def get_linked_department_kra(parent_goal=None):
+	if not parent_goal:
+		return {}
+
+	kras = frappe.get_all(
+		"KRA Master",
+		filters={"goal": parent_goal, "owner_type": "Department"},
+		fields=["name", "goal"],
+		order_by="modified desc",
+		limit=2,
+	)
+	if len(kras) == 1:
+		return {"name": kras[0].name, "goal": kras[0].goal, "is_unique": True, "count": 1}
+
+	return {"name": None, "goal": parent_goal, "is_unique": False, "count": len(kras)}
+
+
+@frappe.whitelist()
+def get_employee_goal_for_parent_kra(parent_kra=None, employee=None):
+	if not parent_kra or not employee:
+		return {}
+
+	parent_goal = frappe.db.get_value("KRA Master", parent_kra, "goal")
+	if not parent_goal:
+		return {}
+
+	exact_match = frappe.get_all(
+		"Goal Master",
+		filters={
+			"owner_type": "Employee",
+			"employee": employee,
+			"parent_goal": parent_goal,
+			"parent_kra": parent_kra,
+		},
+		fields=["name"],
+		limit=1,
+	)
+	if exact_match:
+		return {"name": exact_match[0].name, "parent_goal": parent_goal, "matched_by": "parent_kra", "count": 1}
+
+	candidates = frappe.get_all(
+		"Goal Master",
+		filters={
+			"owner_type": "Employee",
+			"employee": employee,
+			"parent_goal": parent_goal,
+		},
+		fields=["name"],
+		order_by="modified desc",
+		limit=2,
+	)
+	if len(candidates) == 1:
+		return {"name": candidates[0].name, "parent_goal": parent_goal, "matched_by": "parent_goal", "count": 1}
+
+	return {"name": None, "parent_goal": parent_goal, "matched_by": None, "count": len(candidates)}
