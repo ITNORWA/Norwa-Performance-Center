@@ -43,7 +43,7 @@ def get_permission_query_conditions(user):
 
     return "(" + " OR ".join(conditions) + ")"
 
-def has_permission(doc, user):
+def has_permission(doc, ptype='read', user=None):
     if not user:
         user = frappe.session.user
 
@@ -60,8 +60,10 @@ def has_permission(doc, user):
         return False
 
     if "Department Manager" in roles:
-        if doc.owner_type == 'Company': return True
-        if doc.owner_type == 'Department': return doc.department == employee.department
+        if doc.owner_type == 'Company': 
+            return ptype == 'read'
+        if doc.owner_type == 'Department': 
+            return doc.department == employee.department
         if doc.owner_type == 'Employee':
             # Check if employee is in department
             if doc.employee == employee.name: return True
@@ -70,8 +72,13 @@ def has_permission(doc, user):
 
     else:
         # Normal Employee
-        if doc.owner_type == 'Company': return True
-        if doc.owner_type == 'Department': return doc.department == employee.department
-        if doc.owner_type == 'Employee': return doc.employee == employee.name
+        if doc.owner_type == 'Company': 
+            return ptype == 'read'
+        if doc.owner_type == 'Department': 
+            if doc.department == employee.department:
+                return ptype == 'read'
+            return False
+        if doc.owner_type == 'Employee': 
+            return doc.employee == employee.name
 
     return False

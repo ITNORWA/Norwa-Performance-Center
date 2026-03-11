@@ -57,3 +57,16 @@ class GoalMaster(Document):
 		if self.owner_type == "Employee" and not self.kpa and self.parent_goal:
 			parent = frappe.get_doc("Goal Master", self.parent_goal)
 			self.kpa = parent.kpa
+
+		self.validate_parent_links()
+
+	def validate_parent_links(self):
+		if self.owner_type != "Employee" or not self.parent_kra:
+			return
+
+		# Ensure parent_kra belongs to parent_goal
+		kra_goal = frappe.db.get_value("KRA Master", self.parent_kra, "goal")
+		if not self.parent_goal:
+			self.parent_goal = kra_goal
+		elif self.parent_goal != kra_goal:
+			frappe.throw(f"Parent KRA {self.parent_kra} does not belong to Parent Goal {self.parent_goal}")

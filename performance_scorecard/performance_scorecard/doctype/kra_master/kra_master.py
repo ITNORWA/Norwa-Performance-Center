@@ -43,3 +43,13 @@ class KRAMaster(Document):
 
 		if self.owner_type and goal.owner_type and self.owner_type != goal.owner_type:
 			frappe.throw("KRA owner type must match the linked goal's owner type.")
+
+		self.validate_goal_consistency(goal)
+
+	def validate_goal_consistency(self, goal):
+		if self.owner_type != "Employee" or not self.parent_kra or not goal.parent_goal:
+			return
+
+		parent_kra_goal = frappe.db.get_value("KRA Master", self.parent_kra, "goal")
+		if goal.parent_goal != parent_kra_goal:
+			frappe.throw(f"Goal {self.goal} must roll up to the same Department Goal as Parent KRA {self.parent_kra}")

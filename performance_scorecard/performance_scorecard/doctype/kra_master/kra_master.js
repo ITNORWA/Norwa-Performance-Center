@@ -10,6 +10,10 @@ frappe.ui.form.on('KRA Master', {
     goal: function (frm) {
         set_owner_type_from_goal(frm);
         set_parent_kra_query(frm);
+        sync_parent_kra_with_goal(frm);
+    },
+    parent_kra: function (frm) {
+        sync_goal_with_parent_kra(frm);
     },
     owner_type: function (frm) {
         toggle_parent_kra(frm);
@@ -135,6 +139,48 @@ function set_employee_from_user(frm) {
         const employee = r && r.message && r.message.name;
         if (employee) {
             frm.set_value('employee', employee);
+        }
+    });
+}
+
+function sync_parent_kra_with_goal(frm) {
+    if (!frm.doc.goal || frm.doc.owner_type !== 'Employee') return;
+
+    // If goal changes, clear parent_kra if it doesn't belong to the new goal's parent
+    if (frm.doc.parent_kra) {
+        frappe.db.get_value('Goal Master', frm.doc.goal, 'parent_goal').then(r => {
+            const parent_goal = r && r.message && r.message.parent_goal;
+            if (parent_goal) {
+                frappe.db.get_value('KRA Master', frm.doc.parent_kra, 'goal').then(kr => {
+                    if (kr && kr.message && kr.message.goal !== parent_goal) {
+                        frm.set_value('parent_kra', null);
+                    }
+                });
+            }
+        });
+    }
+}
+
+function sync_goal_with_parent_kra(frm) {
+    if (!frm.doc.parent_kra || frm.doc.owner_type !== 'Employee') return;
+
+    frappe.db.get_value('KRA Master', frm.doc.parent_kra, 'goal').then(r => {
+        const dept_goal = r && r.message && r.message.goal;
+        if (dept_goal) {
+            // Find an Employee Goal that rolls up to this Dept Goal
+            frappe.call({
+                method: 'frappe.client.get_value',
+                args: {
+                    doctype: 'Goal Master',
+                    filters: { parent_goal: dept_goal, employee: frm.doc.employee, owner_type: 'Employee' },
+                    fieldname: 'name'
+                },
+                callback: function(res) {
+                    if (res.message && res.message.name && res.message.name !== frm.doc.goal) {
+                        frm.set_value('goal', res.message.name);
+                    }
+                }
+            });
         }
     });
 }
