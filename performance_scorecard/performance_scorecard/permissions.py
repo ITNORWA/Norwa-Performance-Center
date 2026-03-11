@@ -16,29 +16,42 @@ def get_permission_query_conditions(user):
 
     conditions = []
 
-    # 1. Company Match (Always required)
-    # Standard condition for all doctypes
+    # Standard condition for company
     conditions.append(f"(`company` = '{employee.company}' OR `company` IS NULL)")
 
-    if "Department Manager" in roles:
-        # Dept Manager sees:
-        # - Owned by them
-        # - Owned by their Dept
-        # - Owned by employees in their Dept
-        # - Shared Company goals
-        conditions.append(f"""
-            (`owner_type` = 'Employee' AND `employee` IN (SELECT `name` FROM `tabEmployee` WHERE `department` = '{employee.department}'))
-            OR (`owner_type` = 'Department' AND (`department` = '{employee.department}' OR `name` IN (SELECT name FROM `tabKRA Master` WHERE goal IN (SELECT name FROM `tabGoal Master` WHERE department = '{employee.department}'))))
-            OR (`owner_type` = 'Company')
-        """)
-    else:
-        # Normal Employee sees:
-        # - Their own records
-        # - Department records (read-only)
-        # - Company records
+    doctype = frappe.flags.doctype
+
+    if doctype == "Goal Master":
+        if "Department Manager" in roles:
+            conditions.append(f"""
+                (`owner_type` = 'Employee' AND `employee` IN (SELECT `name` FROM `tabEmployee` WHERE `department` = '{employee.department}'))
+                OR (`owner_type` = 'Department' AND `department` = '{employee.department}')
+                OR (`owner_type` = 'Company')
+            """)
+        else:
+            conditions.append(f"""
+                (`owner_type` = 'Employee' AND `employee` = '{employee.name}')
+                OR (`owner_type` = 'Department' AND `department` = '{employee.department}')
+                OR (`owner_type` = 'Company')
+            """)
+    
+    elif doctype == "KRA Master":
+        # Check based on linked Goal's department for robustness (handles historic data)
         conditions.append(f"""
             (`owner_type` = 'Employee' AND `employee` = '{employee.name}')
-            OR (`owner_type` = 'Department' AND (`department` = '{employee.department}' OR `name` IN (SELECT name FROM `tabKRA Master` WHERE goal IN (SELECT name FROM `tabGoal Master` WHERE department = '{employee.department}'))))
+            OR (`goal` IN (SELECT name FROM `tabGoal Master` WHERE department = '{employee.department}' AND owner_type = 'Department'))
+            OR (`owner_type` = 'Department' AND `department` = '{employee.department}')
+        """)
+        if "Department Manager" in roles:
+            conditions.append(f"""
+                OR (`owner_type` = 'Employee' AND `employee` IN (SELECT `name` FROM `tabEmployee` WHERE `department` = '{employee.department}'))
+            """)
+    
+    else:
+        # Default fallback
+        conditions.append(f"""
+            (`owner` = '{user}')
+            OR (`owner_type` = 'Department' AND `department` = '{employee.department}')
             OR (`owner_type` = 'Company')
         """)
 

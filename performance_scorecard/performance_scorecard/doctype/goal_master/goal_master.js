@@ -12,9 +12,27 @@ frappe.ui.form.on('Goal Master', {
     parent_goal: function (frm) {
         set_kpa_from_parent(frm);
         set_parent_kra_filters(frm);
+        
+        // Autofill Parent KRA if only one exists for this goal
+        if (frm.doc.parent_goal && !frm.doc.parent_kra) {
+            frappe.db.get_list('KRA Master', {
+                filters: { goal: frm.doc.parent_goal },
+                limit: 2
+            }).then(res => {
+                if (res && res.length === 1) {
+                    frm.set_value('parent_kra', res[0].name);
+                }
+            });
+        }
     },
     parent_kra: function (frm) {
-        set_parent_goal_from_kra(frm);
+        if (frm.doc.parent_kra) {
+            frappe.db.get_value('KRA Master', frm.doc.parent_kra, 'goal').then(r => {
+                if (r && r.message && r.message.goal && r.message.goal !== frm.doc.parent_goal) {
+                    frm.set_value('parent_goal', r.message.goal);
+                }
+            });
+        }
     },
     employee: function (frm) {
         if (frm.doc.owner_type === 'Employee' && frm.doc.employee) {
@@ -59,9 +77,7 @@ function update_owner_fields(frm) {
 }
 
 function set_parent_goal_filters(frm) {
-    if (!frm.fields_dict.parent_goal) {
-        return;
-    }
+    if (!frm.fields_dict.parent_goal) return;
 
     let owner_type = frm.doc.owner_type;
     if (owner_type === 'Department') {
@@ -80,57 +96,19 @@ function set_parent_kra_filters(frm) {
         frm.set_query('parent_kra', () => ({
             filters: { goal: frm.doc.parent_goal }
         }));
-
-        // Autofill if only one KRA exists for this goal
-        if (!frm.doc.parent_kra && !frm.doc._fetching_kra) {
-            frm.doc._fetching_kra = true;
-            frappe.db.get_list('KRA Master', {
-                filters: { goal: frm.doc.parent_goal },
-                limit: 2
-            }).then(res => {
-                frm.doc._fetching_kra = false;
-                if (res && res.length === 1) {
-                    frm.set_value('parent_kra', res[0].name);
-                }
-            });
-        }
-    } else if (frm.doc.employee || frm.doc.department) {
+    } else if (frm.doc.department) {
         // If no goal selected, allow selecting any KRA from the department
-        const dept = frm.doc.department;
-        if (dept) {
-            frm.set_query('parent_kra', () => {
-                return {
-                    query: "performance_scorecard.performance_scorecard.doctype.goal_master.goal_master.get_department_kra_query",
-                    filters: { department: dept }
-                };
-            });
-        } else if (frm.doc.employee) {
-            // Fetch dept if missing
-            frappe.db.get_value('Employee', frm.doc.employee, 'department').then(r => {
-                const d = r && r.message && r.message.department;
-                if (d) {
-                    frm.set_value('department', d);
-                    set_parent_kra_filters(frm);
-                }
-            });
-        }
+        frm.set_query('parent_kra', () => {
+            return {
+                query: "performance_scorecard.performance_scorecard.doctype.goal_master.goal_master.get_department_kra_query",
+                filters: { department: frm.doc.department }
+            };
+        });
     }
-}
-
-function set_parent_goal_from_kra(frm) {
-    if (!frm.doc.parent_kra || (frm.doc.parent_goal && !frm.doc._manually_changed_parent_goal)) return;
-
-    frappe.db.get_value('KRA Master', frm.doc.parent_kra, 'goal').then(r => {
-        if (r && r.message && r.message.goal && r.message.goal !== frm.doc.parent_goal) {
-            frm.set_value('parent_goal', r.message.goal);
-        }
-    });
 }
 
 function set_kpa_from_parent(frm) {
-    if (!frm.doc.parent_goal) {
-        return;
-    }
+    if (!frm.doc.parent_goal) return;
 
     frappe.db.get_value('Goal Master', frm.doc.parent_goal, 'kpa').then(r => {
         if (r && r.message && r.message.kpa) {
@@ -140,13 +118,10 @@ function set_kpa_from_parent(frm) {
 }
 
 function set_department_from_user(frm) {
-    if (!frm.fields_dict.department) return;
-    
-    if (frm.doc.department) return;
+    if (!frm.fields_dict.department || frm.doc.department) return;
 
     if (frm.doc.owner_type === 'Employee' && frm.doc.employee) {
-        // Handled by employee trigger
-        return;
+        return; // Handled by employee trigger
     }
 
     frappe.db.get_value('Employee', { user_id: frappe.session.user }, 'department').then(r => {
