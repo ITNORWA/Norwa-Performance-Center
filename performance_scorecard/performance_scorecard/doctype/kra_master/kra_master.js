@@ -36,9 +36,7 @@ frappe.ui.form.on('KRA Master', {
 });
 
 function set_goal_query(frm) {
-    if (!frm.fields_dict.goal) {
-        return;
-    }
+    if (!frm.fields_dict.goal) return;
 
     if (frm.doc.owner_type === 'Employee') {
         const employee = frm.doc.employee;
@@ -63,9 +61,7 @@ function set_goal_query(frm) {
 }
 
 function set_owner_type_from_goal(frm) {
-    if (!frm.doc.goal) {
-        return;
-    }
+    if (!frm.doc.goal) return;
 
     frappe.db.get_value('Goal Master', frm.doc.goal, 'owner_type').then(r => {
         const owner_type = r && r.message && r.message.owner_type;
@@ -83,14 +79,10 @@ function toggle_parent_kra(frm) {
 }
 
 function set_parent_kra_query(frm) {
-    if (!frm.doc.goal || !frm.fields_dict.parent_kra) {
-        return;
-    }
+    if (!frm.doc.goal || !frm.fields_dict.parent_kra) return;
 
     frappe.db.get_value('Goal Master', frm.doc.goal, ['owner_type', 'parent_goal']).then(r => {
-        if (!r || !r.message) {
-            return;
-        }
+        if (!r || !r.message) return;
 
         if (r.message.owner_type !== 'Employee' || !r.message.parent_goal) {
             frm.set_query('parent_kra', () => ({ filters: { name: '' } }));
@@ -104,12 +96,7 @@ function set_parent_kra_query(frm) {
 }
 
 function set_department_from_user(frm) {
-    if (frm.doc.owner_type !== 'Department' || !frm.fields_dict.department) {
-        return;
-    }
-    if (frm.doc.department) {
-        return;
-    }
+    if (!frm.fields_dict.department || frm.doc.department) return;
 
     frappe.db.get_value('Employee', { user_id: frappe.session.user }, 'department').then(r => {
         const dept = r && r.message && r.message.department;
@@ -120,20 +107,13 @@ function set_department_from_user(frm) {
 }
 
 function set_department_requirements(frm) {
-    if (!frm.fields_dict.department) {
-        return;
-    }
+    if (!frm.fields_dict.department) return;
     const required = frm.doc.owner_type === 'Department';
     frm.set_df_property('department', 'reqd', required);
 }
 
 function set_employee_from_user(frm) {
-    if (frm.doc.owner_type !== 'Employee' || !frm.fields_dict.employee) {
-        return;
-    }
-    if (frm.doc.employee) {
-        return;
-    }
+    if (frm.doc.owner_type !== 'Employee' || !frm.fields_dict.employee || frm.doc.employee) return;
 
     frappe.db.get_value('Employee', { user_id: frappe.session.user }, 'name').then(r => {
         const employee = r && r.message && r.message.name;
@@ -146,7 +126,6 @@ function set_employee_from_user(frm) {
 function sync_parent_kra_with_goal(frm) {
     if (!frm.doc.goal || frm.doc.owner_type !== 'Employee') return;
 
-    // If goal changes, clear parent_kra if it doesn't belong to the new goal's parent
     if (frm.doc.parent_kra) {
         frappe.db.get_value('Goal Master', frm.doc.goal, 'parent_goal').then(r => {
             const parent_goal = r && r.message && r.message.parent_goal;
@@ -167,7 +146,6 @@ function sync_goal_with_parent_kra(frm) {
     frappe.db.get_value('KRA Master', frm.doc.parent_kra, 'goal').then(r => {
         const dept_goal = r && r.message && r.message.goal;
         if (dept_goal) {
-            // Find an Employee Goal that rolls up to this Dept Goal
             frappe.call({
                 method: 'frappe.client.get_value',
                 args: {
