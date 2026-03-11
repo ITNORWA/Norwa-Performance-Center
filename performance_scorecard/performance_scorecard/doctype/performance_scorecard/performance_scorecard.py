@@ -210,3 +210,46 @@ def get_scorecard_summary(employee, end_date):
 		order_by="end_date desc"
 	)
 	return scorecard
+
+
+@frappe.whitelist()
+def get_appraisal_scorecard(employee, appraisal_start_date=None, appraisal_end_date=None):
+	if not employee:
+		return None
+
+	def fetch_scorecard(extra_filters=None, order_by="end_date desc, modified desc"):
+		filters = {"employee": employee}
+		if extra_filters:
+			filters.update(extra_filters)
+		return frappe.db.get_value(
+			"Performance Scorecard",
+			filters,
+			"name",
+			order_by=order_by,
+		)
+
+	period_filters = None
+	if appraisal_start_date and appraisal_end_date:
+		period_filters = {
+			"start_date": ["<=", appraisal_end_date],
+			"end_date": [">=", appraisal_start_date],
+		}
+	elif appraisal_end_date:
+		period_filters = {
+			"end_date": ["<=", appraisal_end_date],
+		}
+
+	search_variants = []
+	if period_filters:
+		search_variants.append({"status": "Approved", **period_filters})
+	search_variants.append({"status": "Approved"})
+	if period_filters:
+		search_variants.append({"docstatus": 1, **period_filters})
+	search_variants.append({"docstatus": 1})
+
+	for filters in search_variants:
+		scorecard = fetch_scorecard(filters)
+		if scorecard:
+			return scorecard
+
+	return None
