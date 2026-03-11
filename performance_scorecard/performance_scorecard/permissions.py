@@ -17,31 +17,32 @@ def get_permission_query_conditions(user):
     conditions = []
 
     # 1. Company Match (Always required)
-    # conditions.append(f"`company` = '{employee.company}'")
+    # Standard condition for all doctypes
+    conditions.append(f"(`company` = '{employee.company}' OR `company` IS NULL)")
 
     if "Department Manager" in roles:
-        # Dept Manager sees specific records:
+        # Dept Manager sees:
         # - Owned by them
         # - Owned by their Dept
         # - Owned by employees in their Dept
         # - Shared Company goals
         conditions.append(f"""
             (`owner_type` = 'Employee' AND `employee` IN (SELECT `name` FROM `tabEmployee` WHERE `department` = '{employee.department}'))
-            OR (`owner_type` = 'Department' AND `department` = '{employee.department}')
-            OR (`owner_type` = 'Company' AND `company` = '{employee.company}')
+            OR (`owner_type` = 'Department' AND (`department` = '{employee.department}' OR `name` IN (SELECT name FROM `tabKRA Master` WHERE goal IN (SELECT name FROM `tabGoal Master` WHERE department = '{employee.department}'))))
+            OR (`owner_type` = 'Company')
         """)
     else:
         # Normal Employee sees:
         # - Their own records
-        # - Department records (read-only usually, but query allows viewing)
+        # - Department records (read-only)
         # - Company records
         conditions.append(f"""
             (`owner_type` = 'Employee' AND `employee` = '{employee.name}')
-            OR (`owner_type` = 'Department' AND `department` = '{employee.department}')
-            OR (`owner_type` = 'Company' AND `company` = '{employee.company}')
+            OR (`owner_type` = 'Department' AND (`department` = '{employee.department}' OR `name` IN (SELECT name FROM `tabKRA Master` WHERE goal IN (SELECT name FROM `tabGoal Master` WHERE department = '{employee.department}'))))
+            OR (`owner_type` = 'Company')
         """)
 
-    return "(" + " OR ".join(conditions) + ")"
+    return "(" + " AND ".join([f"({c})" for c in conditions]) + ")"
 
 def has_permission(doc, ptype='read', user=None):
     if not user:
@@ -77,6 +78,11 @@ def has_permission(doc, ptype='read', user=None):
         if doc.owner_type == 'Department': 
             if doc.department == employee.department:
                 return ptype == 'read'
+            # Fallback for KRAs
+            if doc.doctype == "KRA Master" and doc.goal:
+                goal_dept = frappe.db.get_value("Goal Master", doc.goal, "department")
+                if goal_dept == employee.department:
+                    return ptype == 'read'
             return False
         if doc.owner_type == 'Employee': 
             return doc.employee == employee.name
