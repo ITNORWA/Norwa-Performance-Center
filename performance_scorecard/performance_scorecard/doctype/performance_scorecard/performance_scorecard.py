@@ -1,5 +1,6 @@
 import frappe
 from frappe.model.document import Document
+from frappe import _
 from frappe.utils import nowdate
 
 from performance_scorecard.performance_scorecard.scoring_engine import ScoringEngine
@@ -253,3 +254,73 @@ def get_appraisal_scorecard(employee, appraisal_start_date=None, appraisal_end_d
 			return scorecard
 
 	return None
+
+
+def _can_access_employee_scorecard(employee):
+	if frappe.session.user == "Administrator":
+		return True
+
+	roles = set(frappe.get_roles())
+	if roles.intersection({"System Manager", "HR Manager", "Department Manager"}):
+		return True
+
+	linked_employee = frappe.db.get_value("Employee", {"user_id": frappe.session.user}, "name")
+	return linked_employee == employee
+
+
+def _get_link_titles(doctype, names, title_field):
+	names = [name for name in names if name]
+	if not names:
+		return {}
+
+	rows = frappe.get_all(doctype, filters={"name": ["in", names]}, fields=["name", title_field])
+	return {row.name: row.get(title_field) for row in rows}
+
+
+def _serialize_scorecard_for_appraisal(scorecard_name):
+	scorecard = frappe.get_doc("Performance Scorecard", scorecard_name)
+	goal_titles = _get_link_titles("Goal Master", [item.goal for item in scorecard.items], "goal_name")
+	kra_titles = _get_link_titles("KRA Master", [item.kra for item in scorecard.items], "kra_name")
+	kpi_titles = _get_link_titles("KPI Master", [item.kpi for item in scorecard.items], "kpi_name")
+
+	return {
+		"name": scorecard.name,
+		"employee": scorecard.employee,
+		"department": scorecard.department,
+		"company": scorecard.company,
+		"start_date": scorecard.start_date,
+		"end_date": scorecard.end_date,
+		"overall_score": scorecard.overall_score,
+		"status": scorecard.status,
+		"items": [
+			{
+				"kpa": item.kpa,
+				"goal": item.goal,
+				"goal_name": goal_titles.get(item.goal) or item.goal,
+				"kra": item.kra,
+				"kra_name": kra_titles.get(item.kra) or item.kra,
+				"kpi": item.kpi,
+				"kpi_name": kpi_titles.get(item.kpi) or item.kpi,
+				"weightage": item.weightage,
+				"target": item.target,
+				"actual": item.actual,
+				"score": item.score,
+			}
+			for item in scorecard.items
+		],
+	}
+
+
+@frappe.whitelist()
+def get_appraisal_scorecard_payload(employee, appraisal_start_date=None, appraisal_end_date=None):
+	if not employee:
+		return None
+
+	if not _can_access_employee_scorecard(employee):
+		frappe.throw(_("Not permitted to access this employee's scorecard."), frappe.PermissionError)
+
+	scorecard_name = get_appraisal_scorecard(employee, appraisal_start_date, appraisal_end_date)
+	if not scorecard_name:
+		return None
+
+	return _serialize_scorecard_for_appraisal(scorecard_name)

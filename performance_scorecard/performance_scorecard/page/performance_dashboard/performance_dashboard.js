@@ -1582,68 +1582,7 @@ function render_personal_tables($container, payload, $page_container) {
 			return;
 		}
 
-		const dialog = new frappe.ui.Dialog({
-			title: "Edit Scorecard Item",
-			fields: [
-				{ fieldname: "kpa", fieldtype: "Link", options: "KPA Master", label: "KPA", reqd: 1, default: row.kpa },
-				{ fieldname: "goal", fieldtype: "Link", options: "Goal Master", label: "Goal", reqd: 1, default: row.goal },
-				{ fieldname: "kra", fieldtype: "Link", options: "KRA Master", label: "KRA", reqd: 1, default: row.kra },
-				{ fieldname: "kpi", fieldtype: "Link", options: "KPI Master", label: "KPI", reqd: 1, default: row.kpi },
-				{ fieldname: "weightage", fieldtype: "Percent", label: "Weightage", default: row.weightage },
-				{ fieldname: "target", fieldtype: "Float", label: "Target", default: row.target },
-				{ fieldname: "actual", fieldtype: "Float", label: "Actual", default: (row.base_actual ?? row.actual) }
-			],
-			primary_action_label: "Save",
-			primary_action: (values) => {
-				frappe.call({
-					method: "frappe.client.insert",
-					args: {
-						doc: {
-							doctype: "Performance Update",
-							scorecard: row.scorecard,
-							kpi: values.kpi,
-							target: values.target,
-							actual_value: values.actual,
-							company: row.company || frappe.boot.sysdefaults.company,
-							status: "Pending Review",
-							comments: `Updated via Dashboard: ${values.kpi}`
-						}
-					},
-					callback: (r) => {
-						if (!r.exc) {
-							frappe.show_alert({
-								message: __("Performance Update created for review"),
-								indicator: "green"
-							});
-							dialog.hide();
-							if ($page_container && $page_container.length) {
-								const filters = $page_container.data("strategy-filters") || {};
-								load_strategy_data($page_container, "Individual", filters.department, filters.employee);
-							}
-						}
-					}
-				});
-			}
-		});
-
-		dialog.add_custom_button(__('Edit Full Form'), () => {
-			const values = dialog.get_values();
-			if (!values) return;
-
-			frappe.model.with_doctype('Performance Update', () => {
-				let doc = frappe.model.get_new_doc('Performance Update');
-				doc.scorecard = row.scorecard;
-				doc.kpi = values.kpi;
-				doc.target = values.target;
-				doc.actual_value = values.actual;
-				doc.company = row.company || frappe.boot.sysdefaults.company;
-				doc.comments = `Opening full form from Dashboard: ${values.kpi}`;
-
-				frappe.set_route('Form', 'Performance Update', doc.name);
-			});
-		}, 'btn-default');
-
-		dialog.show();
+		open_new_performance_update(row);
 	});
 
 }
@@ -1663,6 +1602,19 @@ function build_pending_update_map(updates) {
 		}
 	});
 	return pending_map;
+}
+
+function open_new_performance_update(row) {
+	frappe.model.with_doctype('Performance Update', () => {
+		const doc = frappe.model.get_new_doc('Performance Update');
+		doc.scorecard = row.scorecard;
+		doc.kpi = row.kpi;
+		doc.target = row.target;
+		doc.actual_value = (row.base_actual ?? row.actual);
+		doc.company = row.company || frappe.boot.sysdefaults.company;
+		doc.comments = `Opened from Dashboard for KPI: ${row.kpi}`;
+		frappe.set_route('Form', 'Performance Update', doc.name);
+	});
 }
 
 function load_weekly_commitments($container, employee) {
