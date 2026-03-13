@@ -1,5 +1,9 @@
 import frappe
 
+from performance_scorecard.performance_scorecard.utils.department_hierarchy import (
+    get_department_ancestors,
+)
+
 ADMIN_ROLES = {"System Manager", "HR Manager"}
 
 
@@ -36,6 +40,8 @@ def _get_permission_query_conditions(doctype, user=None):
     department = _escape(employee.department)
     employee_name = _escape(employee.name)
     is_department_manager = "Department Manager" in roles
+    related_departments = get_department_ancestors(employee.department, include_self=True)
+    related_department_clause = _as_sql_list(related_departments)
 
     if company:
         conditions.append(f"(`company` = {company} OR `company` IS NULL)")
@@ -50,8 +56,8 @@ def _get_permission_query_conditions(doctype, user=None):
             "(`owner_type` = 'Company')",
             f"(`owner_type` = 'Employee' AND {employee_goal_condition})",
         ]
-        if department:
-            goal_conditions.append(f"(`owner_type` = 'Department' AND `department` = {department})")
+        if related_department_clause:
+            goal_conditions.append(f"(`owner_type` = 'Department' AND `department` IN {related_department_clause})")
         conditions.append("(" + " OR ".join(goal_conditions) + ")")
     elif doctype == "KRA Master":
         employee_kra_condition = (
@@ -60,11 +66,11 @@ def _get_permission_query_conditions(doctype, user=None):
             else f"`employee` = {employee_name}"
         )
         kra_conditions = [f"(`owner_type` = 'Employee' AND {employee_kra_condition})"]
-        if department:
-            kra_conditions.append(f"(`owner_type` = 'Department' AND `department` = {department})")
+        if related_department_clause:
+            kra_conditions.append(f"(`owner_type` = 'Department' AND `department` IN {related_department_clause})")
             kra_conditions.append(
                 "(`goal` IN (SELECT `name` FROM `tabGoal Master` "
-                f"WHERE `department` = {department} AND `owner_type` = 'Department'))"
+                f"WHERE `department` IN {related_department_clause} AND `owner_type` = 'Department'))"
             )
         conditions.append("(" + " OR ".join(kra_conditions) + ")")
     elif doctype == "KPI Master":
@@ -97,6 +103,12 @@ def _get_employee_context(user):
 def _escape(value):
     return frappe.db.escape(value) if value else None
 
+
+def _as_sql_list(values):
+    if not values:
+        return None
+    return "(" + ", ".join(frappe.db.escape(value) for value in values if value) + ")"
+
 def has_permission(doc, ptype='read', user=None):
     if not user:
         user = frappe.session.user
@@ -128,12 +140,16 @@ def has_permission(doc, ptype='read', user=None):
 
 
 def _has_goal_permission(doc, ptype, employee, is_department_manager):
+    related_departments = set(get_department_ancestors(employee.department, include_self=True))
+
     if doc.owner_type == "Company":
         return ptype == "read"
     if doc.owner_type == "Department":
-        if doc.department != employee.department:
+        if doc.department not in related_departments:
             return False
-        return True if is_department_manager else ptype == "read"
+        if doc.department == employee.department:
+            return True if is_department_manager else ptype == "read"
+        return ptype == "read"
     if doc.owner_type == "Employee":
         if doc.employee == employee.name:
             return True
@@ -145,12 +161,14 @@ def _has_goal_permission(doc, ptype, employee, is_department_manager):
 
 
 def _has_kra_permission(doc, ptype, employee, is_department_manager):
+    related_departments = set(get_department_ancestors(employee.department, include_self=True))
+
     if doc.owner_type == "Department":
         if doc.department == employee.department:
             return True if is_department_manager else ptype == "read"
         goal_department = frappe.db.get_value("Goal Master", doc.goal, "department") if doc.goal else None
-        if goal_department == employee.department:
-            return True if is_department_manager else ptype == "read"
+        if doc.department in related_departments or goal_department in related_departments:
+            return ptype == "read"
         return False
     if doc.owner_type == "Employee":
         if doc.employee == employee.name:

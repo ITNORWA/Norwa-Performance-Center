@@ -71,13 +71,14 @@ function set_parent_goal_filters(frm) {
 
     let owner_type = frm.doc.owner_type;
     if (owner_type === 'Department') {
-        frm.set_query('parent_goal', () => ({ filters: { owner_type: 'Company' } }));
+        frm.set_query('parent_goal', () => ({
+            query: 'performance_scorecard.performance_scorecard.doctype.goal_master.goal_master.get_parent_goal_query',
+            filters: { owner_type: 'Department', department: frm.doc.department || '' }
+        }));
     } else if (owner_type === 'Employee') {
         frm.set_query('parent_goal', () => ({
-            filters: {
-                owner_type: 'Department',
-                ...(frm.doc.department ? { department: frm.doc.department } : {})
-            }
+            query: 'performance_scorecard.performance_scorecard.doctype.goal_master.goal_master.get_parent_goal_query',
+            filters: { owner_type: 'Employee', department: frm.doc.department || '' }
         }));
     } else {
         frm.set_query('parent_goal', () => ({}));

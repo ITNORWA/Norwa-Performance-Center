@@ -72,8 +72,8 @@
             "fieldtype": "Link",
             "label": "Parent KRA",
             "options": "KRA Master",
-            "description": "Link to a Department KRA (if this is an Individual KRA)",
-            "depends_on": "eval:doc.owner_type=='Employee'"
+            "description": "Link to a Department KRA from the same department hierarchy",
+            "depends_on": "eval:['Department','Employee'].includes(doc.owner_type)"
         },
         {
             "fieldname": "weightage",

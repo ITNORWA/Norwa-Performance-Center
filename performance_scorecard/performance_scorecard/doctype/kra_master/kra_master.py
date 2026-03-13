@@ -1,6 +1,10 @@
 import frappe
 from frappe.model.document import Document
 
+from performance_scorecard.performance_scorecard.utils.department_hierarchy import (
+	is_same_or_ancestor_department,
+)
+
 class KRAMaster(Document):
 	def validate(self):
 		self.validate_goal_link()
@@ -37,10 +41,12 @@ class KRAMaster(Document):
 			parent = frappe.get_doc("KRA Master", self.parent_kra)
 			parent_goal = frappe.get_doc("Goal Master", parent.goal) if parent.goal else None
 
-			if goal.owner_type != "Employee":
-				frappe.throw("Parent KRA can only be set for employee goals.")
+			if goal.owner_type not in ("Department", "Employee"):
+				frappe.throw("Parent KRA can only be set for department or employee goals.")
 			if not parent_goal or parent_goal.owner_type != "Department":
 				frappe.throw("Parent KRA must belong to a department goal.")
+			if parent_goal.department and not is_same_or_ancestor_department(goal.department, parent_goal.department):
+				frappe.throw("Parent KRA can only come from the same department or a parent department.")
 			if goal.parent_goal and parent.goal != goal.parent_goal:
 				frappe.throw("Parent KRA must belong to the parent department goal.")
 

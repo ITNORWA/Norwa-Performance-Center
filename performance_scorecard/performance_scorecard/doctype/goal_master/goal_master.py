@@ -1,6 +1,11 @@
 import frappe
 from frappe.model.document import Document
 
+from performance_scorecard.performance_scorecard.utils.department_hierarchy import (
+	get_department_ancestors,
+	is_same_or_ancestor_department,
+)
+
 class GoalMaster(Document):
 	def validate(self):
 		self.normalize_defaults()
@@ -44,10 +49,19 @@ class GoalMaster(Document):
 		if self.parent_goal:
 			parent = frappe.get_doc("Goal Master", self.parent_goal)
 
-			if self.owner_type == "Department" and parent.owner_type != "Company":
-				frappe.throw("Department goals must roll up to a company goal.")
+			if self.owner_type == "Department":
+				if parent.owner_type not in ("Company", "Department"):
+					frappe.throw("Department goals must roll up to a company goal or a parent department goal.")
+				if parent.owner_type == "Department":
+					allowed_parent_departments = set(get_department_ancestors(self.department, include_self=False))
+					if not parent.department or parent.department not in allowed_parent_departments:
+						frappe.throw("Department goals can only roll up to a parent department goal.")
 			if self.owner_type == "Employee" and parent.owner_type != "Department":
 				frappe.throw("Employee goals must roll up to a department goal.")
+			if self.owner_type == "Employee":
+				employee_department = self.department or frappe.db.get_value("Employee", self.employee, "department")
+				if parent.department and not is_same_or_ancestor_department(employee_department, parent.department):
+					frappe.throw("Employee goals can only roll up to their own department or a parent department goal.")
 
 			if parent.kpa and self.kpa and self.kpa != parent.kpa:
 				frappe.throw("Goal KPA must match the parent goal KPA.")
@@ -78,13 +92,66 @@ def get_department_kra_query(doctype, txt, searchfield, start, page_len, filters
 	if not department:
 		return []
 
+	allowed_departments = get_department_ancestors(department, include_self=True)
+	if not allowed_departments:
+		return []
+
+	department_values = ", ".join(frappe.db.escape(dept) for dept in allowed_departments)
+
 	return frappe.db.sql(f"""
 		SELECT name, kra_name, goal
 		FROM `tabKRA Master`
-		WHERE goal IN (SELECT name FROM `tabGoal Master` WHERE department = %s AND owner_type = 'Department')
+		WHERE goal IN (
+			SELECT name FROM `tabGoal Master`
+			WHERE department IN ({department_values}) AND owner_type = 'Department'
+		)
 		AND (name LIKE %s OR kra_name LIKE %s)
 		LIMIT %s, %s
-	""", (department, f"%{txt}%", f"%{txt}%", start, page_len))
+	""", (f"%{txt}%", f"%{txt}%", start, page_len))
+
+
+@frappe.whitelist()
+@frappe.validate_and_sanitize_search_inputs
+def get_parent_goal_query(doctype, txt, searchfield, start, page_len, filters):
+	owner_type = filters.get("owner_type")
+	department = filters.get("department")
+
+	if owner_type == "Department":
+		conditions = ["owner_type = 'Company'"]
+		if department:
+			allowed_departments = get_department_ancestors(department, include_self=False)
+			if allowed_departments:
+				department_values = ", ".join(frappe.db.escape(dept) for dept in allowed_departments)
+				conditions.append(f"(owner_type = 'Department' AND department IN ({department_values}))")
+		return frappe.db.sql(f"""
+			SELECT name, goal_name, owner_type
+			FROM `tabGoal Master`
+			WHERE ({' OR '.join(conditions)})
+			AND (name LIKE %s OR goal_name LIKE %s)
+			ORDER BY owner_type ASC, modified DESC
+			LIMIT %s, %s
+		""", (f"%{txt}%", f"%{txt}%", start, page_len))
+
+	if owner_type == "Employee":
+		if not department:
+			return []
+
+		allowed_departments = get_department_ancestors(department, include_self=True)
+		if not allowed_departments:
+			return []
+
+		department_values = ", ".join(frappe.db.escape(dept) for dept in allowed_departments)
+		return frappe.db.sql(f"""
+			SELECT name, goal_name
+			FROM `tabGoal Master`
+			WHERE owner_type = 'Department'
+			AND department IN ({department_values})
+			AND (name LIKE %s OR goal_name LIKE %s)
+			ORDER BY modified DESC
+			LIMIT %s, %s
+		""", (f"%{txt}%", f"%{txt}%", start, page_len))
+
+	return []
 
 
 @frappe.whitelist()

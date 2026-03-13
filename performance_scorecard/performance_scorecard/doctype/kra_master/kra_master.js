@@ -92,7 +92,7 @@ function set_owner_type_from_goal(frm) {
 }
 
 function toggle_parent_kra(frm) {
-    if (frm.doc.owner_type !== 'Employee' && frm.doc.parent_kra) {
+    if (!['Department', 'Employee'].includes(frm.doc.owner_type) && frm.doc.parent_kra) {
         frm.set_value('parent_kra', null);
     }
 }
@@ -100,7 +100,7 @@ function toggle_parent_kra(frm) {
 function set_parent_kra_query(frm) {
     if (!frm.fields_dict.parent_kra) return;
 
-    if (frm.doc.owner_type !== 'Employee') {
+    if (!['Department', 'Employee'].includes(frm.doc.owner_type)) {
         frm.set_query('parent_kra', () => ({ filters: { name: '' } }));
         return;
     }
@@ -120,7 +120,7 @@ function set_parent_kra_query(frm) {
     frappe.db.get_value('Goal Master', frm.doc.goal, ['owner_type', 'parent_goal']).then(r => {
         if (!r || !r.message) return;
 
-        if (r.message.owner_type !== 'Employee' || !r.message.parent_goal) {
+        if (!['Department', 'Employee'].includes(r.message.owner_type) || !r.message.parent_goal) {
             frm.set_query('parent_kra', () => ({ filters: { name: '' } }));
             return;
         }
@@ -166,7 +166,7 @@ function set_employee_from_user(frm) {
 }
 
 function sync_parent_kra_with_goal(frm) {
-    if (!frm.doc.goal || frm.doc.owner_type !== 'Employee') return;
+    if (!frm.doc.goal || !['Department', 'Employee'].includes(frm.doc.owner_type)) return;
 
     frappe.db.get_value('Goal Master', frm.doc.goal, 'parent_goal').then(r => {
         const parent_goal = r && r.message && r.message.parent_goal;
@@ -208,7 +208,7 @@ function sync_parent_kra_with_goal(frm) {
 }
 
 function sync_goal_with_parent_kra(frm) {
-    if (!frm.doc.parent_kra || frm.doc.owner_type !== 'Employee') return;
+    if (!frm.doc.parent_kra || !['Department', 'Employee'].includes(frm.doc.owner_type)) return;
 
     frappe.call({
         method: 'performance_scorecard.performance_scorecard.doctype.goal_master.goal_master.get_employee_goal_for_parent_kra',
