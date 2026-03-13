@@ -259,13 +259,30 @@ function build_scorecard_tree_html(scorecard) {
         .scorecard-tree-header { display: flex; background-color: #f3f6f8; font-weight: 600; padding: 10px 15px; border-bottom: 1px solid #d1d8dd; }
         .scorecard-tree-row { display: flex; padding: 8px 15px; border-bottom: 1px solid #e2e8ea; font-size: 13px; align-items: center; }
         .scorecard-tree-row:last-child { border-bottom: none; }
-        .scorecard-tree-col-main { flex: 1; display: flex; align-items: center; }
+        .scorecard-tree-col-main { flex: 1; display: flex; align-items: center; min-width: 0; }
         .scorecard-tree-col-score { width: 110px; text-align: right; font-weight: 600; }
         .scorecard-tree-col-meta { width: 180px; text-align: right; color: #6c7680; font-size: 12px; }
         .tree-level-goal { font-weight: 600; background-color: #fafbfc; }
         .tree-level-kra { padding-left: 30px; color: #36414c; background-color: #fff; }
         .tree-level-kpi { padding-left: 55px; color: #6c7680; background-color: #fff; }
         .scorecard-summary { padding: 12px 15px; background: #f8f9fa; display: flex; justify-content: space-between; font-weight: 600; }
+        @media (max-width: 640px) {
+            .scorecard-tree { border: none; border-radius: 0; overflow: visible; }
+            .scorecard-tree-header { display: none; }
+            .scorecard-tree-row { display: grid; gap: 6px; padding: 12px; background: #fff; }
+            .scorecard-tree-col-main,
+            .scorecard-tree-col-meta,
+            .scorecard-tree-col-score { width: auto; text-align: left; }
+            .scorecard-tree-col-main { word-break: break-word; }
+            .scorecard-tree-col-meta::before,
+            .scorecard-tree-col-score::before { display: block; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #94a3b8; margin-bottom: 2px; }
+            .scorecard-tree-col-meta::before { content: 'Target / Actual'; }
+            .scorecard-tree-col-score::before { content: 'Score'; }
+            .tree-level-goal,
+            .tree-level-kra,
+            .tree-level-kpi { padding-left: 12px; border-radius: 12px; box-shadow: 0 6px 14px rgba(15, 23, 42, 0.05); margin-bottom: 8px; }
+            .scorecard-summary { flex-direction: column; align-items: flex-start; gap: 6px; padding: 12px; border-radius: 12px; margin-top: 8px; }
+        }
     </style>
     <div class="scorecard-tree">
         <div class="scorecard-tree-header">

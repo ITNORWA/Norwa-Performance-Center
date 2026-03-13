@@ -165,3 +165,121 @@
 .node-green .progress-bar {
     background-color: #48bb78;
 }
+
+@media (max-width: 991px) {
+    .strategy-map-wrapper {
+        height: calc(100vh - 240px);
+        border-radius: 12px;
+    }
+
+    .strategy-map-scroll {
+        padding: 14px;
+    }
+
+    .strategy-columns {
+        gap: 22px;
+    }
+
+    .strategy-column {
+        min-width: 240px;
+        width: 240px;
+    }
+
+    .strategy-column:not(:last-child)::after {
+        right: -20px;
+    }
+
+    .strategy-map-tree {
+        height: calc(100vh - 140px);
+        --tree-node-width: 170px;
+        --tree-node-gap: 28px;
+        background-size: 20px 20px;
+    }
+
+    .strategy-map-controls {
+        position: sticky;
+        top: 12px;
+        right: auto;
+        bottom: auto;
+        margin: 12px 12px 0 auto;
+        width: fit-content;
+        max-width: calc(100% - 24px);
+    }
+
+    #strategy-tree {
+        padding: calc(28px * var(--tree-scale));
+    }
+}
+
+@media (max-width: 640px) {
+    .strategy-map-wrapper {
+        height: calc(100vh - 280px);
+    }
+
+    .strategy-map-scroll {
+        padding: 10px;
+    }
+
+    .strategy-columns {
+        gap: 14px;
+    }
+
+    .strategy-column {
+        min-width: min(82vw, 230px);
+        width: min(82vw, 230px);
+    }
+
+    .strategy-column:not(:last-child)::after {
+        right: -16px;
+        font-size: 18px;
+    }
+
+    .column-header {
+        padding: 12px;
+        font-size: 13px;
+    }
+
+    .strategy-map-tree {
+        height: calc(100vh - 170px);
+        --tree-node-width: min(150px, 62vw);
+        --tree-node-gap: 18px;
+        background-size: 16px 16px;
+    }
+
+    .strategy-map-controls {
+        gap: 4px;
+        padding: 5px;
+        border-radius: 18px;
+    }
+
+    .strategy-map-controls .map-btn {
+        min-width: 38px;
+        padding: 4px 8px;
+        font-size: 11px;
+    }
+
+    #strategy-tree {
+        padding: calc(16px * var(--tree-scale));
+        border-radius: 12px;
+    }
+
+    .tree-node {
+        padding: 6px 0;
+    }
+
+    .tree-pill {
+        padding: calc(10px * var(--tree-scale)) calc(12px * var(--tree-scale));
+        border-radius: calc(8px * var(--tree-scale));
+    }
+
+    .tree-title {
+        font-size: calc(12px * var(--tree-scale));
+        line-height: 1.25;
+    }
+
+    .tree-type,
+    .tree-meta,
+    .tree-progress {
+        font-size: calc(9px * var(--tree-scale));
+    }
+}

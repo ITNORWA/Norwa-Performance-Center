@@ -153,3 +153,45 @@
     color: #718096;
     margin-top: 6px;
 }
+
+@media (max-width: 640px) {
+    .doc-page {
+        gap: 14px;
+    }
+
+    .doc-hero {
+        padding: 16px;
+        border-radius: 14px;
+    }
+
+    .doc-hero h2 {
+        font-size: 18px;
+        line-height: 1.25;
+    }
+
+    .doc-hero p {
+        font-size: 13px;
+    }
+
+    .dashboard-card {
+        padding: 12px 14px;
+        border-radius: 12px;
+    }
+
+    .doc-toggle {
+        padding: 12px 14px;
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .doc-toggle-meta {
+        width: 100%;
+        justify-content: space-between;
+        white-space: normal;
+    }
+
+    .doc-formula {
+        font-size: 11px;
+        padding: 8px 10px;
+    }
+}

@@ -1599,3 +1599,175 @@ body[data-route="risk-dashboard"] .layout-main-section-wrapper {
 .import-table .row-valid {
     background: #f0fdf4;
 }
+
+@media (max-width: 991px) {
+    .dashboard-container {
+        flex-direction: column;
+        height: auto;
+        min-height: calc(100vh - 60px);
+    }
+
+    .dashboard-sidebar {
+        width: 100%;
+        padding: 14px 0;
+        border-right: none;
+        border-bottom: 1px solid var(--npc-border);
+    }
+
+    .sidebar-header {
+        padding: 0 16px 14px;
+    }
+
+    .sidebar-menu {
+        display: flex;
+        gap: 8px;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        padding: 0 16px 6px;
+        margin: 14px 0 0;
+        scrollbar-width: thin;
+    }
+
+    .sidebar-menu li {
+        flex: 0 0 auto;
+        padding: 10px 14px;
+        border-radius: 999px;
+        white-space: nowrap;
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .sidebar-menu li:hover,
+    .sidebar-menu li.active {
+        border-left: none;
+        background-color: rgba(255, 255, 255, 0.16);
+        box-shadow: inset 0 0 0 1px rgba(79, 139, 214, 0.45);
+    }
+
+    .user-profile {
+        display: none;
+    }
+
+    .dashboard-main {
+        padding: 16px;
+    }
+
+    .dashboard-header,
+    .dashboards-hero,
+    .reports-hero {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .dashboard-header,
+    .dashboards-hero,
+    .reports-hero,
+    .dashboard-card,
+    .report-card,
+    .report-list-row,
+    .import-card {
+        border-radius: 16px;
+    }
+
+    .grid-container,
+    .home-charts-grid,
+    .home-summary-grid,
+    .home-attention-grid,
+    .home-achievements-grid,
+    .personal-summaries,
+    .dashboards-grid-4,
+    .dashboards-grid-2,
+    .reports-grid,
+    .dashboard-kpis,
+    .dashboard-charts,
+    .reports-filters-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .dashboards-hero-actions,
+    .reports-actions,
+    .strategy-actions,
+    .strategy-filters,
+    .dashboards-filters {
+        width: 100%;
+    }
+
+    .strategy-filter,
+    .dashboards-filter,
+    .reports-filter {
+        width: 100%;
+    }
+
+    .strategy-filter .filter-control,
+    .dashboards-filter .filter-control,
+    .reports-search,
+    .reports-search input {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .metric-ring-card {
+        grid-template-columns: 56px 1fr;
+    }
+
+    .report-list-row,
+    .list-row,
+    .achievement-meta {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+}
+
+@media (max-width: 640px) {
+    .dashboard-main {
+        padding: 12px;
+    }
+
+    .dashboard-header,
+    .dashboards-hero,
+    .reports-hero,
+    .dashboard-card,
+    .report-card,
+    .report-list-row,
+    .import-card,
+    .reports-filters {
+        padding-left: 14px;
+        padding-right: 14px;
+    }
+
+    .page-title,
+    .reports-title {
+        font-size: 20px;
+    }
+
+    .dashboards-hero-title {
+        font-size: 18px;
+    }
+
+    .strategy-tabs .nav-link,
+    .dashboards-tab,
+    .reports-tab {
+        width: 100%;
+        text-align: center;
+    }
+
+    .node {
+        width: min(100%, 260px);
+    }
+
+    .children {
+        flex-direction: column;
+        gap: 20px;
+        align-items: center;
+    }
+
+    .children::before,
+    .node-wrapper::before,
+    .node-wrapper::after {
+        display: none;
+    }
+
+    .node-wrapper {
+        padding-top: 0;
+    }
+}

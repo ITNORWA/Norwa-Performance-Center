@@ -253,3 +253,76 @@
 .tree-node.column-2 .tree-pill { border-left-color: var(--column-color-2); }
 .tree-node.column-3 .tree-pill { border-left-color: var(--column-color-3); }
 .tree-node.column-4 .tree-pill { border-left-color: var(--column-color-4); }
+
+@media (max-width: 991px) {
+    .strategy-map-tree {
+        height: calc(100vh - 140px);
+        --tree-node-width: 170px;
+        --tree-node-gap: 28px;
+        background-size: 20px 20px;
+    }
+
+    .strategy-map-controls {
+        position: sticky;
+        top: 12px;
+        right: auto;
+        bottom: auto;
+        margin: 12px 12px 0 auto;
+        width: fit-content;
+        max-width: calc(100% - 24px);
+    }
+
+    #strategy-tree {
+        padding: calc(28px * var(--tree-scale));
+    }
+
+    .tree-pill {
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.1);
+    }
+}
+
+@media (max-width: 640px) {
+    .strategy-map-tree {
+        height: calc(100vh - 170px);
+        --tree-node-width: min(150px, 62vw);
+        --tree-node-gap: 18px;
+        background-size: 16px 16px;
+    }
+
+    .strategy-map-controls {
+        gap: 4px;
+        padding: 5px;
+        border-radius: 18px;
+    }
+
+    .strategy-map-controls .map-btn {
+        min-width: 38px;
+        padding: 4px 8px;
+        font-size: 11px;
+    }
+
+    #strategy-tree {
+        padding: calc(16px * var(--tree-scale));
+        border-radius: 12px;
+    }
+
+    .tree-node {
+        padding: 6px 0;
+    }
+
+    .tree-pill {
+        padding: calc(10px * var(--tree-scale)) calc(12px * var(--tree-scale));
+        border-radius: calc(8px * var(--tree-scale));
+    }
+
+    .tree-title {
+        font-size: calc(12px * var(--tree-scale));
+        line-height: 1.25;
+    }
+
+    .tree-type,
+    .tree-meta,
+    .tree-progress {
+        font-size: calc(9px * var(--tree-scale));
+    }
+}

@@ -206,3 +206,80 @@
 .import-table .row-valid {
     background: #f0fdf4;
 }
+
+@media (max-width: 991px) {
+    .strategy-tabs .nav {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 4px;
+        scrollbar-width: thin;
+    }
+
+    .strategy-tabs .nav-item {
+        flex: 0 0 auto;
+    }
+
+    .strategy-actions {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .kra-row,
+    .kpi-meta-row,
+    .status-bar {
+        align-items: flex-start;
+    }
+
+    .strategy-import .import-card,
+    .strategy-content .table-responsive {
+        border-radius: 14px;
+    }
+}
+
+@media (max-width: 640px) {
+    .strategy-tabs .nav-link {
+        padding: 10px 14px;
+        white-space: nowrap;
+    }
+
+    .strategy-actions .btn,
+    .import-controls .btn {
+        width: 100%;
+    }
+
+    .import-controls {
+        align-items: stretch;
+    }
+
+    .import-file-name {
+        width: 100%;
+    }
+
+    .kra-row,
+    .kpi-meta-row,
+    .status-bar {
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .status-bar-track,
+    .status-bar-label {
+        width: 100%;
+    }
+
+    .status-bar-label {
+        min-width: 0;
+        text-align: left;
+    }
+
+    .kpi-list {
+        padding-left: 8px;
+    }
+
+    .import-card,
+    .import-section {
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+}
