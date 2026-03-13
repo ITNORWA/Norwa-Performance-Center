@@ -111,9 +111,9 @@ function populate_appraisal_goals(frm, scorecard) {
         const row = frm.add_child('goals');
         const title = build_goal_title(item);
         const details = build_goal_details(item);
-        const weightage = frappe.utils.flt(item.weightage);
+        const weightage = to_float(item.weightage);
         const score_out_of_five = percent_to_five(item.score);
-        const score_earned = frappe.utils.flt(weightage * score_out_of_five / 5);
+        const score_earned = to_float(weightage * score_out_of_five / 5);
 
         total_score_earned += score_earned;
 
@@ -126,7 +126,7 @@ function populate_appraisal_goals(frm, scorecard) {
     });
 
     update_appraisal_totals(frm, {
-        overall_percent: frappe.utils.flt(scorecard.overall_score),
+        overall_percent: to_float(scorecard.overall_score),
         overall_score_out_of_five: percent_to_five(scorecard.overall_score),
         total_score_earned: total_score_earned
     });
@@ -183,8 +183,17 @@ function set_form_if_present(frm, candidates, value) {
 }
 
 function percent_to_five(value) {
-    const percent = frappe.utils.flt(value);
+    const percent = to_float(value);
     return Math.max(0, Math.min(5, percent / 20));
+}
+
+function to_float(value) {
+    if (typeof flt === 'function') {
+        return flt(value);
+    }
+
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function build_goal_title(item) {
@@ -222,7 +231,7 @@ function build_goal_details(item) {
         parts.push(`Actual: ${item.actual}`);
     }
     if (item.score !== undefined && item.score !== null) {
-        parts.push(`Score: ${frappe.utils.flt(item.score).toFixed(1)}%`);
+        parts.push(`Score: ${to_float(item.score).toFixed(1)}%`);
     }
     return parts.join(' | ');
 }
@@ -309,11 +318,11 @@ function build_scorecard_tree_html(scorecard) {
             </div>`;
 
             treeData[goal][kra].forEach(kpi => {
-                const score_percent = kpi.score !== undefined ? `${frappe.utils.flt(kpi.score).toFixed(1)}%` : '-';
+                const score_percent = kpi.score !== undefined ? `${to_float(kpi.score).toFixed(1)}%` : '-';
                 const score_out_of_five = `${percent_to_five(kpi.score).toFixed(2)}/5`;
                 const target = kpi.target !== undefined ? kpi.target : '-';
                 const actual = (kpi.actual !== undefined && kpi.actual !== null) ? kpi.actual : '-';
-                const numeric_score = frappe.utils.flt(kpi.score);
+                const numeric_score = to_float(kpi.score);
                 const scoreColor = numeric_score >= 90 ? 'text-success' : (numeric_score >= 50 ? 'text-warning' : 'text-danger');
 
                 html += `
@@ -329,7 +338,7 @@ function build_scorecard_tree_html(scorecard) {
     html += `
         <div class="scorecard-summary">
             <span>Scorecard: ${scorecard.name || '-'}</span>
-            <span>Overall: ${frappe.utils.flt(scorecard.overall_score).toFixed(2)}% (${percent_to_five(scorecard.overall_score).toFixed(2)}/5)</span>
+            <span>Overall: ${to_float(scorecard.overall_score).toFixed(2)}% (${percent_to_five(scorecard.overall_score).toFixed(2)}/5)</span>
         </div>
     </div>`;
 
