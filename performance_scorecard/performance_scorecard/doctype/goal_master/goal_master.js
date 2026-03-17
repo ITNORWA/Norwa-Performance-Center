@@ -95,7 +95,8 @@ function set_parent_kra_filters(frm) {
 
     if (frm.doc.parent_goal) {
         frm.set_query('parent_kra', () => ({
-            filters: { owner_type: 'Department', goal: frm.doc.parent_goal }
+            query: 'performance_scorecard.performance_scorecard.doctype.goal_master.goal_master.get_goal_kra_query',
+            filters: { parent_goal: frm.doc.parent_goal }
         }));
     } else if (frm.doc.department) {
         frm.set_query('parent_kra', () => {
@@ -107,6 +108,8 @@ function set_parent_kra_filters(frm) {
     } else {
         frm.set_query('parent_kra', () => ({ filters: { name: '' } }));
     }
+
+    frm.refresh_field('parent_kra');
 }
 
 function set_kpa_from_parent(frm) {

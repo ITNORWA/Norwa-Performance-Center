@@ -112,6 +112,24 @@ def get_department_kra_query(doctype, txt, searchfield, start, page_len, filters
 
 @frappe.whitelist()
 @frappe.validate_and_sanitize_search_inputs
+def get_goal_kra_query(doctype, txt, searchfield, start, page_len, filters):
+	parent_goal = filters.get("parent_goal") or filters.get("goal")
+	if not parent_goal:
+		return []
+
+	return frappe.db.sql("""
+		SELECT name, kra_name, goal
+		FROM `tabKRA Master`
+		WHERE owner_type = 'Department'
+		AND goal = %s
+		AND (name LIKE %s OR kra_name LIKE %s)
+		ORDER BY modified DESC
+		LIMIT %s, %s
+	""", (parent_goal, f"%{txt}%", f"%{txt}%", start, page_len))
+
+
+@frappe.whitelist()
+@frappe.validate_and_sanitize_search_inputs
 def get_parent_goal_query(doctype, txt, searchfield, start, page_len, filters):
 	owner_type = filters.get("owner_type")
 	department = filters.get("department")

@@ -126,8 +126,10 @@ function set_parent_kra_query(frm) {
         }
 
         frm.set_query('parent_kra', () => ({
-            filters: { owner_type: 'Department', goal: r.message.parent_goal }
+            query: 'performance_scorecard.performance_scorecard.doctype.goal_master.goal_master.get_goal_kra_query',
+            filters: { parent_goal: r.message.parent_goal }
         }));
+        frm.refresh_field('parent_kra');
     });
 }
 
