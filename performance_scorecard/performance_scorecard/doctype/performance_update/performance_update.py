@@ -1,9 +1,12 @@
 import frappe
 from frappe.model.document import Document
-from frappe.utils import flt
 
-from performance_scorecard.performance_scorecard.doctype.weekly_commitment.weekly_commitment import get_kpi_commitment_total
-from performance_scorecard.performance_scorecard.scoring_engine import ScoringEngine
+from performance_scorecard.performance_scorecard.utils.scorecard_sync import (
+	sync_scorecard_from_updates,
+)
+
+APPROVER_ROLES = {"System Manager", "HR Manager", "Department Manager"}
+REVIEWABLE_STATUSES = {"Draft", "Pending Review", "Approved", "Rejected"}
 
 class PerformanceUpdate(Document):
 	def validate(self):
@@ -11,26 +14,56 @@ class PerformanceUpdate(Document):
 			self.company = frappe.db.get_value("Performance Scorecard", self.scorecard, "company")
 		if not self.company and self.kpi:
 			self.company = frappe.db.get_value("KPI Master", self.kpi, "company")
+		self._normalize_status()
+
+	def before_submit(self):
+		if not self._can_approve():
+			frappe.throw("Only a manager can submit and approve a Performance Update.")
+		self.status = "Approved"
+
+	def on_update(self):
+		self._sync_scorecard_refs()
 
 	def on_submit(self):
-		self.status = "Approved"
-		self.update_scorecard()
+		self._sync_scorecard_refs()
 
-	def update_scorecard(self):
-		if self.scorecard:
-			scorecard = frappe.get_doc("Performance Scorecard", self.scorecard)
-			commitment_total = get_kpi_commitment_total(scorecard.employee, self.kpi)
-			base_actual = flt(self.actual_value)
-			combined_actual = base_actual + commitment_total
-			# Find item with this KPI
-			for item in scorecard.items:
-				if item.kpi == self.kpi:
-					item.base_actual = base_actual
-					if item.actual != combined_actual:
-						item.actual = combined_actual
-					if self.target is not None:
-						item.target = self.target
-					break
-			scorecard.flags.from_performance_update = True
-			scorecard.overall_score = ScoringEngine.calculate_scorecard_score(scorecard)
-			scorecard.save()
+	def on_cancel(self):
+		self._sync_scorecard_refs()
+
+	def _normalize_status(self):
+		status = (self.status or "Draft").strip() or "Draft"
+		if status not in REVIEWABLE_STATUSES:
+			status = "Draft"
+
+		previous = self.get_doc_before_save()
+		previous_status = (previous.status or "").strip() if previous else ""
+		can_approve = self._can_approve()
+
+		if previous and previous_status == "Approved" and not can_approve and self._has_material_change(previous):
+			status = "Pending Review"
+		elif not can_approve:
+			if status == "Approved":
+				frappe.throw("Only a manager can approve a Performance Update.")
+			if status in {"Draft", "Rejected"}:
+				status = "Pending Review"
+		elif status == "Draft":
+			status = "Pending Review"
+
+		self.status = status
+
+	def _has_material_change(self, previous):
+		fields = ("scorecard", "kpi", "target", "actual_value", "evidence")
+		return any((self.get(field) or None) != (previous.get(field) or None) for field in fields)
+
+	def _can_approve(self):
+		return bool(APPROVER_ROLES.intersection(set(frappe.get_roles())))
+
+	def _sync_scorecard_refs(self):
+		refs = {(self.scorecard, self.kpi)}
+		previous = self.get_doc_before_save()
+		if previous:
+			refs.add((previous.scorecard, previous.kpi))
+
+		for scorecard_name, kpi_name in refs:
+			if scorecard_name and kpi_name:
+				sync_scorecard_from_updates(scorecard_name, kpi_name)

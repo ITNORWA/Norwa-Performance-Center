@@ -1,5 +1,11 @@
 import frappe
 
+from performance_scorecard.performance_scorecard.utils.scorecard_sync import (
+    sync_scorecards_for_goal,
+    sync_scorecards_for_kpi,
+    sync_scorecards_for_kra,
+)
+
 
 def publish_strategy_refresh(level=None, employee=None, department=None):
     frappe.publish_realtime(
@@ -10,6 +16,8 @@ def publish_strategy_refresh(level=None, employee=None, department=None):
 
 def publish_from_goal(doc, method=None):
     from performance_scorecard.performance_scorecard.scoring_engine import ScoringEngine
+    if method != "on_trash":
+        sync_scorecards_for_goal(doc.name)
     if doc.kpa:
         ScoringEngine.update_kpa_progress(doc.kpa)
     elif doc.parent_goal:
@@ -21,6 +29,8 @@ def publish_from_goal(doc, method=None):
 
 def publish_from_kra(doc, method=None):
     from performance_scorecard.performance_scorecard.scoring_engine import ScoringEngine
+    if method != "on_trash":
+        sync_scorecards_for_kra(doc.name)
     if doc.goal:
         ScoringEngine.update_goal_progress(doc.goal)
     elif doc.parent_kra:
@@ -47,6 +57,12 @@ def publish_from_kra(doc, method=None):
 
 def publish_from_kpi(doc, method=None):
     from performance_scorecard.performance_scorecard.scoring_engine import ScoringEngine
+    previous_employee = None
+    if method == "on_update":
+        previous = doc.get_doc_before_save()
+        previous_employee = previous.employee if previous else None
+    if method != "on_trash":
+        sync_scorecards_for_kpi(doc.name, previous_employee=previous_employee, force_recalculate=True)
     if doc.kra:
         ScoringEngine.update_kra_progress(doc.kra)
 
