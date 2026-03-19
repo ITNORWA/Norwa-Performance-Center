@@ -4,10 +4,14 @@ from frappe.model.document import Document
 from performance_scorecard.performance_scorecard.utils.department_hierarchy import (
 	is_same_or_ancestor_department,
 )
+from performance_scorecard.performance_scorecard.utils.weightage import (
+	validate_weightage_allocation,
+)
 
 class KRAMaster(Document):
 	def validate(self):
 		self.validate_goal_link()
+		self.validate_weightage()
 
 	def validate_goal_link(self):
 		if not self.goal:
@@ -62,3 +66,15 @@ class KRAMaster(Document):
 		parent_kra_goal = frappe.db.get_value("KRA Master", self.parent_kra, "goal")
 		if goal.parent_goal != parent_kra_goal:
 			frappe.throw(f"Goal {self.goal} must roll up to the same Department Goal as Parent KRA {self.parent_kra}")
+
+	def validate_weightage(self):
+		if not self.goal:
+			return
+
+		validate_weightage_allocation(
+			"KRA Master",
+			{"goal": self.goal},
+			self.weightage,
+			current_name=self.name,
+			context_label=f"KRAs under Goal {self.goal}",
+		)

@@ -4,6 +4,9 @@ from frappe import _
 from frappe.utils import nowdate
 
 from performance_scorecard.performance_scorecard.scoring_engine import ScoringEngine
+from performance_scorecard.performance_scorecard.utils.weightage import (
+	get_effective_kpi_weightage,
+)
 
 class PerformanceScorecard(Document):
 	def validate(self):
@@ -102,7 +105,7 @@ class PerformanceScorecard(Document):
 				"kra": ["in", list(kra_map.keys())],
 				"employee": self.employee,
 			},
-			fields=["name", "kra", "target"],
+			fields=["name", "kra", "target", "weightage"],
 		)
 		if not kpis:
 			return
@@ -117,7 +120,8 @@ class PerformanceScorecard(Document):
 					"goal": goal_name,
 					"kra": kpi.kra,
 					"kpi": kpi.name,
-					"weightage": 0,
+					"weightage": kpi.weightage or 0,
+					"effective_weightage": get_effective_kpi_weightage(kpi.name),
 					"target": kpi.target or 0,
 				},
 			)
@@ -163,7 +167,7 @@ def add_kpi_to_active_scorecard(employee, kpi_name):
 	if frappe.db.exists("Scorecard Item", {"parent": scorecard, "kpi": kpi_name}):
 		return
 	
-	kpi_doc = frappe.db.get_value("KPI Master", kpi_name, ["kra", "target"], as_dict=True)
+	kpi_doc = frappe.db.get_value("KPI Master", kpi_name, ["kra", "target", "weightage"], as_dict=True)
 	kra_name = kpi_doc.kra if kpi_doc else None
 	goal_row = frappe.db.get_value("KRA Master", kra_name, ["goal"], as_dict=True) if kra_name else None
 	goal_name = goal_row.goal if goal_row else None
@@ -178,7 +182,8 @@ def add_kpi_to_active_scorecard(employee, kpi_name):
 			"goal": goal_name,
 			"kra": kra_name,
 			"kpi": kpi_name,
-			"weightage": 0,
+			"weightage": kpi_doc.weightage if kpi_doc else 0,
+			"effective_weightage": get_effective_kpi_weightage(kpi_name),
 			"target": kpi_doc.target if kpi_doc else 0,
 		},
 	)
@@ -302,6 +307,7 @@ def _serialize_scorecard_for_appraisal(scorecard_name):
 				"kpi": item.kpi,
 				"kpi_name": kpi_titles.get(item.kpi) or item.kpi,
 				"weightage": item.weightage,
+				"effective_weightage": item.effective_weightage,
 				"target": item.target,
 				"actual": item.actual,
 				"score": item.score,

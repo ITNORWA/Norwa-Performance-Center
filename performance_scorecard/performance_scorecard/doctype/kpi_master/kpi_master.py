@@ -4,11 +4,15 @@ from frappe.model.document import Document
 from performance_scorecard.performance_scorecard.doctype.performance_scorecard.performance_scorecard import (
 	add_kpi_to_active_scorecard,
 )
+from performance_scorecard.performance_scorecard.utils.weightage import (
+	validate_weightage_allocation,
+)
 
 class KPIMaster(Document):
 	def validate(self):
 		self.status = "Employee KPI"
 		self.validate_kra()
+		self.validate_weightage()
 
 	def validate_kra(self):
 		if not self.kra:
@@ -50,6 +54,18 @@ class KPIMaster(Document):
 		self.employee = goal_row.employee
 		if self.employee:
 			self.company = frappe.db.get_value("Employee", self.employee, "company")
+
+	def validate_weightage(self):
+		if not self.kra:
+			return
+
+		validate_weightage_allocation(
+			"KPI Master",
+			{"kra": self.kra},
+			self.weightage,
+			current_name=self.name,
+			context_label=f"KPIs under KRA {self.kra}",
+		)
 
 	def after_insert(self):
 		add_kpi_to_active_scorecard(self.employee, self.name)

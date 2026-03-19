@@ -2,6 +2,12 @@
 
 Performance management and risk tracking module built on Frappe/ERPNext. The app models company-to-employee goals, links them to KRAs/KPIs, and computes scorecards and progress rollups. It also provides strategy and risk dashboards with realtime refreshes.
 
+## Documentation
+
+Start with the end-to-end guide:
+
+- [Performance Center User Guide](docs/performance-center-user-guide.md)
+
 ## What this app includes
 
 - Goal hierarchy with validation (Company -> Department -> Employee)

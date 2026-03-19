@@ -4,6 +4,9 @@ from frappe.utils import flt
 from performance_scorecard.performance_scorecard.doctype.weekly_commitment.weekly_commitment import (
 	get_kpi_commitment_total,
 )
+from performance_scorecard.performance_scorecard.utils.weightage import (
+	get_effective_kpi_weightage,
+)
 
 
 def sync_scorecards_for_goal(goal_name):
@@ -108,7 +111,7 @@ def _get_kpi_snapshot(kpi_name):
 	kpi_row = frappe.db.get_value(
 		"KPI Master",
 		kpi_name,
-		["name", "employee", "company", "kra", "target"],
+		["name", "employee", "company", "kra", "target", "weightage"],
 		as_dict=True,
 	)
 	if not kpi_row:
@@ -128,6 +131,8 @@ def _get_kpi_snapshot(kpi_name):
 		"goal": goal_name,
 		"kpa": (goal_row or {}).get("kpa"),
 		"target": kpi_row.target,
+		"weightage": kpi_row.weightage,
+		"effective_weightage": get_effective_kpi_weightage(kpi_name),
 	}
 
 
@@ -157,7 +162,8 @@ def _sync_scorecard_for_kpi(scorecard_name, kpi_name, snapshot=None, force_recal
 				"goal": snapshot.get("goal"),
 				"kra": snapshot.get("kra"),
 				"kpi": kpi_name,
-				"weightage": 0,
+				"weightage": snapshot.get("weightage") or 0,
+				"effective_weightage": snapshot.get("effective_weightage") or 0,
 				"target": target,
 				"base_actual": base_actual,
 				"actual": actual,
@@ -170,6 +176,8 @@ def _sync_scorecard_for_kpi(scorecard_name, kpi_name, snapshot=None, force_recal
 				"kpa": snapshot.get("kpa"),
 				"goal": snapshot.get("goal"),
 				"kra": snapshot.get("kra"),
+				"weightage": snapshot.get("weightage") or 0,
+				"effective_weightage": snapshot.get("effective_weightage") or 0,
 				"target": target,
 				"base_actual": base_actual,
 				"actual": actual,
@@ -187,6 +195,7 @@ def _save_scorecard(scorecard):
 	scorecard.flags.from_performance_update = True
 	scorecard.flags.ignore_validate_update_after_submit = True
 	scorecard.save(ignore_permissions=True)
+	scorecard.db_set("overall_score", scorecard.overall_score, update_modified=False)
 
 
 def _get_score_inputs(scorecard, kpi_name, snapshot):
@@ -214,7 +223,7 @@ def _get_score_inputs(scorecard, kpi_name, snapshot):
 
 
 def _field_changed(item, fieldname, value):
-	if fieldname in {"target", "base_actual", "actual"}:
+	if fieldname in {"target", "base_actual", "actual", "weightage", "effective_weightage"}:
 		return flt(item.get(fieldname)) != flt(value)
 	return item.get(fieldname) != value
 

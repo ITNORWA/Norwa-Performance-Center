@@ -111,7 +111,7 @@ function populate_appraisal_goals(frm, scorecard) {
         const row = frm.add_child('goals');
         const title = build_goal_title(item);
         const details = build_goal_details(item);
-        const weightage = to_float(item.weightage);
+        const weightage = to_float(item.effective_weightage ?? item.weightage);
         const score_out_of_five = percent_to_five(item.score);
         const score_earned = to_float(weightage * score_out_of_five / 5);
 

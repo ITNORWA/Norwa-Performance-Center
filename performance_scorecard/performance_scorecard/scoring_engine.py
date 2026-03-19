@@ -3,6 +3,19 @@ from frappe.utils import flt
 
 class ScoringEngine:
     @staticmethod
+    def _average(values):
+        clean = [flt(value) for value in values if value is not None]
+        return (sum(clean) / len(clean)) if clean else 0
+
+    @staticmethod
+    def _weighted_or_average(weighted_pairs):
+        pairs = [(flt(value), flt(weight)) for value, weight in weighted_pairs]
+        total_weight = sum(weight for _, weight in pairs)
+        if total_weight > 0:
+            return sum(value * weight for value, weight in pairs) / total_weight
+        return ScoringEngine._average([value for value, _ in pairs])
+
+    @staticmethod
     def get_kpi_meta(kpi_name, cache=None):
         if not kpi_name:
             return {}
@@ -121,47 +134,30 @@ class ScoringEngine:
                 kpa_scores.append(kpa_score)
             overall_score = sum(kpa_scores) / len(kpa_scores) if kpa_scores else 0
         else:
-            total_score = 0
-            total_kpa_weight = 0
+            kpa_scores = []
 
             for _, kpa_data in hierarchy.items():
-                kpa_score = 0
-                total_goal_weight = 0
+                goal_scores = []
 
                 for _, goal_data in kpa_data["goals"].items():
-                    goal_score = 0
-                    total_kra_weight = 0
+                    kra_scores = []
 
                     for _, kra_data in goal_data["kras"].items():
-                        kra_score = 0
-                        total_kpi_weight = 0
+                        kra_score = ScoringEngine._weighted_or_average(
+                            [
+                                (item.score, flt(item.weightage))
+                                for item in kra_data["items"]
+                            ]
+                        )
+                        kra_scores.append((kra_score, flt(kra_data["weight"])))
 
-                        for item in kra_data["items"]:
-                            weight = flt(item.weightage) / 100.0 if item.weightage else 0
-                            kra_score += flt(item.score) * weight
-                            total_kpi_weight += flt(item.weightage)
+                    goal_score = ScoringEngine._weighted_or_average(kra_scores)
+                    goal_scores.append((goal_score, flt(goal_data["weight"])))
 
-                        if total_kpi_weight > 0:
-                            kra_score = (kra_score / total_kpi_weight) * 100
+                kpa_score = ScoringEngine._weighted_or_average(goal_scores)
+                kpa_scores.append((kpa_score, flt(kpa_data["weight"])))
 
-                        goal_score += kra_score * (kra_data["weight"] / 100.0 if kra_data["weight"] else 0)
-                        total_kra_weight += kra_data["weight"]
-
-                    if total_kra_weight > 0:
-                        goal_score = (goal_score / total_kra_weight) * 100
-
-                    goal_score_weight = goal_data["weight"] / 100.0 if goal_data["weight"] else 0
-                    kpa_score += goal_score * goal_score_weight
-                    total_goal_weight += goal_data["weight"]
-
-                if total_goal_weight > 0:
-                    kpa_score = (kpa_score / total_goal_weight) * 100
-
-                kpa_score_weight = kpa_data["weight"] / 100.0 if kpa_data["weight"] else 0
-                total_score += kpa_score * kpa_score_weight
-                total_kpa_weight += kpa_data["weight"]
-
-            overall_score = (total_score / total_kpa_weight) * 100 if total_kpa_weight > 0 else 0
+            overall_score = ScoringEngine._weighted_or_average(kpa_scores)
         scorecard_doc.overall_score = overall_score
 
         for kra_name in sorted(kra_updates):
@@ -196,9 +192,9 @@ class ScoringEngine:
         kpi_progress = 0
         if linked_kpis:
             if method == "Weighted Average":
-                total_w = sum([flt(k.weightage) for k in linked_kpis])
-                total_s = sum([flt(k.score) * flt(k.weightage) for k in linked_kpis])
-                kpi_progress = (total_s / total_w) if total_w > 0 else 0
+                kpi_progress = ScoringEngine._weighted_or_average(
+                    [(k.score, k.weightage) for k in linked_kpis]
+                )
             else:
                 kpi_progress = sum([flt(k.score) for k in linked_kpis]) / len(linked_kpis)
         
@@ -207,9 +203,9 @@ class ScoringEngine:
         
         if child_kras:
             if method == "Weighted Average":
-                total_w = sum([flt(k.weightage) for k in child_kras])
-                total_p = sum([flt(k.progress) * flt(k.weightage) for k in child_kras])
-                kra_progress = (total_p / total_w) if total_w > 0 else 0
+                kra_progress = ScoringEngine._weighted_or_average(
+                    [(k.progress, k.weightage) for k in child_kras]
+                )
             else:
                 kra_progress = sum([flt(k.progress) for k in child_kras]) / len(child_kras)
         else:
@@ -249,9 +245,9 @@ class ScoringEngine:
         goal_progress_from_kras = 0
         if linked_kras:
             if method == "Weighted Average":
-                total_weight = sum([flt(k.weightage) for k in linked_kras])
-                total_progress = sum([flt(k.progress) * flt(k.weightage) for k in linked_kras])
-                goal_progress_from_kras = (total_progress / total_weight) if total_weight > 0 else 0
+                goal_progress_from_kras = ScoringEngine._weighted_or_average(
+                    [(k.progress, k.weightage) for k in linked_kras]
+                )
             else:
                 goal_progress_from_kras = sum([flt(k.progress) for k in linked_kras]) / len(linked_kras)
             
@@ -260,9 +256,9 @@ class ScoringEngine:
         
         if child_goals:
             if method == "Weighted Average":
-                total_w = sum([flt(g.weightage) for g in child_goals])
-                total_p = sum([flt(g.progress) * flt(g.weightage) for g in child_goals])
-                goal_progress = (total_p / total_w) if total_w > 0 else 0
+                goal_progress = ScoringEngine._weighted_or_average(
+                    [(g.progress, g.weightage) for g in child_goals]
+                )
             else:
                 goal_progress = sum([flt(g.progress) for g in child_goals]) / len(child_goals)
         else:
@@ -292,9 +288,9 @@ class ScoringEngine:
         kpa_progress = 0
         if linked_goals:
             if method == "Weighted Average":
-                total_w = sum(flt(g.weightage) for g in linked_goals)
-                total_p = sum(flt(g.progress) * flt(g.weightage) for g in linked_goals)
-                kpa_progress = (total_p / total_w) if total_w > 0 else 0
+                kpa_progress = ScoringEngine._weighted_or_average(
+                    [(g.progress, g.weightage) for g in linked_goals]
+                )
             else:
                 kpa_progress = sum(flt(g.progress) for g in linked_goals) / len(linked_goals)
 

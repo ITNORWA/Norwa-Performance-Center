@@ -5,11 +5,15 @@ from performance_scorecard.performance_scorecard.utils.department_hierarchy impo
 	get_department_ancestors,
 	is_same_or_ancestor_department,
 )
+from performance_scorecard.performance_scorecard.utils.weightage import (
+	validate_weightage_allocation,
+)
 
 class GoalMaster(Document):
 	def validate(self):
 		self.normalize_defaults()
 		self.validate_hierarchy()
+		self.validate_weightage()
 
 	def normalize_defaults(self):
 		if self.owner_type == "Company":
@@ -84,6 +88,31 @@ class GoalMaster(Document):
 			self.parent_goal = kra_goal
 		elif self.parent_goal != kra_goal:
 			frappe.throw(f"Parent KRA {self.parent_kra} does not belong to Parent Goal {self.parent_goal}")
+
+	def validate_weightage(self):
+		if not self.kpa:
+			return
+
+		filters = {
+			"owner_type": self.owner_type,
+			"kpa": self.kpa,
+		}
+		context_label = f"{self.owner_type.lower()} goals under KPA {self.kpa}"
+
+		if self.owner_type == "Company" and self.company:
+			filters["company"] = self.company
+		elif self.owner_type == "Department" and self.department:
+			filters["department"] = self.department
+		elif self.owner_type == "Employee" and self.employee:
+			filters["employee"] = self.employee
+
+		validate_weightage_allocation(
+			"Goal Master",
+			filters,
+			self.weightage,
+			current_name=self.name,
+			context_label=context_label,
+		)
 
 @frappe.whitelist()
 @frappe.validate_and_sanitize_search_inputs

@@ -16,6 +16,7 @@
         "direction",
         "baseline",
         "target",
+        "weightage",
         "calculation_method",
         "column_break_1",
         "column_break_1",
@@ -83,6 +84,12 @@
             "fieldname": "target",
             "fieldtype": "Float",
             "label": "Target"
+        },
+        {
+            "fieldname": "weightage",
+            "fieldtype": "Percent",
+            "label": "Weightage",
+            "in_list_view": 1
         },
         {
             "fieldname": "calculation_method",
