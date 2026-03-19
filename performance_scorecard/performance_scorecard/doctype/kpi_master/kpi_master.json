@@ -1,5 +1,6 @@
 {
     "actions": [],
+    "allow_rename": 1,
     "autoname": "field:kpi_name",
     "creation": "2024-05-22 10:00:00.000000",
     "doctype": "DocType",
@@ -7,6 +8,7 @@
     "engine": "InnoDB",
     "field_order": [
         "kpi_name",
+        "status",
         "kra",
         "employee",
         "company",
@@ -28,6 +30,14 @@
             "label": "KPI Name",
             "reqd": 1,
             "unique": 1
+        },
+        {
+            "fieldname": "status",
+            "fieldtype": "Data",
+            "in_list_view": 1,
+            "label": "Status",
+            "read_only": 1,
+            "default": "Employee KPI"
         },
         {
             "fieldname": "kra",

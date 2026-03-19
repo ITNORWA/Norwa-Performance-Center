@@ -7,6 +7,7 @@ from performance_scorecard.performance_scorecard.doctype.performance_scorecard.p
 
 class KPIMaster(Document):
 	def validate(self):
+		self.status = "Employee KPI"
 		self.validate_kra()
 
 	def validate_kra(self):
@@ -47,7 +48,7 @@ class KPIMaster(Document):
 			frappe.throw("KPI goal must be linked to an employee.")
 
 		self.employee = goal_row.employee
-		if not self.company and self.employee:
+		if self.employee:
 			self.company = frappe.db.get_value("Employee", self.employee, "company")
 
 	def after_insert(self):
