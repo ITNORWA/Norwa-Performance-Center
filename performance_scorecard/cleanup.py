@@ -24,6 +24,35 @@ def clean_dashboard_items():
     return "Cleaned old dashboard items"
 
 
+def after_migrate():
+    ensure_scorecard_doctypes()
+    ensure_workspace_routes()
+    return "Migration hooks completed"
+
+
+def ensure_scorecard_doctypes():
+    doctypes_to_reload = [
+        ("doctype", "scorecard_kpa_summary"),
+        ("doctype", "scorecard_improvement_area"),
+        ("doctype", "scorecard_settings"),
+        ("doctype", "performance_scorecard"),
+    ]
+
+    for folder, doctype_name in doctypes_to_reload:
+        doctype_path = frappe.get_app_path(
+            "performance_scorecard",
+            "performance_scorecard",
+            folder,
+            doctype_name,
+            f"{doctype_name}.json",
+        )
+        if os.path.exists(doctype_path):
+            frappe.reload_doc("Performance Scorecard", folder, doctype_name)
+
+    frappe.db.commit()
+    return "Scorecard doctypes ensured"
+
+
 def ensure_workspace_routes():
     conflict_names = ("performance-scorecard", "Performance Scorecard", "Performance Center")
     target_name = "performance-center"
