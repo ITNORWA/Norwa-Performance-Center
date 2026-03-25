@@ -37,5 +37,8 @@ def update_scorecard_item_actual(item_name, base_actual):
 		ScoringEngine.update_kra_progress(item.kra)
 
 	scorecard_doc = frappe.get_doc("Performance Scorecard", scorecard)
+	scorecard_doc.flags.from_performance_update = True
 	scorecard_doc.overall_score = ScoringEngine.calculate_scorecard_score(scorecard_doc)
+	scorecard_doc.refresh_derived_tables()
+	scorecard_doc.save(ignore_permissions=True)
 	scorecard_doc.db_set("overall_score", scorecard_doc.overall_score, update_modified=False)

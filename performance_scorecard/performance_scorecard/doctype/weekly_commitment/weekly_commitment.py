@@ -124,7 +124,10 @@ def _apply_commitment_totals(employee, kpi, prev_total, new_total):
 		ScoringEngine.update_kra_progress(item.kra)
 
 	scorecard_doc = frappe.get_doc("Performance Scorecard", scorecard)
+	scorecard_doc.flags.from_performance_update = True
 	scorecard_doc.overall_score = ScoringEngine.calculate_scorecard_score(scorecard_doc)
+	scorecard_doc.refresh_derived_tables()
+	scorecard_doc.save(ignore_permissions=True)
 	scorecard_doc.db_set("overall_score", scorecard_doc.overall_score, update_modified=False)
 
 def _get_commitment_total_excluding(employee, kpi, commitment_name):

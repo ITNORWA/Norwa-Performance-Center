@@ -198,23 +198,14 @@ function to_float(value) {
 
 function build_goal_title(item) {
     const kpi = item.kpi_name || item.kpi || __('Unnamed KPI');
-    const kra = item.kra_name || item.kra || '';
-    const goal = item.goal_name || item.goal || '';
-
-    if (goal && kra) {
-        return `${goal} / ${kra} / ${kpi}`;
-    }
-    if (kra) {
-        return `${kra} / ${kpi}`;
-    }
-    if (goal) {
-        return `${goal} / ${kpi}`;
-    }
     return kpi;
 }
 
 function build_goal_details(item) {
     const parts = [];
+    if (item.kpa_name || item.kpa) {
+        parts.push(`KPA: ${item.kpa_name || item.kpa}`);
+    }
     if (item.goal_name || item.goal) {
         parts.push(`Goal: ${item.goal_name || item.goal}`);
     }

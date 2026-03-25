@@ -1,7 +1,7 @@
 import frappe
 from frappe.model.document import Document
 from frappe import _
-from frappe.utils import nowdate
+from frappe.utils import flt, nowdate
 
 from performance_scorecard.performance_scorecard.scoring_engine import ScoringEngine
 from performance_scorecard.performance_scorecard.utils.weightage import (
@@ -16,9 +16,14 @@ class PerformanceScorecard(Document):
 		self.populate_items_from_kpis()
 		self.check_modifications()
 		self.calculate_score()
+		self.refresh_derived_tables()
 
 	def calculate_score(self):
 		self.overall_score = ScoringEngine.calculate_scorecard_score(self)
+
+	def refresh_derived_tables(self):
+		self.refresh_kpa_summary()
+		self.refresh_improvement_areas()
 
 	def check_modifications(self):
 		if self.flags.from_performance_update:
@@ -123,6 +128,75 @@ class PerformanceScorecard(Document):
 					"weightage": kpi.weightage or 0,
 					"effective_weightage": get_effective_kpi_weightage(kpi.name),
 					"target": kpi.target or 0,
+				},
+			)
+
+	def refresh_kpa_summary(self):
+		kpa_rows = {}
+		for item in self.get("items", []):
+			if not item.kpa:
+				continue
+
+			bucket = kpa_rows.setdefault(
+				item.kpa,
+				{
+					"weighted_score": 0,
+					"effective_weightage": 0,
+					"scores": [],
+				},
+			)
+			score = flt(item.score)
+			effective_weightage = flt(item.effective_weightage)
+			bucket["weighted_score"] += score * effective_weightage
+			bucket["effective_weightage"] += effective_weightage
+			bucket["scores"].append(score)
+
+		self.set("kpa_summary", [])
+		for kpa_name, values in sorted(kpa_rows.items()):
+			total_weightage = flt(values.get("effective_weightage"))
+			scores = values.get("scores") or []
+			progress = (
+				flt(values.get("weighted_score")) / total_weightage
+				if total_weightage > 0
+				else (sum(scores) / len(scores) if scores else 0)
+			)
+			self.append(
+				"kpa_summary",
+				{
+					"kpa": kpa_name,
+					"effective_weightage": total_weightage,
+					"progress": progress,
+					"rating": _get_score_rating(progress),
+				},
+			)
+
+	def refresh_improvement_areas(self):
+		existing_notes = {
+			row.kpi: row.improvement_action
+			for row in self.get("improvement_areas", [])
+			if row.kpi and row.improvement_action
+		}
+		improvement_threshold = _get_improvement_threshold()
+		directions = _get_kpi_directions([item.kpi for item in self.get("items", [])])
+
+		self.set("improvement_areas", [])
+		for item in self.get("items", []):
+			score = flt(item.score)
+			if not item.kpi or score >= improvement_threshold:
+				continue
+
+			self.append(
+				"improvement_areas",
+				{
+					"kpa": item.kpa,
+					"goal": item.goal,
+					"kra": item.kra,
+					"kpi": item.kpi,
+					"target": flt(item.target),
+					"actual": flt(item.actual),
+					"score": score,
+					"gap": _get_performance_gap(item, directions.get(item.kpi)),
+					"improvement_action": existing_notes.get(item.kpi),
 				},
 			)
 
@@ -286,6 +360,7 @@ def _serialize_scorecard_for_appraisal(scorecard_name):
 	scorecard = frappe.get_doc("Performance Scorecard", scorecard_name)
 	goal_titles = _get_link_titles("Goal Master", [item.goal for item in scorecard.items], "goal_name")
 	kra_titles = _get_link_titles("KRA Master", [item.kra for item in scorecard.items], "kra_name")
+	kpa_titles = _get_link_titles("KPA Master", [item.kpa for item in scorecard.items], "kpa_name")
 	kpi_titles = _get_link_titles("KPI Master", [item.kpi for item in scorecard.items], "kpi_name")
 
 	return {
@@ -300,6 +375,7 @@ def _serialize_scorecard_for_appraisal(scorecard_name):
 		"items": [
 			{
 				"kpa": item.kpa,
+				"kpa_name": kpa_titles.get(item.kpa) or item.kpa,
 				"goal": item.goal,
 				"goal_name": goal_titles.get(item.goal) or item.goal,
 				"kra": item.kra,
@@ -330,3 +406,52 @@ def get_appraisal_scorecard_payload(employee, appraisal_start_date=None, apprais
 		return None
 
 	return _serialize_scorecard_for_appraisal(scorecard_name)
+
+
+def _get_improvement_threshold():
+	default_threshold = 40
+	try:
+		if frappe.db.exists("DocType", "Scorecard Settings"):
+			value = frappe.db.get_single_value("Scorecard Settings", "improvement_threshold")
+			if value is not None:
+				return flt(value)
+	except Exception:
+		return default_threshold
+	return default_threshold
+
+
+def _get_score_rating(score):
+	score = flt(score)
+	critical = 50
+	warning = 75
+
+	try:
+		if frappe.db.exists("DocType", "Performance Settings"):
+			critical = flt(frappe.db.get_single_value("Performance Settings", "critical_threshold") or critical)
+			warning = flt(frappe.db.get_single_value("Performance Settings", "warning_threshold") or warning)
+	except Exception:
+		pass
+
+	if score < critical:
+		return "Off Track"
+	if score < warning:
+		return "At Risk"
+	return "On Track"
+
+
+def _get_kpi_directions(kpi_names):
+	kpi_names = [kpi for kpi in set(kpi_names or []) if kpi]
+	if not kpi_names:
+		return {}
+	rows = frappe.get_all("KPI Master", filters={"name": ["in", kpi_names]}, fields=["name", "direction"])
+	return {row.name: (row.direction or "Increase") for row in rows}
+
+
+def _get_performance_gap(item, direction=None):
+	target = flt(item.target)
+	actual = flt(item.actual)
+	direction = (direction or "Increase").lower()
+
+	if direction == "decrease":
+		return max(actual - target, 0)
+	return max(target - actual, 0)

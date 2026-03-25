@@ -6,7 +6,8 @@
     "engine": "InnoDB",
     "field_order": [
         "rating_scale",
-        "update_frequency"
+        "update_frequency",
+        "improvement_threshold"
     ],
     "fields": [
         {
@@ -22,6 +23,13 @@
             "label": "Update Frequency",
             "options": "Weekly\nMonthly\nQuarterly",
             "default": "Monthly"
+        },
+        {
+            "default": "40",
+            "fieldname": "improvement_threshold",
+            "fieldtype": "Percent",
+            "label": "Improvement Threshold (<)",
+            "description": "KPIs scoring below this value appear in Areas of Improvement."
         }
     ],
     "index_web_pages_for_search": 1,

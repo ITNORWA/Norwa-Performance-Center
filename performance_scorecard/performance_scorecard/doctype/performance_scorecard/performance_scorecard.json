@@ -16,7 +16,11 @@
         "overall_score",
         "status",
         "section_break_2",
-        "items"
+        "items",
+        "section_break_3",
+        "kpa_summary",
+        "section_break_4",
+        "improvement_areas"
     ],
     "fields": [
         {
@@ -86,6 +90,29 @@
             "fieldtype": "Table",
             "label": "Items",
             "options": "Scorecard Item"
+        },
+        {
+            "fieldname": "section_break_3",
+            "fieldtype": "Section Break",
+            "label": "KPA Summary"
+        },
+        {
+            "fieldname": "kpa_summary",
+            "fieldtype": "Table",
+            "label": "KPA Summary",
+            "options": "Scorecard KPA Summary",
+            "read_only": 1
+        },
+        {
+            "fieldname": "section_break_4",
+            "fieldtype": "Section Break",
+            "label": "Areas of Improvement"
+        },
+        {
+            "fieldname": "improvement_areas",
+            "fieldtype": "Table",
+            "label": "Areas of Improvement",
+            "options": "Scorecard Improvement Area"
         }
     ],
     "index_web_pages_for_search": 1,
