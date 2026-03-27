@@ -1,7 +1,7 @@
 frappe.ui.form.on('Appraisal', {
     refresh: function (frm) {
-        frm.remove_custom_button(__('Fetch Scorecard'), __('Actions'));
-        frm.remove_custom_button(__('View Scorecard Tree'), __('Actions'));
+        remove_custom_button_safe(frm, __('Fetch Scorecard'), __('Actions'));
+        remove_custom_button_safe(frm, __('View Scorecard Tree'), __('Actions'));
 
         if (frm.doc.employee && frm.doc.docstatus === 0) {
             frm.add_custom_button(__('Fetch Scorecard'), function () {
@@ -14,6 +14,21 @@ frappe.ui.form.on('Appraisal', {
         }
     }
 });
+
+function remove_custom_button_safe(frm, label, group) {
+    try {
+        frm.remove_custom_button(label, group);
+        return;
+    } catch (error) {
+        // Some Frappe builds throw here for grouped buttons; fall back without blocking refresh.
+    }
+
+    try {
+        frm.remove_custom_button(label);
+    } catch (error) {
+        // Ignore cleanup failures so the add_custom_button path can still run.
+    }
+}
 
 async function fetch_scorecard_into_appraisal(frm) {
     try {
